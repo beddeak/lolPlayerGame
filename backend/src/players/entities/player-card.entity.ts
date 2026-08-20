@@ -29,7 +29,10 @@ export class PlayerCard {
     nullable: false,
     onDelete: 'RESTRICT',
   })
-  @JoinColumn({ name: 'playerId' })
+  @JoinColumn({
+    name: 'playerId',
+    foreignKeyConstraintName: 'FK_player_cards_player',
+  })
   player!: Player;
 
   @Index('IDX_player_cards_theme_id')
@@ -40,7 +43,10 @@ export class PlayerCard {
     nullable: false,
     onDelete: 'RESTRICT',
   })
-  @JoinColumn({ name: 'themeId' })
+  @JoinColumn({
+    name: 'themeId',
+    foreignKeyConstraintName: 'FK_player_cards_theme',
+  })
   theme!: Theme;
 
   @Column({ type: 'smallint', unsigned: true })

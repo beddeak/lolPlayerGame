@@ -3,32 +3,34 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import { validateEnvironment } from './config/environment.validation';
 import { PlayersModule } from './players/players.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
+      validate: validateEnvironment,
     }),
 
     TypeOrmModule.forRootAsync({
       inject: [ConfigService],
-      useFactory: (configService: ConfigService) => ({
-        type: 'mysql',
+      useFactory: (configService: ConfigService) => {
+        const useSsl = configService.getOrThrow<string>('DB_SSL') === 'true';
 
-        host: configService.get<string>('DB_HOST'),
-        port: Number(configService.get<string>('DB_PORT')),
-        username: configService.get<string>('DB_USERNAME'),
-        password: configService.get<string>('DB_PASSWORD'),
-        database: configService.get<string>('DB_DATABASE'),
-
-        autoLoadEntities: true,
-        synchronize: true,
-
-        ssl: {
-          rejectUnauthorized: false,
-        },
-      }),
+        return {
+          type: 'mysql',
+          host: configService.getOrThrow<string>('DB_HOST'),
+          port: configService.getOrThrow<number>('DB_PORT'),
+          username: configService.getOrThrow<string>('DB_USERNAME'),
+          password: configService.getOrThrow<string>('DB_PASSWORD'),
+          database: configService.getOrThrow<string>('DB_DATABASE'),
+          autoLoadEntities: true,
+          migrationsRun: false,
+          ssl: useSsl ? { rejectUnauthorized: true } : undefined,
+          synchronize: false,
+        };
+      },
     }),
 
     PlayersModule,
