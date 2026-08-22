@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 640">
+  <rect width="480" height="640" rx="36" fill="#071a33"/>
+  <circle cx="240" cy="242" r="132" fill="#2563eb"/>
+  <circle cx="240" cy="206" r="55" fill="#dbeafe"/>
+  <path d="M132 392c16-78 66-118 108-118s92 40 108 118" fill="#dbeafe"/>
+  <text x="240" y="490" text-anchor="middle" fill="#fff" font-family="Arial" font-size="48" font-weight="700">JUNGLE</text>
+  <text x="240" y="550" text-anchor="middle" fill="#93c5fd" font-family="Arial" font-size="28">DEV BLUE</text>
+</svg>
+

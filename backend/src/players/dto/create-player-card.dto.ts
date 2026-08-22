@@ -1,7 +1,20 @@
-import { IsEnum, IsInt, IsPositive, Max, Min } from 'class-validator';
 import {
+  IsEnum,
+  IsInt,
+  IsOptional,
+  IsPositive,
+  IsString,
+  Max,
+  MaxLength,
+  Min,
+} from 'class-validator';
+import {
+  PLAYER_CARD_STARTING_AGE_MAX,
+  PLAYER_CARD_STARTING_AGE_MIN,
   PLAYER_CARD_STAT_MAX,
   PLAYER_CARD_STAT_MIN,
+  PLAYER_CARD_YEAR_MAX,
+  PLAYER_CARD_YEAR_MIN,
 } from '../constants/player-card.constants';
 import { Position } from '../enums/position.enum';
 
@@ -16,11 +29,20 @@ export class CreatePlayerCardDto {
 
   @IsInt()
   @IsPositive()
+  @Min(PLAYER_CARD_YEAR_MIN)
+  @Max(PLAYER_CARD_YEAR_MAX)
   cardYear!: number;
 
   @IsInt()
   @IsPositive()
+  @Min(PLAYER_CARD_STARTING_AGE_MIN)
+  @Max(PLAYER_CARD_STARTING_AGE_MAX)
   startingAge!: number;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  imageUrl?: string;
 
   @IsEnum(Position)
   mainPosition!: Position;

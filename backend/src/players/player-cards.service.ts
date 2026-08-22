@@ -128,6 +128,7 @@ export class PlayerCardsService {
       themeId: playerCard.themeId,
       cardYear: playerCard.cardYear,
       startingAge: playerCard.startingAge,
+      imageUrl: playerCard.imageUrl,
       mainPosition: playerCard.mainPosition,
       mechanics: playerCard.mechanics,
       gameSense: playerCard.gameSense,

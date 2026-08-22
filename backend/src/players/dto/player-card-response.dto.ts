@@ -8,6 +8,7 @@ export class PlayerCardResponseDto {
   themeId!: number;
   cardYear!: number;
   startingAge!: number;
+  imageUrl!: string | null;
   mainPosition!: Position;
   mechanics!: number;
   gameSense!: number;

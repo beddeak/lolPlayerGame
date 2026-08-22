@@ -1,0 +1,206 @@
+import {
+  BadRequestException,
+  ConflictException,
+  NotFoundException,
+} from '@nestjs/common';
+import { getRepositoryToken } from '@nestjs/typeorm';
+import { Test, TestingModule } from '@nestjs/testing';
+import { DataSource } from 'typeorm';
+import { PlayerCard } from '../players/entities/player-card.entity';
+import { Position } from '../players/enums/position.enum';
+import { CareersService } from './careers.service';
+import { CreateCareerDto } from './dto/create-career.dto';
+import { CareerPlayer } from './entities/career-player.entity';
+import { CareerTeam } from './entities/career-team.entity';
+import { Career } from './entities/career.entity';
+import { Roster } from './entities/roster.entity';
+import { Region } from './enums/region.enum';
+
+describe('CareersService', () => {
+  type SaveableEntity = { id?: number };
+
+  const careersRepository = {
+    findOne: jest.fn(),
+  };
+  const entityManager = {
+    find: jest.fn(
+      (_entity: unknown, _options: unknown): Promise<PlayerCard[]> => {
+        void _entity;
+        void _options;
+        return Promise.resolve([]);
+      },
+    ),
+    create: jest.fn((_entity: unknown, value: Record<string, unknown>) => ({
+      ...value,
+    })),
+    save: jest.fn(
+      (
+        _entity: unknown,
+        value: SaveableEntity | SaveableEntity[],
+      ): Promise<SaveableEntity | SaveableEntity[]> => Promise.resolve(value),
+    ),
+  };
+  const dataSource = {
+    transaction: jest.fn(
+      (
+        work: (manager: typeof entityManager) => Promise<unknown>,
+      ): Promise<unknown> => work(entityManager),
+    ),
+  };
+  const positions = Object.values(Position);
+  const playerCards: PlayerCard[] = Array.from({ length: 10 }, (_, index) => {
+    const position = positions[index % positions.length];
+
+    return {
+      id: index + 1,
+      playerId: index + 101,
+      themeId: 1,
+      cardYear: 2026,
+      startingAge: 18 + index,
+      imageUrl: `/player-cards/player-${index + 1}.svg`,
+      mainPosition: position,
+      mechanics: 80 + index,
+      gameSense: 81,
+      laning: 82,
+      teamFight: 83,
+      macro: 84,
+      teamPlay: 85,
+      mental: 86,
+      championPool: 87,
+      potential: 99,
+      player: {
+        id: index + 101,
+        nickname: `Player ${index + 1}`,
+        nationality: 'KR',
+        playerCards: [],
+      },
+      theme: {
+        id: 1,
+        code: 'CURRENT_2026',
+        name: '2026 Current',
+        description: null,
+        playerCards: [],
+      },
+    };
+  });
+
+  let service: CareersService;
+  let dto: CreateCareerDto;
+
+  beforeEach(async () => {
+    jest.clearAllMocks();
+
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        CareersService,
+        { provide: DataSource, useValue: dataSource },
+        {
+          provide: getRepositoryToken(Career),
+          useValue: careersRepository,
+        },
+      ],
+    }).compile();
+
+    service = module.get<CareersService>(CareersService);
+    dto = {
+      startYear: 2026,
+      managedTeamCode: 'TEAM_A',
+      teams: [
+        {
+          code: 'TEAM_A',
+          name: 'Team A',
+          region: Region.LCK,
+          starters: positions.map((position, index) => ({
+            playerCardId: index + 1,
+            position,
+          })),
+        },
+        {
+          code: 'TEAM_B',
+          name: 'Team B',
+          region: Region.LPL,
+          starters: positions.map((position, index) => ({
+            playerCardId: index + 6,
+            position,
+          })),
+        },
+      ],
+    };
+
+    entityManager.find.mockResolvedValue(playerCards);
+    entityManager.save.mockImplementation((entity, value) => {
+      const values = Array.isArray(value) ? value : [value];
+      const firstId =
+        entity === Career
+          ? 1
+          : entity === CareerTeam
+            ? 11
+            : entity === CareerPlayer
+              ? 101
+              : entity === Roster
+                ? 201
+                : 301;
+
+      values.forEach((item, index) => {
+        item.id = firstId + index;
+      });
+
+      return Promise.resolve(Array.isArray(value) ? values : values[0]);
+    });
+  });
+
+  it('creates a 2026 career with two complete starting rosters', async () => {
+    const result = await service.create(dto);
+
+    expect(result.startYear).toBe(2026);
+    expect(result.currentYear).toBe(2026);
+    expect(result.teams).toHaveLength(2);
+    expect(result.teams[0].isUserControlled).toBe(true);
+    expect(result.teams[1].isUserControlled).toBe(false);
+    expect(
+      result.teams[0].starters.map((starter) => starter.starterPosition),
+    ).toEqual(positions);
+    expect(result.teams[0].starters[0].careerPlayer.currentMechanics).toBe(
+      playerCards[0].mechanics,
+    );
+    expect(
+      result.teams[0].starters[0].careerPlayer.roleProficiencies,
+    ).toHaveLength(4);
+    expect(
+      result.teams[0].starters[0].careerPlayer.playerCard,
+    ).not.toHaveProperty('potential');
+    expect(dataSource.transaction).toHaveBeenCalledTimes(1);
+  });
+
+  it('rejects a PlayerCard used by more than one team', async () => {
+    dto.teams[1].starters[0].playerCardId =
+      dto.teams[0].starters[0].playerCardId;
+
+    await expect(service.create(dto)).rejects.toBeInstanceOf(ConflictException);
+    expect(dataSource.transaction).not.toHaveBeenCalled();
+  });
+
+  it('rejects a team without exactly one starter per position', async () => {
+    dto.teams[0].starters[4].position = Position.ADC;
+
+    await expect(service.create(dto)).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
+    expect(dataSource.transaction).not.toHaveBeenCalled();
+  });
+
+  it('rejects an unknown managed team', async () => {
+    dto.managedTeamCode = 'UNKNOWN';
+
+    await expect(service.create(dto)).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
+  });
+
+  it('rolls back creation when a requested PlayerCard does not exist', async () => {
+    entityManager.find.mockResolvedValue(playerCards.slice(0, -1));
+
+    await expect(service.create(dto)).rejects.toBeInstanceOf(NotFoundException);
+    expect(entityManager.save).not.toHaveBeenCalled();
+  });
+});

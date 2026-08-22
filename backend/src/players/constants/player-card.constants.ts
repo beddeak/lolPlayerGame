@@ -1,2 +1,6 @@
+export const PLAYER_CARD_YEAR_MIN = 1900;
+export const PLAYER_CARD_YEAR_MAX = 9999;
+export const PLAYER_CARD_STARTING_AGE_MIN = 16;
+export const PLAYER_CARD_STARTING_AGE_MAX = 40;
 export const PLAYER_CARD_STAT_MIN = 0;
-export const PLAYER_CARD_STAT_MAX = 100;
+export const PLAYER_CARD_STAT_MAX = 999;

@@ -38,9 +38,10 @@ describe('PlayerCardsService', () => {
   const dto: CreatePlayerCardDto = {
     playerId: player.id,
     themeId: theme.id,
-    cardYear: 2013,
+    cardYear: 2021,
     startingAge: 17,
-    mainPosition: Position.MID,
+    imageUrl: '/player-cards/test-player.svg',
+    mainPosition: Position.ADC,
     mechanics: 90,
     gameSense: 90,
     laning: 90,

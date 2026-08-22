@@ -55,6 +55,9 @@ export class PlayerCard {
   @Column({ type: 'tinyint', unsigned: true })
   startingAge!: number;
 
+  @Column({ type: 'varchar', length: 500, nullable: true })
+  imageUrl!: string | null;
+
   @Column({ type: 'enum', enum: Position })
   mainPosition!: Position;
 
