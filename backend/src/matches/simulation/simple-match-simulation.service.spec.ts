@@ -35,6 +35,7 @@ describe('SimpleMatchSimulationService', () => {
     teamId,
     teamCode,
     teamStrategy: TeamStrategy.BALANCED,
+    strategyProficiency: 50,
     players: Array.from(
       { length: SIMPLE_MATCH_CONFIG.requiredStarterCount },
       (_, index) => createPlayer(ability, index),
@@ -50,15 +51,35 @@ describe('SimpleMatchSimulationService', () => {
   });
 
   it('reproduces exactly the same match with the same seed', () => {
-    const firstResult = service.simulate(teamA, teamB, 12345);
-    const secondResult = service.simulate(teamA, teamB, 12345);
+    const firstResult = service.simulate(
+      teamA,
+      teamB,
+      12345,
+      TeamStrategy.BALANCED,
+    );
+    const secondResult = service.simulate(
+      teamA,
+      teamB,
+      12345,
+      TeamStrategy.BALANCED,
+    );
 
     expect(secondResult).toEqual(firstResult);
   });
 
   it('changes the RNG result when the seed changes', () => {
-    const firstResult = service.simulate(teamA, teamB, 1);
-    const secondResult = service.simulate(teamA, teamB, 2);
+    const firstResult = service.simulate(
+      teamA,
+      teamB,
+      1,
+      TeamStrategy.BALANCED,
+    );
+    const secondResult = service.simulate(
+      teamA,
+      teamB,
+      2,
+      TeamStrategy.BALANCED,
+    );
 
     expect(secondResult.teams).not.toEqual(firstResult.teams);
   });
@@ -78,6 +99,7 @@ describe('SimpleMatchSimulationService', () => {
       teamId: 3,
       teamCode: 'VARIED',
       teamStrategy: TeamStrategy.BALANCED,
+      strategyProficiency: 50,
       players: Array.from(
         { length: SIMPLE_MATCH_CONFIG.requiredStarterCount },
         (_, index) => ({
@@ -90,13 +112,18 @@ describe('SimpleMatchSimulationService', () => {
       ),
     };
 
-    const result = service.simulate(variedTeam, teamB, 7);
+    const result = service.simulate(
+      variedTeam,
+      teamB,
+      7,
+      TeamStrategy.BALANCED,
+    );
 
     expect(result.teams[0].baseAbility).toBe(45);
   });
 
   it('keeps the RNG modifier inside the configured range', () => {
-    const result = service.simulate(teamA, teamB, 999);
+    const result = service.simulate(teamA, teamB, 999, TeamStrategy.BALANCED);
 
     for (const teamResult of result.teams) {
       expect(teamResult.rngModifier).toBeGreaterThanOrEqual(
@@ -112,7 +139,12 @@ describe('SimpleMatchSimulationService', () => {
     const strongTeam = createTeam(3, 'STRONG', 100);
     const weakTeam = createTeam(4, 'WEAK', 0);
 
-    const result = service.simulate(strongTeam, weakTeam, 42);
+    const result = service.simulate(
+      strongTeam,
+      weakTeam,
+      42,
+      TeamStrategy.BALANCED,
+    );
 
     expect(result.winnerTeamId).toBe(strongTeam.teamId);
   });
@@ -133,7 +165,12 @@ describe('SimpleMatchSimulationService', () => {
       teamCode: 'TOP_CARRY_TEAM',
       teamStrategy: TeamStrategy.TOP_CARRY,
     };
-    const result = service.simulate(balancedTeam, topCarryTeam, 50);
+    const result = service.simulate(
+      balancedTeam,
+      topCarryTeam,
+      50,
+      TeamStrategy.BALANCED,
+    );
 
     expect(result.teams[1].baseAbility).toBeGreaterThan(
       result.teams[0].baseAbility,
@@ -159,6 +196,7 @@ describe('SimpleMatchSimulationService', () => {
       lowProficiencyTeam,
       highProficiencyTeam,
       51,
+      TeamStrategy.BALANCED,
     );
 
     expect(result.teams[1].baseAbility).toBeGreaterThan(
@@ -172,8 +210,34 @@ describe('SimpleMatchSimulationService', () => {
       players: teamA.players.slice(0, -1),
     };
 
-    expect(() => service.simulate(incompleteTeam, teamB, 42)).toThrow(
-      RangeError,
+    expect(() =>
+      service.simulate(incompleteTeam, teamB, 42, TeamStrategy.BALANCED),
+    ).toThrow(RangeError);
+  });
+
+  it('rewards meta fit but lets low proficiency outweigh the bonus', () => {
+    const metaTeam = createTeam(9, 'META_LOW', 70);
+    const practicedTeam = createTeam(10, 'PRACTICED', 70);
+
+    metaTeam.teamStrategy = TeamStrategy.BOT_CARRY;
+    metaTeam.strategyProficiency = 0;
+    practicedTeam.teamStrategy = TeamStrategy.BALANCED;
+    practicedTeam.strategyProficiency = 100;
+
+    const result = service.simulate(
+      metaTeam,
+      practicedTeam,
+      52,
+      TeamStrategy.BOT_CARRY,
+    );
+
+    expect(result.currentMeta).toBe(TeamStrategy.BOT_CARRY);
+    expect(result.teams[0].metaModifier).toBe(3);
+    expect(result.teams[0].strategyProficiencyModifier).toBe(-8);
+    expect(result.teams[1].metaModifier).toBe(0);
+    expect(result.teams[1].strategyProficiencyModifier).toBe(4);
+    expect(result.teams[1].performance).toBeGreaterThan(
+      result.teams[0].performance,
     );
   });
 });

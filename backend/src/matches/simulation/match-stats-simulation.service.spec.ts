@@ -13,6 +13,7 @@ describe('MatchStatsSimulationService', () => {
     teamId,
     teamCode,
     teamStrategy: TeamStrategy.BALANCED,
+    strategyProficiency: 50,
     players: STARTER_POSITIONS.map((position, index) => ({
       careerPlayerId: teamId * 100 + index,
       position,
@@ -40,7 +41,12 @@ describe('MatchStatsSimulationService', () => {
   });
 
   it('reproduces the same player stats with the same seed', () => {
-    const matchResult = matchSimulationService.simulate(teamA, teamB, 12345);
+    const matchResult = matchSimulationService.simulate(
+      teamA,
+      teamB,
+      12345,
+      TeamStrategy.BALANCED,
+    );
     const firstResult = statsSimulationService.simulate(
       teamA,
       teamB,
@@ -58,7 +64,12 @@ describe('MatchStatsSimulationService', () => {
   });
 
   it('keeps team kills and opponent deaths consistent', () => {
-    const matchResult = matchSimulationService.simulate(teamA, teamB, 77);
+    const matchResult = matchSimulationService.simulate(
+      teamA,
+      teamB,
+      77,
+      TeamStrategy.BALANCED,
+    );
     const result = statsSimulationService.simulate(
       teamA,
       teamB,
@@ -85,7 +96,12 @@ describe('MatchStatsSimulationService', () => {
   });
 
   it('calculates damage and gold shares near one hundred percent', () => {
-    const matchResult = matchSimulationService.simulate(teamA, teamB, 88);
+    const matchResult = matchSimulationService.simulate(
+      teamA,
+      teamB,
+      88,
+      TeamStrategy.BALANCED,
+    );
     const result = statsSimulationService.simulate(
       teamA,
       teamB,
@@ -109,7 +125,12 @@ describe('MatchStatsSimulationService', () => {
   });
 
   it('makes GD@15 and CSD@15 zero-sum for each position', () => {
-    const matchResult = matchSimulationService.simulate(teamA, teamB, 99);
+    const matchResult = matchSimulationService.simulate(
+      teamA,
+      teamB,
+      99,
+      TeamStrategy.BALANCED,
+    );
     const result = statsSimulationService.simulate(
       teamA,
       teamB,
@@ -131,7 +152,12 @@ describe('MatchStatsSimulationService', () => {
   });
 
   it('keeps KP and Rating inside their display ranges', () => {
-    const matchResult = matchSimulationService.simulate(teamA, teamB, 100);
+    const matchResult = matchSimulationService.simulate(
+      teamA,
+      teamB,
+      100,
+      TeamStrategy.BALANCED,
+    );
     const result = statsSimulationService.simulate(
       teamA,
       teamB,

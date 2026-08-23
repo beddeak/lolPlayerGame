@@ -9,6 +9,7 @@ import {
   Unique,
 } from 'typeorm';
 import { CareerPlayer } from './career-player.entity';
+import { CareerTeamStrategyProficiency } from './career-team-strategy-proficiency.entity';
 import { Career } from './career.entity';
 import { Roster } from './roster.entity';
 import { Region } from '../enums/region.enum';
@@ -58,4 +59,10 @@ export class CareerTeam {
 
   @OneToMany(() => Roster, (roster) => roster.careerTeam)
   rosters!: Roster[];
+
+  @OneToMany(
+    () => CareerTeamStrategyProficiency,
+    (strategyProficiency) => strategyProficiency.careerTeam,
+  )
+  strategyProficiencies!: CareerTeamStrategyProficiency[];
 }

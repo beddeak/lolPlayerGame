@@ -8,6 +8,7 @@ import { CareersService } from './careers.service';
 import { CareerPlayer } from './entities/career-player.entity';
 import { CareerPlayerRoleProficiency } from './entities/career-player-role-proficiency.entity';
 import { CareerTeam } from './entities/career-team.entity';
+import { CareerTeamStrategyProficiency } from './entities/career-team-strategy-proficiency.entity';
 import { Career } from './entities/career.entity';
 import { Roster } from './entities/roster.entity';
 
@@ -16,6 +17,7 @@ import { Roster } from './entities/roster.entity';
     TypeOrmModule.forFeature([
       Career,
       CareerTeam,
+      CareerTeamStrategyProficiency,
       CareerPlayer,
       CareerPlayerRoleProficiency,
       Roster,

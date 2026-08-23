@@ -84,6 +84,15 @@ export class Match {
   })
   teamAStrategy!: TeamStrategy;
 
+  @Column({ type: 'tinyint', unsigned: true, default: 50 })
+  teamAStrategyProficiency!: number;
+
+  @Column({ type: 'double', default: 0 })
+  teamAStrategyProficiencyModifier!: number;
+
+  @Column({ type: 'double', default: 0 })
+  teamAMetaModifier!: number;
+
   @Column({ type: 'double' })
   teamBBaseAbility!: number;
 
@@ -99,6 +108,22 @@ export class Match {
     default: TeamStrategy.BALANCED,
   })
   teamBStrategy!: TeamStrategy;
+
+  @Column({ type: 'tinyint', unsigned: true, default: 50 })
+  teamBStrategyProficiency!: number;
+
+  @Column({ type: 'double', default: 0 })
+  teamBStrategyProficiencyModifier!: number;
+
+  @Column({ type: 'double', default: 0 })
+  teamBMetaModifier!: number;
+
+  @Column({
+    type: 'enum',
+    enum: TeamStrategy,
+    default: TeamStrategy.BALANCED,
+  })
+  currentMeta!: TeamStrategy;
 
   @CreateDateColumn({
     type: 'timestamp',

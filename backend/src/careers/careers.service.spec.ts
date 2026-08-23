@@ -12,15 +12,19 @@ import { CareersService } from './careers.service';
 import { CreateCareerDto } from './dto/create-career.dto';
 import { CareerPlayer } from './entities/career-player.entity';
 import { CareerTeam } from './entities/career-team.entity';
+import { CareerTeamStrategyProficiency } from './entities/career-team-strategy-proficiency.entity';
 import { Career } from './entities/career.entity';
 import { Roster } from './entities/roster.entity';
 import { Region } from './enums/region.enum';
+import { TeamStrategy } from './enums/team-strategy.enum';
 
 describe('CareersService', () => {
   type SaveableEntity = { id?: number };
 
   const careersRepository = {
     findOne: jest.fn(),
+    findOneBy: jest.fn(),
+    save: jest.fn(),
   };
   const entityManager = {
     find: jest.fn(
@@ -89,6 +93,9 @@ describe('CareersService', () => {
 
   beforeEach(async () => {
     jest.clearAllMocks();
+    careersRepository.save.mockImplementation((career: Career) =>
+      Promise.resolve(career),
+    );
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -139,7 +146,9 @@ describe('CareersService', () => {
               ? 101
               : entity === Roster
                 ? 201
-                : 301;
+                : entity === CareerTeamStrategyProficiency
+                  ? 301
+                  : 401;
 
       values.forEach((item, index) => {
         item.id = firstId + index;
@@ -154,6 +163,7 @@ describe('CareersService', () => {
 
     expect(result.startYear).toBe(2026);
     expect(result.currentYear).toBe(2026);
+    expect(result.currentMeta).toBe(TeamStrategy.BALANCED);
     expect(result.teams).toHaveLength(2);
     expect(result.teams[0].isUserControlled).toBe(true);
     expect(result.teams[1].isUserControlled).toBe(false);
@@ -166,6 +176,12 @@ describe('CareersService', () => {
     expect(
       result.teams[0].starters[0].careerPlayer.roleProficiencies,
     ).toHaveLength(4);
+    expect(result.teams[0].strategyProficiencies).toHaveLength(8);
+    expect(
+      result.teams[0].strategyProficiencies.every(
+        ({ proficiency }) => proficiency === 50,
+      ),
+    ).toBe(true);
     expect(
       result.teams[0].starters[0].careerPlayer.playerCard,
     ).not.toHaveProperty('potential');
@@ -202,5 +218,35 @@ describe('CareersService', () => {
 
     await expect(service.create(dto)).rejects.toBeInstanceOf(NotFoundException);
     expect(entityManager.save).not.toHaveBeenCalled();
+  });
+
+  it('updates the current career meta', async () => {
+    careersRepository.findOneBy.mockResolvedValue({
+      id: 1,
+      startYear: 2026,
+      currentYear: 2026,
+      currentMeta: TeamStrategy.BALANCED,
+    });
+
+    const result = await service.updateMeta(1, {
+      meta: TeamStrategy.BOT_CARRY,
+    });
+
+    expect(result).toEqual({
+      careerId: 1,
+      currentMeta: TeamStrategy.BOT_CARRY,
+    });
+    expect(careersRepository.save).toHaveBeenCalledWith(
+      expect.objectContaining({ currentMeta: TeamStrategy.BOT_CARRY }),
+    );
+  });
+
+  it('rejects a meta update for an unknown career', async () => {
+    careersRepository.findOneBy.mockResolvedValue(null);
+
+    await expect(
+      service.updateMeta(999, { meta: TeamStrategy.BOT_CARRY }),
+    ).rejects.toBeInstanceOf(NotFoundException);
+    expect(careersRepository.save).not.toHaveBeenCalled();
   });
 });

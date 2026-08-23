@@ -26,6 +26,7 @@ export interface SimpleMatchTeamInput {
   teamId: number;
   teamCode: string;
   teamStrategy: TeamStrategy;
+  strategyProficiency: number;
   players: SimpleMatchPlayerInput[];
 }
 
@@ -33,6 +34,9 @@ export interface SimpleMatchTeamResult {
   teamId: number;
   teamCode: string;
   teamStrategy: TeamStrategy;
+  strategyProficiency: number;
+  strategyProficiencyModifier: number;
+  metaModifier: number;
   baseAbility: number;
   rngModifier: number;
   performance: number;
@@ -40,6 +44,7 @@ export interface SimpleMatchTeamResult {
 
 export interface SimpleMatchSimulationResult {
   seed: number;
+  currentMeta: TeamStrategy;
   winnerTeamId: number;
   winnerTeamCode: string;
   teams: [SimpleMatchTeamResult, SimpleMatchTeamResult];

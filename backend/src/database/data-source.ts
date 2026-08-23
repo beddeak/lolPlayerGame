@@ -4,6 +4,7 @@ import { DataSource } from 'typeorm';
 import { CareerPlayer } from '../careers/entities/career-player.entity';
 import { CareerPlayerRoleProficiency } from '../careers/entities/career-player-role-proficiency.entity';
 import { CareerTeam } from '../careers/entities/career-team.entity';
+import { CareerTeamStrategyProficiency } from '../careers/entities/career-team-strategy-proficiency.entity';
 import { Career } from '../careers/entities/career.entity';
 import { Roster } from '../careers/entities/roster.entity';
 import { validateEnvironment } from '../config/environment.validation';
@@ -17,6 +18,7 @@ import { AddPlayerCardImageUrl1787414400000 } from './migrations/1787414400000-a
 import { CreateMatchStats1787418000000 } from './migrations/1787418000000-create-match-stats';
 import { AddTeamStrategy1787421600000 } from './migrations/1787421600000-add-team-strategy';
 import { AddPlayerInstructionRoleProficiency1787425200000 } from './migrations/1787425200000-add-player-instruction-role-proficiency';
+import { AddMetaStrategyProficiency1787428800000 } from './migrations/1787428800000-add-meta-strategy-proficiency';
 import { CreatePlayerCatalog1787237754573 } from './migrations/1787237754573-create-player-catalog';
 
 if (existsSync('.env')) {
@@ -39,6 +41,7 @@ const dataSource = new DataSource({
     PlayerCard,
     Career,
     CareerTeam,
+    CareerTeamStrategyProficiency,
     CareerPlayer,
     CareerPlayerRoleProficiency,
     Roster,
@@ -52,6 +55,7 @@ const dataSource = new DataSource({
     CreateMatchStats1787418000000,
     AddTeamStrategy1787421600000,
     AddPlayerInstructionRoleProficiency1787425200000,
+    AddMetaStrategyProficiency1787428800000,
   ],
   migrationsTableName: 'migrations',
   ssl: useSsl ? { rejectUnauthorized: true } : undefined,

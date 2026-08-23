@@ -64,11 +64,20 @@ describe('MatchesService', () => {
     const careerTeam = {
       id,
       careerId: 1,
+      career: { id: 1, currentMeta: TeamStrategy.BALANCED },
       code,
       name: code,
       region: Region.LCK,
       isUserControlled: id === 1,
       teamStrategy: TeamStrategy.BALANCED,
+      strategyProficiencies: Object.values(TeamStrategy).map(
+        (strategy, index) => ({
+          id: id * 100 + index,
+          careerTeamId: id,
+          strategy,
+          proficiency: 50,
+        }),
+      ),
       rosters: [],
     } as unknown as CareerTeam;
 
@@ -136,6 +145,7 @@ describe('MatchesService', () => {
     });
 
     expect(result.careerId).toBe(1);
+    expect(result.currentMeta).toBe(TeamStrategy.BALANCED);
     expect(result.matchId).toBe(500);
     expect(result.teams).toHaveLength(2);
     expect(result.teams[0].playerStats).toHaveLength(5);
@@ -189,10 +199,17 @@ describe('MatchesService', () => {
       teamARngModifier: 1,
       teamAPerformance: 71,
       teamAStrategy: TeamStrategy.BALANCED,
+      teamAStrategyProficiency: 50,
+      teamAStrategyProficiencyModifier: 0,
+      teamAMetaModifier: 3,
       teamBBaseAbility: 70,
       teamBRngModifier: -1,
       teamBPerformance: 69,
       teamBStrategy: TeamStrategy.BALANCED,
+      teamBStrategyProficiency: 50,
+      teamBStrategyProficiencyModifier: 0,
+      teamBMetaModifier: 3,
+      currentMeta: TeamStrategy.BALANCED,
       playerStats: [teamA, teamB].flatMap((team) =>
         STARTER_POSITIONS.map((position, index) => ({
           careerPlayerId: team.id * 100 + index,

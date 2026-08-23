@@ -12,6 +12,7 @@ import {
   PLAYER_INSTRUCTIONS_BY_POSITION,
   ROLE_PROFICIENCY_CONFIG,
 } from './config/player-instruction.config';
+import { TEAM_STRATEGY_PROFICIENCY_CONFIG } from './config/team-strategy-proficiency.config';
 import {
   INITIAL_CAREER_TEAM_COUNT,
   STARTER_POSITIONS,
@@ -23,9 +24,14 @@ import {
   RosterResponseDto,
 } from './dto/career-response.dto';
 import { CreateCareerDto } from './dto/create-career.dto';
+import {
+  CareerMetaResponseDto,
+  UpdateCareerMetaDto,
+} from './dto/update-career-meta.dto';
 import { CareerPlayerRoleProficiency } from './entities/career-player-role-proficiency.entity';
 import { CareerPlayer } from './entities/career-player.entity';
 import { CareerTeam } from './entities/career-team.entity';
+import { CareerTeamStrategyProficiency } from './entities/career-team-strategy-proficiency.entity';
 import { Career } from './entities/career.entity';
 import { Roster } from './entities/roster.entity';
 import { RosterRole } from './enums/roster-role.enum';
@@ -67,6 +73,7 @@ export class CareersService {
       const newCareer = manager.create(Career, {
         startYear: dto.startYear,
         currentYear: dto.startYear,
+        currentMeta: TeamStrategy.BALANCED,
       });
       const savedCareer = await manager.save(Career, newCareer);
 
@@ -82,6 +89,27 @@ export class CareersService {
         }),
       );
       const savedCareerTeams = await manager.save(CareerTeam, careerTeams);
+      const strategyProficiencies = savedCareerTeams.flatMap((careerTeam) =>
+        Object.values(TeamStrategy).map((strategy) =>
+          manager.create(CareerTeamStrategyProficiency, {
+            careerTeamId: careerTeam.id,
+            careerTeam,
+            strategy,
+            proficiency: TEAM_STRATEGY_PROFICIENCY_CONFIG.initial,
+          }),
+        ),
+      );
+      const savedStrategyProficiencies = await manager.save(
+        CareerTeamStrategyProficiency,
+        strategyProficiencies,
+      );
+
+      savedCareerTeams.forEach((careerTeam) => {
+        careerTeam.strategyProficiencies = savedStrategyProficiencies.filter(
+          (strategyProficiency) =>
+            strategyProficiency.careerTeamId === careerTeam.id,
+        );
+      });
 
       const starterSetup = dto.teams.flatMap((team, teamIndex) =>
         team.starters.map((starter) => ({
@@ -171,6 +199,7 @@ export class CareersService {
       where: { id },
       relations: {
         careerTeams: {
+          strategyProficiencies: true,
           rosters: {
             careerPlayer: {
               roleProficiencies: true,
@@ -189,6 +218,25 @@ export class CareersService {
     }
 
     return this.toResponse(career);
+  }
+
+  async updateMeta(
+    id: number,
+    dto: UpdateCareerMetaDto,
+  ): Promise<CareerMetaResponseDto> {
+    const career = await this.careersRepository.findOneBy({ id });
+
+    if (!career) {
+      throw new NotFoundException(`Career ${id} was not found`);
+    }
+
+    career.currentMeta = dto.meta;
+    const savedCareer = await this.careersRepository.save(career);
+
+    return {
+      careerId: savedCareer.id,
+      currentMeta: savedCareer.currentMeta,
+    };
   }
 
   private validateCareerSetup(dto: CreateCareerDto): void {
@@ -252,6 +300,12 @@ export class CareersService {
         region: careerTeam.region,
         isUserControlled: careerTeam.isUserControlled,
         teamStrategy: careerTeam.teamStrategy,
+        strategyProficiencies: [...(careerTeam.strategyProficiencies ?? [])]
+          .sort((left, right) => left.strategy.localeCompare(right.strategy))
+          .map((strategyProficiency) => ({
+            strategy: strategyProficiency.strategy,
+            proficiency: strategyProficiency.proficiency,
+          })),
         starters: careerTeam.rosters
           .filter(
             (roster) =>
@@ -270,6 +324,7 @@ export class CareersService {
       id: career.id,
       startYear: career.startYear,
       currentYear: career.currentYear,
+      currentMeta: career.currentMeta,
       teams,
     };
   }

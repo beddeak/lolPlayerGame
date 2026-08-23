@@ -25,6 +25,9 @@ export class MatchTeamSimulationResponseDto {
   teamId!: number;
   teamCode!: string;
   teamStrategy!: TeamStrategy;
+  strategyProficiency!: number;
+  strategyProficiencyModifier!: number;
+  metaModifier!: number;
   baseAbility!: number;
   rngModifier!: number;
   performance!: number;
@@ -35,6 +38,7 @@ export class MatchTeamSimulationResponseDto {
 export class MatchSimulationResponseDto {
   matchId!: number;
   careerId!: number;
+  currentMeta!: TeamStrategy;
   seed!: number;
   durationMinutes!: number;
   winnerTeamId!: number;

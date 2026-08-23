@@ -60,6 +60,7 @@ export class MatchesService {
     return {
       matchId: match.id,
       careerId: match.careerId,
+      currentMeta: match.currentMeta,
       seed: match.seed,
       durationMinutes: match.durationMinutes,
       winnerTeamId: match.winnerTeamId,
@@ -82,6 +83,8 @@ export class MatchesService {
         careerId: dto.careerId,
       },
       relations: {
+        career: true,
+        strategyProficiencies: true,
         rosters: {
           careerPlayer: {
             roleProficiencies: true,
@@ -111,6 +114,7 @@ export class MatchesService {
       teamAInput,
       teamBInput,
       dto.seed,
+      teamA.career.currentMeta,
     );
     const statsResult = this.matchStatsSimulationService.simulate(
       teamAInput,
@@ -129,6 +133,7 @@ export class MatchesService {
     return {
       matchId,
       careerId: dto.careerId,
+      currentMeta: result.currentMeta,
       seed: result.seed,
       durationMinutes: statsResult.durationMinutes,
       winnerTeamId: result.winnerTeamId,
@@ -179,10 +184,21 @@ export class MatchesService {
       );
     }
 
+    const strategyProficiency = (careerTeam.strategyProficiencies ?? []).find(
+      (candidate) => candidate.strategy === careerTeam.teamStrategy,
+    )?.proficiency;
+
+    if (strategyProficiency === undefined) {
+      throw new ConflictException(
+        `CareerTeam ${careerTeam.id} is missing ${careerTeam.teamStrategy} strategy proficiency`,
+      );
+    }
+
     return {
       teamId: careerTeam.id,
       teamCode: careerTeam.code,
       teamStrategy: careerTeam.teamStrategy,
+      strategyProficiency,
       players: starters.map((starter) =>
         this.toPlayerStats(
           starter.careerPlayer,
@@ -246,10 +262,19 @@ export class MatchesService {
         teamARngModifier: teamAResult.rngModifier,
         teamAPerformance: teamAResult.performance,
         teamAStrategy: teamAResult.teamStrategy,
+        teamAStrategyProficiency: teamAResult.strategyProficiency,
+        teamAStrategyProficiencyModifier:
+          teamAResult.strategyProficiencyModifier,
+        teamAMetaModifier: teamAResult.metaModifier,
         teamBBaseAbility: teamBResult.baseAbility,
         teamBRngModifier: teamBResult.rngModifier,
         teamBPerformance: teamBResult.performance,
         teamBStrategy: teamBResult.teamStrategy,
+        teamBStrategyProficiency: teamBResult.strategyProficiency,
+        teamBStrategyProficiencyModifier:
+          teamBResult.strategyProficiencyModifier,
+        teamBMetaModifier: teamBResult.metaModifier,
+        currentMeta: result.currentMeta,
       });
       const savedMatch = await manager.save(Match, match);
       const playerStats = statsResult.teams.flatMap((teamStats) =>
@@ -292,6 +317,16 @@ export class MatchesService {
       teamId: team.id,
       teamCode: team.code,
       teamStrategy: side === 'A' ? match.teamAStrategy : match.teamBStrategy,
+      strategyProficiency:
+        side === 'A'
+          ? match.teamAStrategyProficiency
+          : match.teamBStrategyProficiency,
+      strategyProficiencyModifier:
+        side === 'A'
+          ? match.teamAStrategyProficiencyModifier
+          : match.teamBStrategyProficiencyModifier,
+      metaModifier:
+        side === 'A' ? match.teamAMetaModifier : match.teamBMetaModifier,
       baseAbility:
         side === 'A' ? match.teamABaseAbility : match.teamBBaseAbility,
       rngModifier:

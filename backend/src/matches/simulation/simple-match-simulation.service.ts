@@ -2,6 +2,11 @@ import { Injectable } from '@nestjs/common';
 import { SIMPLE_MATCH_CONFIG } from '../config/simple-match.config';
 import { TEAM_STRATEGY_CONFIG } from '../config/team-strategy.config';
 import {
+  META_MATCH_CONFIG,
+  STRATEGY_PROFICIENCY_MATCH_CONFIG,
+} from '../config/meta-strategy-proficiency.config';
+import { TeamStrategy } from '../../careers/enums/team-strategy.enum';
+import {
   PLAYER_INSTRUCTION_CONFIG,
   ROLE_PROFICIENCY_MATCH_CONFIG,
 } from '../config/player-instruction.config';
@@ -20,17 +25,19 @@ export class SimpleMatchSimulationService {
     teamA: SimpleMatchTeamInput,
     teamB: SimpleMatchTeamInput,
     seed: number,
+    currentMeta: TeamStrategy,
   ): SimpleMatchSimulationResult {
     this.assertCompleteTeam(teamA);
     this.assertCompleteTeam(teamB);
 
     const random = createSeededRandom(seed);
-    const teamAResult = this.calculateTeamResult(teamA, random());
-    const teamBResult = this.calculateTeamResult(teamB, random());
+    const teamAResult = this.calculateTeamResult(teamA, random(), currentMeta);
+    const teamBResult = this.calculateTeamResult(teamB, random(), currentMeta);
     const winner = this.pickWinner(teamAResult, teamBResult, random);
 
     return {
       seed,
+      currentMeta,
       winnerTeamId: winner.teamId,
       winnerTeamCode: winner.teamCode,
       teams: [
@@ -51,6 +58,7 @@ export class SimpleMatchSimulationService {
   private calculateTeamResult(
     team: SimpleMatchTeamInput,
     randomValue: number,
+    currentMeta: TeamStrategy,
   ): SimpleMatchTeamResult {
     const strategyConfig = TEAM_STRATEGY_CONFIG[team.teamStrategy];
     const playerAbilities = team.players.map((player) => ({
@@ -75,15 +83,45 @@ export class SimpleMatchSimulationService {
       randomValue *
         (SIMPLE_MATCH_CONFIG.rngModifierMax -
           SIMPLE_MATCH_CONFIG.rngModifierMin);
+    const strategyProficiency = Math.min(
+      STRATEGY_PROFICIENCY_MATCH_CONFIG.max,
+      Math.max(STRATEGY_PROFICIENCY_MATCH_CONFIG.min, team.strategyProficiency),
+    );
+    const strategyProficiencyModifier =
+      this.calculateStrategyProficiencyModifier(strategyProficiency);
+    const metaModifier =
+      team.teamStrategy === currentMeta
+        ? META_MATCH_CONFIG.matchingStrategyBonus
+        : META_MATCH_CONFIG.nonMatchingStrategyModifier;
 
     return {
       teamId: team.teamId,
       teamCode: team.teamCode,
       teamStrategy: team.teamStrategy,
+      strategyProficiency,
+      strategyProficiencyModifier,
+      metaModifier,
       baseAbility,
       rngModifier,
-      performance: baseAbility + rngModifier,
+      performance:
+        baseAbility + rngModifier + strategyProficiencyModifier + metaModifier,
     };
+  }
+
+  private calculateStrategyProficiencyModifier(proficiency: number): number {
+    const config = STRATEGY_PROFICIENCY_MATCH_CONFIG;
+
+    if (proficiency >= config.neutral) {
+      return (
+        ((proficiency - config.neutral) / (config.max - config.neutral)) *
+        config.maxBonus
+      );
+    }
+
+    return (
+      ((config.neutral - proficiency) / (config.neutral - config.min)) *
+      config.maxPenalty
+    );
   }
 
   private calculatePlayerAbility(
@@ -165,6 +203,10 @@ export class SimpleMatchSimulationService {
       ...result,
       baseAbility: this.round(result.baseAbility),
       rngModifier: this.round(result.rngModifier),
+      strategyProficiencyModifier: this.round(
+        result.strategyProficiencyModifier,
+      ),
+      metaModifier: this.round(result.metaModifier),
       performance: this.round(result.performance),
     };
   }

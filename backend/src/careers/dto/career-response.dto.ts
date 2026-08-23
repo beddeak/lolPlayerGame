@@ -11,6 +11,11 @@ export class CareerPlayerRoleProficiencyResponseDto {
   proficiency!: number;
 }
 
+export class CareerTeamStrategyProficiencyResponseDto {
+  strategy!: TeamStrategy;
+  proficiency!: number;
+}
+
 export class CareerPlayerResponseDto {
   id!: number;
   playerCardId!: number;
@@ -44,6 +49,7 @@ export class CareerTeamResponseDto {
   region!: Region;
   isUserControlled!: boolean;
   teamStrategy!: TeamStrategy;
+  strategyProficiencies!: CareerTeamStrategyProficiencyResponseDto[];
   starters!: RosterResponseDto[];
 }
 
@@ -51,5 +57,6 @@ export class CareerResponseDto {
   id!: number;
   startYear!: number;
   currentYear!: number;
+  currentMeta!: TeamStrategy;
   teams!: CareerTeamResponseDto[];
 }
