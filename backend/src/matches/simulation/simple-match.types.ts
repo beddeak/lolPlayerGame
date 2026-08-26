@@ -1,6 +1,8 @@
 import { Position } from '../../players/enums/position.enum';
 import { TeamStrategy } from '../../careers/enums/team-strategy.enum';
 import { PlayerInstruction } from '../../careers/enums/player-instruction.enum';
+import { SetBonusSnapshot } from '../../set-bonuses/set-bonus.types';
+import { ChampionArchetype } from '../../careers/enums/champion-archetype.enum';
 
 export interface SimpleMatchPlayerStats {
   mechanics: number;
@@ -20,6 +22,7 @@ export interface SimpleMatchPlayerInput extends SimpleMatchPlayerStats {
   position: Position;
   playerInstruction: PlayerInstruction | null;
   roleProficiency: number | null;
+  championArchetype: ChampionArchetype | null;
 }
 
 export interface SimpleMatchTeamInput {
@@ -27,6 +30,8 @@ export interface SimpleMatchTeamInput {
   teamCode: string;
   teamStrategy: TeamStrategy;
   strategyProficiency: number;
+  chemistry: number;
+  activeSetBonuses: SetBonusSnapshot[];
   players: SimpleMatchPlayerInput[];
 }
 
@@ -37,6 +42,12 @@ export interface SimpleMatchTeamResult {
   strategyProficiency: number;
   strategyProficiencyModifier: number;
   metaModifier: number;
+  chemistry: number;
+  effectiveChemistry: number;
+  chemistryModifier: number;
+  activeSetBonuses: SetBonusSnapshot[];
+  setBonusModifier: number;
+  archetypeModifier: number;
   baseAbility: number;
   rngModifier: number;
   performance: number;

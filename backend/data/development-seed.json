@@ -200,17 +200,50 @@
       "potential": 75
     }
   ],
+  "setBonuses": [
+    {
+      "code": "DEV_BLUE_BOTTOM_DUO",
+      "name": "Development Blue Bottom Duo",
+      "description": "Development fixture for the PHASE 8 data-driven set bonus flow",
+      "requiredPlayerCardKeys": ["blue_adc_2026", "blue_support_2026"],
+      "chemistryBonus": 10,
+      "laningBonus": 4,
+      "teamFightBonus": 2,
+      "macroBonus": 0,
+      "teamPlayBonus": 4
+    }
+  ],
   "teams": [
     {
       "code": "DEV_BLUE",
       "name": "Development Blue",
       "region": "LCK",
       "starters": [
-        { "position": "TOP", "playerCardKey": "blue_top_2026" },
-        { "position": "JUNGLE", "playerCardKey": "blue_jungle_2026" },
-        { "position": "MID", "playerCardKey": "blue_mid_2026" },
-        { "position": "ADC", "playerCardKey": "blue_adc_2026" },
-        { "position": "SUPPORT", "playerCardKey": "blue_support_2026" }
+        {
+          "position": "TOP",
+          "playerCardKey": "blue_top_2026",
+          "championArchetype": "TOP_SIDE_LANE"
+        },
+        {
+          "position": "JUNGLE",
+          "playerCardKey": "blue_jungle_2026",
+          "championArchetype": "JUNGLE_EARLY_SNOWBALL"
+        },
+        {
+          "position": "MID",
+          "playerCardKey": "blue_mid_2026",
+          "championArchetype": "MID_STANDING_MAGE"
+        },
+        {
+          "position": "ADC",
+          "playerCardKey": "blue_adc_2026",
+          "championArchetype": "HYPER_CARRY"
+        },
+        {
+          "position": "SUPPORT",
+          "playerCardKey": "blue_support_2026",
+          "championArchetype": "UTILITY"
+        }
       ]
     },
     {
@@ -218,11 +251,31 @@
       "name": "Development Red",
       "region": "LPL",
       "starters": [
-        { "position": "TOP", "playerCardKey": "red_top_2026" },
-        { "position": "JUNGLE", "playerCardKey": "red_jungle_2026" },
-        { "position": "MID", "playerCardKey": "red_mid_2026" },
-        { "position": "ADC", "playerCardKey": "red_adc_2026" },
-        { "position": "SUPPORT", "playerCardKey": "red_support_2026" }
+        {
+          "position": "TOP",
+          "playerCardKey": "red_top_2026",
+          "championArchetype": "TOP_TANK"
+        },
+        {
+          "position": "JUNGLE",
+          "playerCardKey": "red_jungle_2026",
+          "championArchetype": "JUNGLE_SCALING"
+        },
+        {
+          "position": "MID",
+          "playerCardKey": "red_mid_2026",
+          "championArchetype": "MID_ASSASSIN"
+        },
+        {
+          "position": "ADC",
+          "playerCardKey": "red_adc_2026",
+          "championArchetype": "LANE_BULLY"
+        },
+        {
+          "position": "SUPPORT",
+          "playerCardKey": "red_support_2026",
+          "championArchetype": "TANK_ENGAGE"
+        }
       ]
     }
   ]

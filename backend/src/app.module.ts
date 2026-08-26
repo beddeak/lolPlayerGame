@@ -3,10 +3,13 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import { AuthModule } from './auth/auth.module';
 import { CareersModule } from './careers/careers.module';
 import { validateEnvironment } from './config/environment.validation';
 import { MatchesModule } from './matches/matches.module';
+import { MatchSeriesModule } from './match-series/match-series.module';
 import { PlayersModule } from './players/players.module';
+import { SetBonusesModule } from './set-bonuses/set-bonuses.module';
 
 @Module({
   imports: [
@@ -35,9 +38,12 @@ import { PlayersModule } from './players/players.module';
       },
     }),
 
+    AuthModule,
     PlayersModule,
+    SetBonusesModule,
     CareersModule,
     MatchesModule,
+    MatchSeriesModule,
   ],
   controllers: [AppController],
   providers: [AppService],

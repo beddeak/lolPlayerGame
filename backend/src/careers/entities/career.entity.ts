@@ -1,4 +1,13 @@
-import { Column, Entity, OneToMany, PrimaryGeneratedColumn } from 'typeorm';
+import {
+  Column,
+  Entity,
+  Index,
+  JoinColumn,
+  ManyToOne,
+  OneToMany,
+  PrimaryGeneratedColumn,
+} from 'typeorm';
+import { Account } from '../../auth/entities/account.entity';
 import { CareerPlayer } from './career-player.entity';
 import { CareerTeam } from './career-team.entity';
 import { TeamStrategy } from '../enums/team-strategy.enum';
@@ -7,6 +16,20 @@ import { TeamStrategy } from '../enums/team-strategy.enum';
 export class Career {
   @PrimaryGeneratedColumn({ type: 'int', unsigned: true })
   id!: number;
+
+  @Index('IDX_careers_account_id')
+  @Column({ type: 'int', unsigned: true })
+  accountId!: number;
+
+  @ManyToOne(() => Account, (account) => account.careers, {
+    nullable: false,
+    onDelete: 'CASCADE',
+  })
+  @JoinColumn({
+    name: 'accountId',
+    foreignKeyConstraintName: 'FK_careers_account',
+  })
+  account!: Account;
 
   @Column({ type: 'smallint', unsigned: true })
   startYear!: number;

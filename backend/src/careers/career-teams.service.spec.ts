@@ -10,10 +10,11 @@ import { PlayerInstruction } from './enums/player-instruction.enum';
 import { Region } from './enums/region.enum';
 import { RosterRole } from './enums/roster-role.enum';
 import { TeamStrategy } from './enums/team-strategy.enum';
+import { ChampionArchetype } from './enums/champion-archetype.enum';
 
 describe('CareerTeamsService', () => {
   const careerTeamsRepository = {
-    findOneBy: jest.fn(),
+    findOne: jest.fn(),
     save: jest.fn(),
   };
   const rostersRepository = {
@@ -37,6 +38,7 @@ describe('CareerTeamsService', () => {
     region: Region.LCK,
     isUserControlled: true,
     teamStrategy: TeamStrategy.BALANCED,
+    career: { id: 1, accountId: 7 },
   } as CareerTeam;
   const roster = {
     id: 10,
@@ -46,6 +48,7 @@ describe('CareerTeamsService', () => {
     role: RosterRole.STARTER,
     starterPosition: Position.ADC,
     playerInstruction: null,
+    championArchetype: null,
   } as Roster;
   const roleProficiency = {
     id: 20,
@@ -80,8 +83,10 @@ describe('CareerTeamsService', () => {
 
     service = module.get<CareerTeamsService>(CareerTeamsService);
     careerTeam.teamStrategy = TeamStrategy.BALANCED;
+    roster.starterPosition = Position.ADC;
     roster.playerInstruction = null;
-    careerTeamsRepository.findOneBy.mockResolvedValue(careerTeam);
+    roster.championArchetype = null;
+    careerTeamsRepository.findOne.mockResolvedValue(careerTeam);
     careerTeamsRepository.save.mockImplementation((value) =>
       Promise.resolve(value),
     );
@@ -96,7 +101,7 @@ describe('CareerTeamsService', () => {
   });
 
   it('updates the selected team strategy', async () => {
-    const result = await service.updateStrategy(1, 1, {
+    const result = await service.updateStrategy(7, 1, 1, {
       strategy: TeamStrategy.BOT_CARRY,
     });
 
@@ -107,15 +112,18 @@ describe('CareerTeamsService', () => {
   });
 
   it('rejects a team outside the career', async () => {
-    careerTeamsRepository.findOneBy.mockResolvedValue(null);
+    careerTeamsRepository.findOne.mockResolvedValue(null);
 
     await expect(
-      service.updateStrategy(1, 99, { strategy: TeamStrategy.BALANCED }),
+      service.updateStrategy(7, 1, 99, {
+        strategy: TeamStrategy.BALANCED,
+      }),
     ).rejects.toBeInstanceOf(NotFoundException);
   });
 
   it('sets a compatible instruction and returns its proficiency', async () => {
     const result = await service.updatePlayerInstruction(
+      7,
       1,
       careerTeam.id,
       Position.ADC,
@@ -133,7 +141,7 @@ describe('CareerTeamsService', () => {
 
   it('rejects an instruction that does not belong to the position', async () => {
     await expect(
-      service.updatePlayerInstruction(1, careerTeam.id, Position.ADC, {
+      service.updatePlayerInstruction(7, 1, careerTeam.id, Position.ADC, {
         instruction: PlayerInstruction.OBJECTIVE,
       }),
     ).rejects.toBeInstanceOf(BadRequestException);
@@ -144,9 +152,61 @@ describe('CareerTeamsService', () => {
     rostersRepository.findOne.mockResolvedValue(null);
 
     await expect(
-      service.updatePlayerInstruction(1, careerTeam.id, Position.ADC, {
+      service.updatePlayerInstruction(7, 1, careerTeam.id, Position.ADC, {
         instruction: PlayerInstruction.HYPER_CARRY,
       }),
     ).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it('sets an ADC champion archetype', async () => {
+    const result = await service.updateChampionArchetype(
+      7,
+      1,
+      careerTeam.id,
+      Position.ADC,
+      { archetype: ChampionArchetype.HYPER_CARRY },
+    );
+
+    expect(result.archetype).toBe(ChampionArchetype.HYPER_CARRY);
+    expect(rostersRepository.save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        championArchetype: ChampionArchetype.HYPER_CARRY,
+      }),
+    );
+  });
+
+  it.each([
+    [Position.TOP, ChampionArchetype.TOP_SIDE_LANE],
+    [Position.JUNGLE, ChampionArchetype.JUNGLE_EARLY_SNOWBALL],
+    [Position.MID, ChampionArchetype.MID_STANDING_MAGE],
+  ])('sets a %s champion archetype', async (position, archetype) => {
+    roster.starterPosition = position;
+
+    const result = await service.updateChampionArchetype(
+      7,
+      1,
+      careerTeam.id,
+      position,
+      { archetype },
+    );
+
+    expect(result.archetype).toBe(archetype);
+    expect(rostersRepository.save).toHaveBeenCalledWith(
+      expect.objectContaining({ championArchetype: archetype }),
+    );
+  });
+
+  it('rejects a champion archetype outside its position', async () => {
+    await expect(
+      service.updateChampionArchetype(7, 1, careerTeam.id, Position.ADC, {
+        archetype: ChampionArchetype.UTILITY,
+      }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    await expect(
+      service.updateChampionArchetype(7, 1, careerTeam.id, Position.TOP, {
+        archetype: ChampionArchetype.LANE_BULLY,
+      }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(rostersRepository.findOne).not.toHaveBeenCalled();
   });
 });

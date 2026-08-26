@@ -1,5 +1,6 @@
 import { Position } from '../../players/enums/position.enum';
 import { PlayerInstruction } from '../../careers/enums/player-instruction.enum';
+import { ChampionArchetype } from '../../careers/enums/champion-archetype.enum';
 
 export interface MatchPlayerStatsResult {
   careerPlayerId: number;
@@ -7,6 +8,7 @@ export interface MatchPlayerStatsResult {
   position: Position;
   playerInstruction: PlayerInstruction | null;
   roleProficiency: number | null;
+  championArchetype: ChampionArchetype | null;
   kills: number;
   deaths: number;
   assists: number;

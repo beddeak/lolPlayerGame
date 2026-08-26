@@ -8,11 +8,17 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, In, Repository } from 'typeorm';
 import { PlayerCardResponseDto } from '../players/dto/player-card-response.dto';
 import { PlayerCard } from '../players/entities/player-card.entity';
+import { SetBonus } from '../set-bonuses/entities/set-bonus.entity';
+import {
+  findActiveSetBonuses,
+  toSetBonusResponse,
+} from '../set-bonuses/set-bonus.utils';
 import {
   PLAYER_INSTRUCTIONS_BY_POSITION,
   ROLE_PROFICIENCY_CONFIG,
 } from './config/player-instruction.config';
 import { TEAM_STRATEGY_PROFICIENCY_CONFIG } from './config/team-strategy-proficiency.config';
+import { TEAM_CHEMISTRY_CONFIG } from './config/team-chemistry.config';
 import {
   INITIAL_CAREER_TEAM_COUNT,
   STARTER_POSITIONS,
@@ -20,6 +26,7 @@ import {
 import {
   CareerPlayerResponseDto,
   CareerResponseDto,
+  CareerSummaryResponseDto,
   CareerTeamResponseDto,
   RosterResponseDto,
 } from './dto/career-response.dto';
@@ -43,9 +50,14 @@ export class CareersService {
     private readonly dataSource: DataSource,
     @InjectRepository(Career)
     private readonly careersRepository: Repository<Career>,
+    @InjectRepository(SetBonus)
+    private readonly setBonusesRepository: Repository<SetBonus>,
   ) {}
 
-  async create(dto: CreateCareerDto): Promise<CareerResponseDto> {
+  async create(
+    accountId: number,
+    dto: CreateCareerDto,
+  ): Promise<CareerResponseDto> {
     this.validateCareerSetup(dto);
 
     const playerCardIds = dto.teams.flatMap((team) =>
@@ -71,6 +83,7 @@ export class CareersService {
       }
 
       const newCareer = manager.create(Career, {
+        accountId,
         startYear: dto.startYear,
         currentYear: dto.startYear,
         currentMeta: TeamStrategy.BALANCED,
@@ -86,6 +99,7 @@ export class CareersService {
           region: team.region,
           isUserControlled: team.code === dto.managedTeamCode,
           teamStrategy: TeamStrategy.BALANCED,
+          chemistry: TEAM_CHEMISTRY_CONFIG.initial,
         }),
       );
       const savedCareerTeams = await manager.save(CareerTeam, careerTeams);
@@ -177,6 +191,7 @@ export class CareersService {
           role: RosterRole.STARTER,
           starterPosition: starter.position,
           playerInstruction: null,
+          championArchetype: null,
         }),
       );
       const savedRosters = await manager.save(Roster, rosters);
@@ -191,40 +206,76 @@ export class CareersService {
       return savedCareer;
     });
 
-    return this.toResponse(career);
+    const setBonuses = await this.findSetBonuses();
+
+    return this.toResponse(career, setBonuses);
   }
 
-  async findOne(id: number): Promise<CareerResponseDto> {
-    const career = await this.careersRepository.findOne({
-      where: { id },
-      relations: {
-        careerTeams: {
-          strategyProficiencies: true,
-          rosters: {
-            careerPlayer: {
-              roleProficiencies: true,
-              playerCard: {
-                player: true,
-                theme: true,
+  async findAll(accountId: number): Promise<CareerSummaryResponseDto[]> {
+    const careers = await this.careersRepository.find({
+      where: { accountId },
+      relations: { careerTeams: true },
+      order: { id: 'DESC' },
+    });
+
+    return careers.map((career) => {
+      const managedTeam = career.careerTeams.find(
+        (careerTeam) => careerTeam.isUserControlled,
+      );
+
+      if (!managedTeam) {
+        throw new ConflictException(
+          `Career ${career.id} does not have a user-controlled team`,
+        );
+      }
+
+      return {
+        id: career.id,
+        startYear: career.startYear,
+        currentYear: career.currentYear,
+        currentMeta: career.currentMeta,
+        managedTeamId: managedTeam.id,
+        managedTeamCode: managedTeam.code,
+        managedTeamName: managedTeam.name,
+      };
+    });
+  }
+
+  async findOne(id: number, accountId: number): Promise<CareerResponseDto> {
+    const [career, setBonuses] = await Promise.all([
+      this.careersRepository.findOne({
+        where: { id, accountId },
+        relations: {
+          careerTeams: {
+            strategyProficiencies: true,
+            rosters: {
+              careerPlayer: {
+                roleProficiencies: true,
+                playerCard: {
+                  player: true,
+                  theme: true,
+                },
               },
             },
           },
         },
-      },
-    });
+      }),
+      this.findSetBonuses(),
+    ]);
 
     if (!career) {
       throw new NotFoundException(`Career ${id} was not found`);
     }
 
-    return this.toResponse(career);
+    return this.toResponse(career, setBonuses);
   }
 
   async updateMeta(
     id: number,
+    accountId: number,
     dto: UpdateCareerMetaDto,
   ): Promise<CareerMetaResponseDto> {
-    const career = await this.careersRepository.findOneBy({ id });
+    const career = await this.careersRepository.findOneBy({ id, accountId });
 
     if (!career) {
       throw new NotFoundException(`Career ${id} was not found`);
@@ -287,7 +338,10 @@ export class CareersService {
     }
   }
 
-  private toResponse(career: Career): CareerResponseDto {
+  private toResponse(
+    career: Career,
+    setBonuses: SetBonus[],
+  ): CareerResponseDto {
     const positionOrder = new Map(
       STARTER_POSITIONS.map((position, index) => [position, index]),
     );
@@ -300,12 +354,17 @@ export class CareersService {
         region: careerTeam.region,
         isUserControlled: careerTeam.isUserControlled,
         teamStrategy: careerTeam.teamStrategy,
+        chemistry: careerTeam.chemistry,
         strategyProficiencies: [...(careerTeam.strategyProficiencies ?? [])]
           .sort((left, right) => left.strategy.localeCompare(right.strategy))
           .map((strategyProficiency) => ({
             strategy: strategyProficiency.strategy,
             proficiency: strategyProficiency.proficiency,
           })),
+        activeSetBonuses: findActiveSetBonuses(
+          setBonuses,
+          careerTeam.rosters.map((roster) => roster.careerPlayer.playerCardId),
+        ).map((setBonus) => toSetBonusResponse(setBonus)),
         starters: careerTeam.rosters
           .filter(
             (roster) =>
@@ -329,12 +388,20 @@ export class CareersService {
     };
   }
 
+  private findSetBonuses(): Promise<SetBonus[]> {
+    return this.setBonusesRepository.find({
+      relations: { requirements: true },
+      order: { id: 'ASC' },
+    });
+  }
+
   private toRosterResponse(roster: Roster): RosterResponseDto {
     return {
       id: roster.id,
       role: roster.role,
       starterPosition: roster.starterPosition,
       playerInstruction: roster.playerInstruction,
+      championArchetype: roster.championArchetype,
       careerPlayer: this.toCareerPlayerResponse(roster.careerPlayer),
     };
   }

@@ -6,6 +6,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Position } from '../players/enums/position.enum';
+import { isChampionArchetypeAllowed } from './config/champion-archetype.config';
 import {
   PLAYER_INSTRUCTIONS_BY_POSITION,
   ROLE_PROFICIENCY_CONFIG,
@@ -18,6 +19,10 @@ import {
   TeamStrategyResponseDto,
   UpdateTeamStrategyDto,
 } from './dto/update-team-strategy.dto';
+import {
+  ChampionArchetypeResponseDto,
+  UpdateChampionArchetypeDto,
+} from './dto/update-champion-archetype.dto';
 import { CareerTeam } from './entities/career-team.entity';
 import { CareerPlayerRoleProficiency } from './entities/career-player-role-proficiency.entity';
 import { Roster } from './entities/roster.entity';
@@ -35,13 +40,17 @@ export class CareerTeamsService {
   ) {}
 
   async updateStrategy(
+    accountId: number,
     careerId: number,
     careerTeamId: number,
     dto: UpdateTeamStrategyDto,
   ): Promise<TeamStrategyResponseDto> {
-    const careerTeam = await this.careerTeamsRepository.findOneBy({
-      id: careerTeamId,
-      careerId,
+    const careerTeam = await this.careerTeamsRepository.findOne({
+      where: {
+        id: careerTeamId,
+        careerId,
+        career: { accountId },
+      },
     });
 
     if (!careerTeam) {
@@ -61,6 +70,7 @@ export class CareerTeamsService {
   }
 
   async updatePlayerInstruction(
+    accountId: number,
     careerId: number,
     careerTeamId: number,
     position: Position,
@@ -82,10 +92,14 @@ export class CareerTeamsService {
         role: RosterRole.STARTER,
         starterPosition: position,
       },
-      relations: { careerTeam: true },
+      relations: { careerTeam: { career: true } },
     });
 
-    if (!roster || roster.careerTeam.careerId !== careerId) {
+    if (
+      !roster ||
+      roster.careerTeam.careerId !== careerId ||
+      roster.careerTeam.career.accountId !== accountId
+    ) {
       throw new NotFoundException(
         `${position} starter was not found in CareerTeam ${careerTeamId}`,
       );
@@ -119,6 +133,51 @@ export class CareerTeamsService {
       position,
       instruction: dto.instruction,
       roleProficiency: roleProficiency.proficiency,
+    };
+  }
+
+  async updateChampionArchetype(
+    accountId: number,
+    careerId: number,
+    careerTeamId: number,
+    position: Position,
+    dto: UpdateChampionArchetypeDto,
+  ): Promise<ChampionArchetypeResponseDto> {
+    if (!isChampionArchetypeAllowed(position, dto.archetype)) {
+      throw new BadRequestException(
+        `${dto.archetype} is not valid for ${position}`,
+      );
+    }
+
+    const roster = await this.rostersRepository.findOne({
+      where: {
+        careerTeamId,
+        role: RosterRole.STARTER,
+        starterPosition: position,
+      },
+      relations: { careerTeam: { career: true } },
+    });
+
+    if (
+      !roster ||
+      roster.careerTeam.careerId !== careerId ||
+      roster.careerTeam.career.accountId !== accountId
+    ) {
+      throw new NotFoundException(
+        `${position} starter was not found in CareerTeam ${careerTeamId}`,
+      );
+    }
+
+    roster.championArchetype = dto.archetype;
+    const savedRoster = await this.rostersRepository.save(roster);
+
+    return {
+      careerId,
+      careerTeamId,
+      rosterId: savedRoster.id,
+      careerPlayerId: savedRoster.careerPlayerId,
+      position,
+      archetype: dto.archetype,
     };
   }
 }

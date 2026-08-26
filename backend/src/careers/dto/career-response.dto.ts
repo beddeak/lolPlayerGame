@@ -1,9 +1,11 @@
 import { PlayerCardResponseDto } from '../../players/dto/player-card-response.dto';
+import { SetBonusResponseDto } from '../../set-bonuses/dto/set-bonus-response.dto';
 import { Position } from '../../players/enums/position.enum';
 import { PlayerInstruction } from '../enums/player-instruction.enum';
 import { Region } from '../enums/region.enum';
 import { RosterRole } from '../enums/roster-role.enum';
 import { TeamStrategy } from '../enums/team-strategy.enum';
+import { ChampionArchetype } from '../enums/champion-archetype.enum';
 
 export class CareerPlayerRoleProficiencyResponseDto {
   position!: Position;
@@ -39,6 +41,7 @@ export class RosterResponseDto {
   role!: RosterRole;
   starterPosition!: Position | null;
   playerInstruction!: PlayerInstruction | null;
+  championArchetype!: ChampionArchetype | null;
   careerPlayer!: CareerPlayerResponseDto;
 }
 
@@ -49,7 +52,9 @@ export class CareerTeamResponseDto {
   region!: Region;
   isUserControlled!: boolean;
   teamStrategy!: TeamStrategy;
+  chemistry!: number;
   strategyProficiencies!: CareerTeamStrategyProficiencyResponseDto[];
+  activeSetBonuses!: SetBonusResponseDto[];
   starters!: RosterResponseDto[];
 }
 
@@ -59,4 +64,14 @@ export class CareerResponseDto {
   currentYear!: number;
   currentMeta!: TeamStrategy;
   teams!: CareerTeamResponseDto[];
+}
+
+export class CareerSummaryResponseDto {
+  id!: number;
+  startYear!: number;
+  currentYear!: number;
+  currentMeta!: TeamStrategy;
+  managedTeamId!: number;
+  managedTeamCode!: string;
+  managedTeamName!: string;
 }

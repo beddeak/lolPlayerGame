@@ -1,0 +1,5 @@
+export const SET_BONUS_REQUIREMENT_MIN = 2;
+export const SET_BONUS_CHEMISTRY_BONUS_MIN = 0;
+export const SET_BONUS_CHEMISTRY_BONUS_MAX = 50;
+export const SET_BONUS_STAT_BONUS_MIN = 0;
+export const SET_BONUS_STAT_BONUS_MAX = 20;

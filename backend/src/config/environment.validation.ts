@@ -12,6 +12,7 @@ import {
   IsString,
   Max,
   Min,
+  MinLength,
   validateSync,
 } from 'class-validator';
 
@@ -50,6 +51,15 @@ export class EnvironmentVariables {
   )
   @IsIn(['true', 'false'])
   DB_SSL!: string;
+
+  @IsString()
+  @MinLength(32)
+  JWT_SECRET!: string;
+
+  @Type(() => Number)
+  @IsInt()
+  @Min(60)
+  JWT_EXPIRES_IN_SECONDS!: number;
 
   @IsOptional()
   @Type(() => Number)

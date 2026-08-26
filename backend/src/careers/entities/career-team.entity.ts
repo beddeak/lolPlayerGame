@@ -14,6 +14,7 @@ import { Career } from './career.entity';
 import { Roster } from './roster.entity';
 import { Region } from '../enums/region.enum';
 import { TeamStrategy } from '../enums/team-strategy.enum';
+import { TEAM_CHEMISTRY_CONFIG } from '../config/team-chemistry.config';
 
 @Entity({ name: 'career_teams' })
 @Unique('UQ_career_teams_career_code', ['careerId', 'code'])
@@ -53,6 +54,13 @@ export class CareerTeam {
     default: TeamStrategy.BALANCED,
   })
   teamStrategy!: TeamStrategy;
+
+  @Column({
+    type: 'tinyint',
+    unsigned: true,
+    default: TEAM_CHEMISTRY_CONFIG.initial,
+  })
+  chemistry!: number;
 
   @OneToMany(() => CareerPlayer, (careerPlayer) => careerPlayer.currentTeam)
   careerPlayers!: CareerPlayer[];

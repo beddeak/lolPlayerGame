@@ -10,8 +10,15 @@ import { STARTER_POSITIONS } from '../careers/constants/career.constants';
 import { CareerPlayer } from '../careers/entities/career-player.entity';
 import { CareerTeam } from '../careers/entities/career-team.entity';
 import { PlayerInstruction } from '../careers/enums/player-instruction.enum';
+import { ChampionArchetype } from '../careers/enums/champion-archetype.enum';
 import { RosterRole } from '../careers/enums/roster-role.enum';
+import { MatchSeries } from '../match-series/entities/match-series.entity';
 import { Position } from '../players/enums/position.enum';
+import { SetBonus } from '../set-bonuses/entities/set-bonus.entity';
+import {
+  findActiveSetBonuses,
+  toSetBonusSnapshot,
+} from '../set-bonuses/set-bonus.utils';
 import { SIMPLE_MATCH_CONFIG } from './config/simple-match.config';
 import {
   MatchPlayerStatResponseDto,
@@ -30,6 +37,11 @@ import {
   SimpleMatchTeamResult,
 } from './simulation/simple-match.types';
 
+export interface MatchSeriesGameContext {
+  series: MatchSeries;
+  gameNumber: number;
+}
+
 @Injectable()
 export class MatchesService {
   constructor(
@@ -37,15 +49,21 @@ export class MatchesService {
     private readonly careerTeamsRepository: Repository<CareerTeam>,
     @InjectRepository(Match)
     private readonly matchesRepository: Repository<Match>,
+    @InjectRepository(SetBonus)
+    private readonly setBonusesRepository: Repository<SetBonus>,
     private readonly dataSource: DataSource,
     private readonly simulationService: SimpleMatchSimulationService,
     private readonly matchStatsSimulationService: MatchStatsSimulationService,
   ) {}
 
-  async findOne(id: number): Promise<MatchSimulationResponseDto> {
+  async findOne(
+    accountId: number,
+    id: number,
+  ): Promise<MatchSimulationResponseDto> {
     const match = await this.matchesRepository.findOne({
-      where: { id },
+      where: { id, career: { accountId } },
       relations: {
+        career: true,
         teamA: true,
         teamB: true,
         winnerTeam: true,
@@ -60,6 +78,8 @@ export class MatchesService {
     return {
       matchId: match.id,
       careerId: match.careerId,
+      seriesId: match.seriesId,
+      seriesGameNumber: match.seriesGameNumber,
       currentMeta: match.currentMeta,
       seed: match.seed,
       durationMinutes: match.durationMinutes,
@@ -72,26 +92,37 @@ export class MatchesService {
     };
   }
 
-  async simulate(dto: SimulateMatchDto): Promise<MatchSimulationResponseDto> {
+  async simulate(
+    accountId: number,
+    dto: SimulateMatchDto,
+    seriesContext?: MatchSeriesGameContext,
+  ): Promise<MatchSimulationResponseDto> {
     if (dto.teamAId === dto.teamBId) {
       throw new BadRequestException('A team cannot play against itself');
     }
 
-    const careerTeams = await this.careerTeamsRepository.find({
-      where: {
-        id: In([dto.teamAId, dto.teamBId]),
-        careerId: dto.careerId,
-      },
-      relations: {
-        career: true,
-        strategyProficiencies: true,
-        rosters: {
-          careerPlayer: {
-            roleProficiencies: true,
+    const [careerTeams, setBonuses] = await Promise.all([
+      this.careerTeamsRepository.find({
+        where: {
+          id: In([dto.teamAId, dto.teamBId]),
+          careerId: dto.careerId,
+          career: { accountId },
+        },
+        relations: {
+          career: true,
+          strategyProficiencies: true,
+          rosters: {
+            careerPlayer: {
+              roleProficiencies: true,
+            },
           },
         },
-      },
-    });
+      }),
+      this.setBonusesRepository.find({
+        relations: { requirements: true },
+        order: { id: 'ASC' },
+      }),
+    ]);
     const careerTeamsById = new Map(
       careerTeams.map((careerTeam) => [careerTeam.id, careerTeam]),
     );
@@ -108,8 +139,8 @@ export class MatchesService {
       );
     }
 
-    const teamAInput = this.toSimulationInput(teamA);
-    const teamBInput = this.toSimulationInput(teamB);
+    const teamAInput = this.toSimulationInput(teamA, setBonuses);
+    const teamBInput = this.toSimulationInput(teamB, setBonuses);
     const result = this.simulationService.simulate(
       teamAInput,
       teamBInput,
@@ -128,11 +159,14 @@ export class MatchesService {
       statsResult,
       teamA,
       teamB,
+      seriesContext,
     );
 
     return {
       matchId,
       careerId: dto.careerId,
+      seriesId: seriesContext?.series.id ?? null,
+      seriesGameNumber: seriesContext?.gameNumber ?? null,
       currentMeta: result.currentMeta,
       seed: result.seed,
       durationMinutes: statsResult.durationMinutes,
@@ -157,7 +191,10 @@ export class MatchesService {
     };
   }
 
-  private toSimulationInput(careerTeam: CareerTeam): SimpleMatchTeamInput {
+  private toSimulationInput(
+    careerTeam: CareerTeam,
+    setBonuses: SetBonus[],
+  ): SimpleMatchTeamInput {
     const positionOrder = new Map(
       STARTER_POSITIONS.map((position, index) => [position, index]),
     );
@@ -199,11 +236,17 @@ export class MatchesService {
       teamCode: careerTeam.code,
       teamStrategy: careerTeam.teamStrategy,
       strategyProficiency,
+      chemistry: careerTeam.chemistry,
+      activeSetBonuses: findActiveSetBonuses(
+        setBonuses,
+        starters.map((starter) => starter.careerPlayer.playerCardId),
+      ).map((setBonus) => toSetBonusSnapshot(setBonus)),
       players: starters.map((starter) =>
         this.toPlayerStats(
           starter.careerPlayer,
           starter.starterPosition!,
           starter.playerInstruction,
+          starter.championArchetype,
         ),
       ),
     };
@@ -213,6 +256,7 @@ export class MatchesService {
     careerPlayer: CareerPlayer,
     position: Position,
     playerInstruction: PlayerInstruction | null,
+    championArchetype: ChampionArchetype | null,
   ) {
     const roleProficiency = playerInstruction
       ? ((careerPlayer.roleProficiencies ?? []).find(
@@ -227,6 +271,7 @@ export class MatchesService {
       position,
       playerInstruction,
       roleProficiency,
+      championArchetype,
       mechanics: careerPlayer.currentMechanics,
       gameSense: careerPlayer.currentGameSense,
       laning: careerPlayer.currentLaning,
@@ -244,12 +289,16 @@ export class MatchesService {
     statsResult: MatchStatsSimulationResult,
     teamA: CareerTeam,
     teamB: CareerTeam,
+    seriesContext?: MatchSeriesGameContext,
   ): Promise<number> {
     return this.dataSource.transaction(async (manager) => {
       const teamAResult = this.findTeamResult(result, teamA.id);
       const teamBResult = this.findTeamResult(result, teamB.id);
       const match = manager.create(Match, {
         careerId: dto.careerId,
+        seriesId: seriesContext?.series.id ?? null,
+        series: seriesContext?.series ?? null,
+        seriesGameNumber: seriesContext?.gameNumber ?? null,
         teamAId: teamA.id,
         teamA,
         teamBId: teamB.id,
@@ -266,6 +315,12 @@ export class MatchesService {
         teamAStrategyProficiencyModifier:
           teamAResult.strategyProficiencyModifier,
         teamAMetaModifier: teamAResult.metaModifier,
+        teamAChemistry: teamAResult.chemistry,
+        teamAEffectiveChemistry: teamAResult.effectiveChemistry,
+        teamAChemistryModifier: teamAResult.chemistryModifier,
+        teamASetBonusModifier: teamAResult.setBonusModifier,
+        teamAActiveSetBonuses: teamAResult.activeSetBonuses,
+        teamAArchetypeModifier: teamAResult.archetypeModifier,
         teamBBaseAbility: teamBResult.baseAbility,
         teamBRngModifier: teamBResult.rngModifier,
         teamBPerformance: teamBResult.performance,
@@ -274,6 +329,12 @@ export class MatchesService {
         teamBStrategyProficiencyModifier:
           teamBResult.strategyProficiencyModifier,
         teamBMetaModifier: teamBResult.metaModifier,
+        teamBChemistry: teamBResult.chemistry,
+        teamBEffectiveChemistry: teamBResult.effectiveChemistry,
+        teamBChemistryModifier: teamBResult.chemistryModifier,
+        teamBSetBonusModifier: teamBResult.setBonusModifier,
+        teamBActiveSetBonuses: teamBResult.activeSetBonuses,
+        teamBArchetypeModifier: teamBResult.archetypeModifier,
         currentMeta: result.currentMeta,
       });
       const savedMatch = await manager.save(Match, match);
@@ -327,6 +388,27 @@ export class MatchesService {
           : match.teamBStrategyProficiencyModifier,
       metaModifier:
         side === 'A' ? match.teamAMetaModifier : match.teamBMetaModifier,
+      chemistry: side === 'A' ? match.teamAChemistry : match.teamBChemistry,
+      effectiveChemistry:
+        side === 'A'
+          ? match.teamAEffectiveChemistry
+          : match.teamBEffectiveChemistry,
+      chemistryModifier:
+        side === 'A'
+          ? match.teamAChemistryModifier
+          : match.teamBChemistryModifier,
+      activeSetBonuses:
+        (side === 'A'
+          ? match.teamAActiveSetBonuses
+          : match.teamBActiveSetBonuses) ?? [],
+      setBonusModifier:
+        side === 'A'
+          ? match.teamASetBonusModifier
+          : match.teamBSetBonusModifier,
+      archetypeModifier:
+        side === 'A'
+          ? match.teamAArchetypeModifier
+          : match.teamBArchetypeModifier,
       baseAbility:
         side === 'A' ? match.teamABaseAbility : match.teamBBaseAbility,
       rngModifier:
@@ -351,6 +433,7 @@ export class MatchesService {
       position: playerStat.position,
       playerInstruction: playerStat.playerInstruction,
       roleProficiency: playerStat.roleProficiency,
+      championArchetype: playerStat.championArchetype,
       kills: playerStat.kills,
       deaths: playerStat.deaths,
       assists: playerStat.assists,

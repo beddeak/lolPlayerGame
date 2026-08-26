@@ -1,6 +1,7 @@
 import { STARTER_POSITIONS } from '../../careers/constants/career.constants';
 import { TeamStrategy } from '../../careers/enums/team-strategy.enum';
 import { PlayerInstruction } from '../../careers/enums/player-instruction.enum';
+import { ChampionArchetype } from '../../careers/enums/champion-archetype.enum';
 import { Position } from '../../players/enums/position.enum';
 import { SIMPLE_MATCH_CONFIG } from '../config/simple-match.config';
 import { SimpleMatchSimulationService } from './simple-match-simulation.service';
@@ -18,6 +19,7 @@ describe('SimpleMatchSimulationService', () => {
     position: STARTER_POSITIONS[index],
     playerInstruction: null,
     roleProficiency: null,
+    championArchetype: null,
     mechanics: ability,
     gameSense: ability,
     laning: ability,
@@ -36,6 +38,8 @@ describe('SimpleMatchSimulationService', () => {
     teamCode,
     teamStrategy: TeamStrategy.BALANCED,
     strategyProficiency: 50,
+    chemistry: 50,
+    activeSetBonuses: [],
     players: Array.from(
       { length: SIMPLE_MATCH_CONFIG.requiredStarterCount },
       (_, index) => createPlayer(ability, index),
@@ -100,6 +104,8 @@ describe('SimpleMatchSimulationService', () => {
       teamCode: 'VARIED',
       teamStrategy: TeamStrategy.BALANCED,
       strategyProficiency: 50,
+      chemistry: 50,
+      activeSetBonuses: [],
       players: Array.from(
         { length: SIMPLE_MATCH_CONFIG.requiredStarterCount },
         (_, index) => ({
@@ -108,6 +114,7 @@ describe('SimpleMatchSimulationService', () => {
           position: STARTER_POSITIONS[index],
           playerInstruction: null,
           roleProficiency: null,
+          championArchetype: null,
         }),
       ),
     };
@@ -157,6 +164,9 @@ describe('SimpleMatchSimulationService', () => {
       teamId: 5,
       teamCode: 'BALANCED_TEAM',
       teamStrategy: TeamStrategy.BALANCED,
+      strategyProficiency: 50,
+      chemistry: 50,
+      activeSetBonuses: [],
       players: topFocusedPlayers,
     };
     const topCarryTeam: SimpleMatchTeamInput = {
@@ -239,5 +249,126 @@ describe('SimpleMatchSimulationService', () => {
     expect(result.teams[1].performance).toBeGreaterThan(
       result.teams[0].performance,
     );
+  });
+
+  it('rewards a team with stronger chemistry', () => {
+    const lowChemistryTeam = createTeam(11, 'LOW_CHEMISTRY', 70);
+    const highChemistryTeam = createTeam(12, 'HIGH_CHEMISTRY', 70);
+
+    lowChemistryTeam.chemistry = 0;
+    highChemistryTeam.chemistry = 100;
+
+    const result = service.simulate(
+      lowChemistryTeam,
+      highChemistryTeam,
+      53,
+      TeamStrategy.BALANCED,
+    );
+
+    expect(result.teams[0].chemistryModifier).toBe(-6);
+    expect(result.teams[1].chemistryModifier).toBe(4);
+    expect(result.teams[1].performance).toBeGreaterThan(
+      result.teams[0].performance,
+    );
+  });
+
+  it('applies active set bonus stats and chemistry without mutating base ability', () => {
+    const plainTeam = createTeam(13, 'PLAIN', 70);
+    const setBonusTeam = createTeam(14, 'SET_BONUS', 70);
+
+    setBonusTeam.activeSetBonuses = [
+      {
+        id: 1,
+        code: 'BOTTOM_DUO',
+        name: 'Bottom Duo',
+        chemistryBonus: 10,
+        laningBonus: 4,
+        teamFightBonus: 4,
+        macroBonus: 0,
+        teamPlayBonus: 4,
+      },
+    ];
+
+    const result = service.simulate(
+      plainTeam,
+      setBonusTeam,
+      54,
+      TeamStrategy.BALANCED,
+    );
+    const setBonusResult = result.teams[1];
+
+    expect(setBonusResult.baseAbility).toBe(70);
+    expect(setBonusResult.effectiveChemistry).toBe(60);
+    expect(setBonusResult.chemistryModifier).toBe(0.8);
+    expect(setBonusResult.setBonusModifier).toBe(1.5);
+    expect(setBonusResult.activeSetBonuses[0].code).toBe('BOTTOM_DUO');
+  });
+
+  it('rewards an ADC archetype that fits the player stat profile', () => {
+    const laneBullyTeam = createTeam(15, 'LANE_BULLY_TEAM', 70);
+    const hyperCarryTeam = createTeam(16, 'HYPER_CARRY_TEAM', 70);
+    const laneBullyAdc = laneBullyTeam.players.find(
+      (player) => player.position === Position.ADC,
+    )!;
+    const hyperCarryAdc = hyperCarryTeam.players.find(
+      (player) => player.position === Position.ADC,
+    )!;
+
+    Object.assign(laneBullyAdc, { laning: 100, teamFight: 40 });
+    Object.assign(hyperCarryAdc, { laning: 100, teamFight: 40 });
+    laneBullyAdc.championArchetype = ChampionArchetype.LANE_BULLY;
+    hyperCarryAdc.championArchetype = ChampionArchetype.HYPER_CARRY;
+
+    const result = service.simulate(
+      laneBullyTeam,
+      hyperCarryTeam,
+      55,
+      TeamStrategy.BALANCED,
+    );
+
+    expect(result.teams[0].archetypeModifier).toBeGreaterThan(
+      result.teams[1].archetypeModifier,
+    );
+  });
+
+  it.each([
+    [Position.TOP, ChampionArchetype.TOP_SIDE_LANE],
+    [Position.JUNGLE, ChampionArchetype.JUNGLE_EARLY_SNOWBALL],
+    [Position.MID, ChampionArchetype.MID_STANDING_MAGE],
+  ])(
+    'applies the configured %s archetype to team performance',
+    (position, archetype) => {
+      const archetypeTeam = createTeam(17, `${position}_ARCHETYPE`, 70);
+      const plainTeam = createTeam(18, `${position}_PLAIN`, 70);
+      const player = archetypeTeam.players.find(
+        (candidate) => candidate.position === position,
+      )!;
+
+      player.championArchetype = archetype;
+
+      const result = service.simulate(
+        archetypeTeam,
+        plainTeam,
+        56,
+        TeamStrategy.BALANCED,
+      );
+
+      expect(result.teams[0].baseAbility).toBe(70);
+      expect(result.teams[0].archetypeModifier).not.toBe(0);
+      expect(result.teams[1].archetypeModifier).toBe(0);
+    },
+  );
+
+  it('rejects a champion archetype assigned to the wrong position', () => {
+    const invalidTeam = createTeam(19, 'INVALID_ARCHETYPE', 70);
+    const top = invalidTeam.players.find(
+      (player) => player.position === Position.TOP,
+    )!;
+
+    top.championArchetype = ChampionArchetype.LANE_BULLY;
+
+    expect(() =>
+      service.simulate(invalidTeam, teamB, 57, TeamStrategy.BALANCED),
+    ).toThrow(RangeError);
   });
 });

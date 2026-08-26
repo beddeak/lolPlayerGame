@@ -11,11 +11,11 @@ import {
 import { Position } from '../../players/enums/position.enum';
 import { RosterRole } from '../enums/roster-role.enum';
 import { PlayerInstruction } from '../enums/player-instruction.enum';
+import { ChampionArchetype } from '../enums/champion-archetype.enum';
 import { CareerPlayer } from './career-player.entity';
 import { CareerTeam } from './career-team.entity';
 
 @Entity({ name: 'rosters' })
-@Unique('UQ_rosters_career_player', ['careerPlayerId'])
 @Unique('UQ_rosters_team_starter_position', ['careerTeamId', 'starterPosition'])
 export class Roster {
   @PrimaryGeneratedColumn({ type: 'int', unsigned: true })
@@ -57,4 +57,7 @@ export class Roster {
 
   @Column({ type: 'enum', enum: PlayerInstruction, nullable: true })
   playerInstruction!: PlayerInstruction | null;
+
+  @Column({ type: 'enum', enum: ChampionArchetype, nullable: true })
+  championArchetype!: ChampionArchetype | null;
 }

@@ -1,12 +1,15 @@
 import { Position } from '../../players/enums/position.enum';
 import { TeamStrategy } from '../../careers/enums/team-strategy.enum';
 import { PlayerInstruction } from '../../careers/enums/player-instruction.enum';
+import { SetBonusSnapshot } from '../../set-bonuses/set-bonus.types';
+import { ChampionArchetype } from '../../careers/enums/champion-archetype.enum';
 
 export class MatchPlayerStatResponseDto {
   careerPlayerId!: number;
   position!: Position;
   playerInstruction!: PlayerInstruction | null;
   roleProficiency!: number | null;
+  championArchetype!: ChampionArchetype | null;
   kills!: number;
   deaths!: number;
   assists!: number;
@@ -28,6 +31,12 @@ export class MatchTeamSimulationResponseDto {
   strategyProficiency!: number;
   strategyProficiencyModifier!: number;
   metaModifier!: number;
+  chemistry!: number;
+  effectiveChemistry!: number;
+  chemistryModifier!: number;
+  activeSetBonuses!: SetBonusSnapshot[];
+  setBonusModifier!: number;
+  archetypeModifier!: number;
   baseAbility!: number;
   rngModifier!: number;
   performance!: number;
@@ -38,6 +47,8 @@ export class MatchTeamSimulationResponseDto {
 export class MatchSimulationResponseDto {
   matchId!: number;
   careerId!: number;
+  seriesId!: number | null;
+  seriesGameNumber!: number | null;
   currentMeta!: TeamStrategy;
   seed!: number;
   durationMinutes!: number;

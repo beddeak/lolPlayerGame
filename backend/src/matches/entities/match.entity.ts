@@ -7,13 +7,17 @@ import {
   ManyToOne,
   OneToMany,
   PrimaryGeneratedColumn,
+  Unique,
 } from 'typeorm';
 import { CareerTeam } from '../../careers/entities/career-team.entity';
 import { Career } from '../../careers/entities/career.entity';
 import { TeamStrategy } from '../../careers/enums/team-strategy.enum';
+import { MatchSeries } from '../../match-series/entities/match-series.entity';
+import { SetBonusSnapshot } from '../../set-bonuses/set-bonus.types';
 import { MatchPlayerStat } from './match-player-stat.entity';
 
 @Entity({ name: 'matches' })
+@Unique('UQ_matches_series_game_number', ['seriesId', 'seriesGameNumber'])
 export class Match {
   @PrimaryGeneratedColumn({ type: 'int', unsigned: true })
   id!: number;
@@ -28,6 +32,23 @@ export class Match {
     foreignKeyConstraintName: 'FK_matches_career',
   })
   career!: Career;
+
+  @Index('IDX_matches_series_id')
+  @Column({ type: 'int', unsigned: true, nullable: true })
+  seriesId!: number | null;
+
+  @ManyToOne(() => MatchSeries, (series) => series.games, {
+    nullable: true,
+    onDelete: 'SET NULL',
+  })
+  @JoinColumn({
+    name: 'seriesId',
+    foreignKeyConstraintName: 'FK_matches_series',
+  })
+  series!: MatchSeries | null;
+
+  @Column({ type: 'tinyint', unsigned: true, nullable: true })
+  seriesGameNumber!: number | null;
 
   @Index('IDX_matches_team_a_id')
   @Column({ type: 'int', unsigned: true })
@@ -93,6 +114,24 @@ export class Match {
   @Column({ type: 'double', default: 0 })
   teamAMetaModifier!: number;
 
+  @Column({ type: 'tinyint', unsigned: true, default: 50 })
+  teamAChemistry!: number;
+
+  @Column({ type: 'tinyint', unsigned: true, default: 50 })
+  teamAEffectiveChemistry!: number;
+
+  @Column({ type: 'double', default: 0 })
+  teamAChemistryModifier!: number;
+
+  @Column({ type: 'double', default: 0 })
+  teamASetBonusModifier!: number;
+
+  @Column({ type: 'json', nullable: true })
+  teamAActiveSetBonuses!: SetBonusSnapshot[] | null;
+
+  @Column({ type: 'double', default: 0 })
+  teamAArchetypeModifier!: number;
+
   @Column({ type: 'double' })
   teamBBaseAbility!: number;
 
@@ -117,6 +156,24 @@ export class Match {
 
   @Column({ type: 'double', default: 0 })
   teamBMetaModifier!: number;
+
+  @Column({ type: 'tinyint', unsigned: true, default: 50 })
+  teamBChemistry!: number;
+
+  @Column({ type: 'tinyint', unsigned: true, default: 50 })
+  teamBEffectiveChemistry!: number;
+
+  @Column({ type: 'double', default: 0 })
+  teamBChemistryModifier!: number;
+
+  @Column({ type: 'double', default: 0 })
+  teamBSetBonusModifier!: number;
+
+  @Column({ type: 'json', nullable: true })
+  teamBActiveSetBonuses!: SetBonusSnapshot[] | null;
+
+  @Column({ type: 'double', default: 0 })
+  teamBArchetypeModifier!: number;
 
   @Column({
     type: 'enum',

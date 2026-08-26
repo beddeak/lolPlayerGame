@@ -10,6 +10,12 @@ import {
   PLAYER_INSTRUCTION_CONFIG,
   ROLE_PROFICIENCY_MATCH_CONFIG,
 } from '../config/player-instruction.config';
+import { TEAM_CHEMISTRY_MATCH_CONFIG } from '../config/team-chemistry.config';
+import {
+  CHAMPION_ARCHETYPE_CONFIG,
+  CHAMPION_ARCHETYPE_PHASE_CONFIG,
+  ChampionArchetypeTuning,
+} from '../config/champion-archetype.config';
 import { createSeededRandom } from './seeded-random';
 import {
   SimpleMatchPlayerInput,
@@ -60,24 +66,16 @@ export class SimpleMatchSimulationService {
     randomValue: number,
     currentMeta: TeamStrategy,
   ): SimpleMatchTeamResult {
-    const strategyConfig = TEAM_STRATEGY_CONFIG[team.teamStrategy];
-    const playerAbilities = team.players.map((player) => ({
-      ability: this.calculatePlayerAbility(
-        player,
-        strategyConfig.statMultipliers,
-      ),
-      positionMultiplier:
-        strategyConfig.positionMultipliers[player.position] ?? 1,
-    }));
-    const positionWeightTotal = playerAbilities.reduce(
-      (total, player) => total + player.positionMultiplier,
-      0,
+    const baseAbility = this.calculateTeamAbility(team, {}, false);
+    const archetypeAdjustedAbility = this.calculateTeamAbility(team, {}, true);
+    const archetypeModifier = archetypeAdjustedAbility - baseAbility;
+    const setBonusStatModifiers = this.sumSetBonusStatModifiers(team);
+    const setBonusAdjustedAbility = this.calculateTeamAbility(
+      team,
+      setBonusStatModifiers,
+      false,
     );
-    const baseAbility =
-      playerAbilities.reduce(
-        (total, player) => total + player.ability * player.positionMultiplier,
-        0,
-      ) / positionWeightTotal;
+    const setBonusModifier = setBonusAdjustedAbility - baseAbility;
     const rngModifier =
       SIMPLE_MATCH_CONFIG.rngModifierMin +
       randomValue *
@@ -93,6 +91,22 @@ export class SimpleMatchSimulationService {
       team.teamStrategy === currentMeta
         ? META_MATCH_CONFIG.matchingStrategyBonus
         : META_MATCH_CONFIG.nonMatchingStrategyModifier;
+    const chemistry = this.clamp(
+      team.chemistry,
+      TEAM_CHEMISTRY_MATCH_CONFIG.min,
+      TEAM_CHEMISTRY_MATCH_CONFIG.max,
+    );
+    const effectiveChemistry = this.clamp(
+      chemistry +
+        team.activeSetBonuses.reduce(
+          (total, setBonus) => total + setBonus.chemistryBonus,
+          0,
+        ),
+      TEAM_CHEMISTRY_MATCH_CONFIG.min,
+      TEAM_CHEMISTRY_MATCH_CONFIG.max,
+    );
+    const chemistryModifier =
+      this.calculateChemistryModifier(effectiveChemistry);
 
     return {
       teamId: team.teamId,
@@ -101,11 +115,66 @@ export class SimpleMatchSimulationService {
       strategyProficiency,
       strategyProficiencyModifier,
       metaModifier,
+      chemistry,
+      effectiveChemistry,
+      chemistryModifier,
+      activeSetBonuses: team.activeSetBonuses,
+      setBonusModifier,
+      archetypeModifier,
       baseAbility,
       rngModifier,
       performance:
-        baseAbility + rngModifier + strategyProficiencyModifier + metaModifier,
+        baseAbility +
+        setBonusModifier +
+        archetypeModifier +
+        chemistryModifier +
+        rngModifier +
+        strategyProficiencyModifier +
+        metaModifier,
     };
+  }
+
+  private calculateTeamAbility(
+    team: SimpleMatchTeamInput,
+    statBonuses: Partial<Record<keyof SimpleMatchPlayerStats, number>>,
+    applyChampionArchetype: boolean,
+  ): number {
+    const strategyConfig = TEAM_STRATEGY_CONFIG[team.teamStrategy];
+    const playerAbilities = team.players.map((player) => ({
+      ability: this.calculatePlayerAbility(
+        player,
+        strategyConfig.statMultipliers,
+        statBonuses,
+        applyChampionArchetype,
+      ),
+      positionMultiplier:
+        strategyConfig.positionMultipliers[player.position] ?? 1,
+    }));
+    const positionWeightTotal = playerAbilities.reduce(
+      (total, player) => total + player.positionMultiplier,
+      0,
+    );
+
+    return (
+      playerAbilities.reduce(
+        (total, player) => total + player.ability * player.positionMultiplier,
+        0,
+      ) / positionWeightTotal
+    );
+  }
+
+  private sumSetBonusStatModifiers(
+    team: SimpleMatchTeamInput,
+  ): Partial<Record<keyof SimpleMatchPlayerStats, number>> {
+    return team.activeSetBonuses.reduce(
+      (total, setBonus) => ({
+        laning: (total.laning ?? 0) + setBonus.laningBonus,
+        teamFight: (total.teamFight ?? 0) + setBonus.teamFightBonus,
+        macro: (total.macro ?? 0) + setBonus.macroBonus,
+        teamPlay: (total.teamPlay ?? 0) + setBonus.teamPlayBonus,
+      }),
+      {} as Partial<Record<keyof SimpleMatchPlayerStats, number>>,
+    );
   }
 
   private calculateStrategyProficiencyModifier(proficiency: number): number {
@@ -129,16 +198,22 @@ export class SimpleMatchSimulationService {
     strategyStatMultipliers: Partial<
       Record<keyof SimpleMatchPlayerStats, number>
     >,
+    statBonuses: Partial<Record<keyof SimpleMatchPlayerStats, number>>,
+    applyChampionArchetype: boolean,
   ): number {
     const instructionStatMultipliers = player.playerInstruction
       ? PLAYER_INSTRUCTION_CONFIG[player.position][player.playerInstruction]
           ?.statMultipliers
       : undefined;
+    const archetypeConfig = applyChampionArchetype
+      ? this.getChampionArchetypeConfig(player)
+      : undefined;
     const weightedStats = SIMPLE_MATCH_CONFIG.playerStatKeys.map((statKey) => ({
-      value: player[statKey],
+      value: player[statKey] + (statBonuses[statKey] ?? 0),
       weight:
         (strategyStatMultipliers[statKey] ?? 1) *
-        (instructionStatMultipliers?.[statKey] ?? 1),
+        (instructionStatMultipliers?.[statKey] ?? 1) *
+        (archetypeConfig?.statMultipliers[statKey] ?? 1),
     }));
     const weightTotal = weightedStats.reduce(
       (total, stat) => total + stat.weight,
@@ -151,7 +226,78 @@ export class SimpleMatchSimulationService {
         0,
       ) / weightTotal;
 
-    return ability + this.calculateRoleProficiencyModifier(player);
+    return (
+      ability +
+      this.calculateRoleProficiencyModifier(player) +
+      (archetypeConfig
+        ? this.calculateArchetypePhaseModifier(archetypeConfig)
+        : 0)
+    );
+  }
+
+  private getChampionArchetypeConfig(
+    player: SimpleMatchPlayerInput,
+  ): ChampionArchetypeTuning | undefined {
+    if (player.championArchetype === null) {
+      return undefined;
+    }
+
+    const config = CHAMPION_ARCHETYPE_CONFIG[player.championArchetype];
+
+    if (config.position !== player.position) {
+      throw new RangeError(
+        `${player.championArchetype} is not valid for ${player.position}`,
+      );
+    }
+
+    return config;
+  }
+
+  private calculateArchetypePhaseModifier(
+    archetype: ChampionArchetypeTuning,
+  ): number {
+    const config = CHAMPION_ARCHETYPE_PHASE_CONFIG;
+    const rating = this.clamp(
+      archetype.phaseRatings.early * config.weights.early +
+        archetype.phaseRatings.mid * config.weights.mid +
+        archetype.phaseRatings.late * config.weights.late,
+      config.minRating,
+      config.maxRating,
+    );
+
+    if (rating >= config.neutralRating) {
+      return (
+        ((rating - config.neutralRating) /
+          (config.maxRating - config.neutralRating)) *
+        config.maxBonus
+      );
+    }
+
+    return (
+      ((config.neutralRating - rating) /
+        (config.neutralRating - config.minRating)) *
+      config.maxPenalty
+    );
+  }
+
+  private calculateChemistryModifier(chemistry: number): number {
+    const config = TEAM_CHEMISTRY_MATCH_CONFIG;
+
+    if (chemistry >= config.neutral) {
+      return (
+        ((chemistry - config.neutral) / (config.max - config.neutral)) *
+        config.maxBonus
+      );
+    }
+
+    return (
+      ((config.neutral - chemistry) / (config.neutral - config.min)) *
+      config.maxPenalty
+    );
+  }
+
+  private clamp(value: number, min: number, max: number): number {
+    return Math.min(max, Math.max(min, value));
   }
 
   private calculateRoleProficiencyModifier(
@@ -207,6 +353,9 @@ export class SimpleMatchSimulationService {
         result.strategyProficiencyModifier,
       ),
       metaModifier: this.round(result.metaModifier),
+      chemistryModifier: this.round(result.chemistryModifier),
+      setBonusModifier: this.round(result.setBonusModifier),
+      archetypeModifier: this.round(result.archetypeModifier),
       performance: this.round(result.performance),
     };
   }

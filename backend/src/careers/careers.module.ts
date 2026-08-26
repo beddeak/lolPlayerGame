@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { AuthModule } from '../auth/auth.module';
 import { PlayerCard } from '../players/entities/player-card.entity';
+import { SetBonus } from '../set-bonuses/entities/set-bonus.entity';
 import { CareerTeamsController } from './career-teams.controller';
 import { CareerTeamsService } from './career-teams.service';
 import { CareersController } from './careers.controller';
@@ -14,6 +16,7 @@ import { Roster } from './entities/roster.entity';
 
 @Module({
   imports: [
+    AuthModule,
     TypeOrmModule.forFeature([
       Career,
       CareerTeam,
@@ -22,6 +25,7 @@ import { Roster } from './entities/roster.entity';
       CareerPlayerRoleProficiency,
       Roster,
       PlayerCard,
+      SetBonus,
     ]),
   ],
   providers: [CareersService, CareerTeamsService],

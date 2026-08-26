@@ -10,6 +10,7 @@ import {
 import { CareerPlayer } from '../../careers/entities/career-player.entity';
 import { CareerTeam } from '../../careers/entities/career-team.entity';
 import { PlayerInstruction } from '../../careers/enums/player-instruction.enum';
+import { ChampionArchetype } from '../../careers/enums/champion-archetype.enum';
 import { Position } from '../../players/enums/position.enum';
 import { Match } from './match.entity';
 
@@ -63,6 +64,9 @@ export class MatchPlayerStat {
 
   @Column({ type: 'tinyint', unsigned: true, nullable: true })
   roleProficiency!: number | null;
+
+  @Column({ type: 'enum', enum: ChampionArchetype, nullable: true })
+  championArchetype!: ChampionArchetype | null;
 
   @Column({ type: 'tinyint', unsigned: true })
   kills!: number;
