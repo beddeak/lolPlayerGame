@@ -1,0 +1,2815 @@
+BLG [탑 선수]
+
+이름: Bin 
+팀: BLG 
+나이: 22세   
+OVR: 89 
+
+[기본 능력치]
+Mechanics: 97 
+GameSense: 86 
+Laning: 97 
+TeamFight: 94 
+Macro: 86 
+TeamPlay: 85 
+Mental: 76  
+ChampionPool: 95 
+
+[현재 상태]
+Form: 90 
+Condition: 92 
+
+[포지션 숙련도]
+TOP: 100 
+
+[역할 숙련도]
+TOP\_CARRY:          # 탑에 자원 몰아줬을 때 캐리
+WEAK\_SIDE:          # 자원 적게 먹고 버티기
+SPLIT\_PUSH:         # 사이드 운영/스플릿
+TEAMFIGHT\_TOP:      # 한타 중심 탑
+TANK\_TOP:           # 탱커/앞라인 역할
+
+[챔피언 유형 숙련도]
+Tank:
+Bruiser:
+Carry:
+Ranged\_TOP:
+AP\_TOP:
+
+[플레이 성향]
+Aggression: 100        # 공격성 
+RiskTaking: 100        # 위험 감수 
+Consistency: 80       # 경기력 안정성 
+Clutch: 95            # 중요 경기/중요 순간 
+ResourceDemand: 95     # 자원 요구도 
+
+[팀 적응]
+TeamChemistry: 95 
+CoachTrust: 100 
+FeedbackAcceptance: # 피드백 수용 (에겐이라 삐질수있음)
+대표챔:암베사, 잭스, 나르 (전형적인 공격적인 칼챔 장인선수)
+[탑 선수]
+
+이름: **Flandre**  
+팀: BLG 
+나이: 27살
+OVR: 86 
+
+[기본 능력치]
+Mechanics:  84
+GameSense: 95 
+Laning: 81 
+TeamFight: 97 
+Macro: 95 
+TeamPlay: 97 
+Mental: 95 
+ChampionPool: 94 
+
+[현재 상태]
+Form: 83 
+Condition: 94 
+
+[포지션 숙련도]
+TOP: 100 
+
+[역할 숙련도]
+TOP\_CARRY:  80        # 탑에 자원 몰아줬을 때 캐리 
+WEAK\_SIDE:  94        # 자원 적게 먹고 버티기 
+SPLIT\_PUSH:  95       # 사이드 운영/스플릿 
+TEAMFIGHT\_TOP: 91      # 한타 중심 탑 
+TANK\_TOP: 96          # 탱커/앞라인 역할 
+
+[챔피언 유형 숙련도]
+Tank: 96 
+Bruiser: 90 
+Carry: 80 
+Ranged\_TOP: 85 
+AP\_TOP: 85 
+
+[플레이 성향]
+Aggression: 70        # 공격성 
+RiskTaking: 95        # 위험 감수 
+Consistency: 90       # 경기력 안정성 
+Clutch: 90            # 중요 경기/중요 순간 
+ResourceDemand: 60     # 자원 요구도 
+
+[팀 적응]
+TeamChemistry: 95 
+CoachTrust: 100 
+FeedbackAcceptance: # 피드백 수용 (모든 피드백 다 가능 멘탈갑 선수)
+대표챔:사이온 렉사이 럼블
+[탑 선수]
+
+이름: Wenbo 
+팀: BLG 
+나이: 19살 
+OVR: 88 
+
+[기본 능력치]
+Mechanics: 93 
+GameSense: 92 
+Laning: 93 
+TeamFight: 95 
+Macro: 93 
+TeamPlay: 95 
+Mental: 95 
+ChampionPool: 93 
+
+[현재 상태]
+Form: 90 
+Condition: 93 
+
+[포지션 숙련도]
+TOP: 100 
+
+[역할 숙련도]
+TOP\_CARRY:  93        # 탑에 자원 몰아줬을 때 캐리 
+WEAK\_SIDE: 91         # 자원 적게 먹고 버티기 
+SPLIT\_PUSH: 93        # 사이드 운영/스플릿 
+TEAMFIGHT\_TOP: 94      # 한타 중심 탑 
+TANK\_TOP: 93          # 탱커/앞라인 역할 
+
+[챔피언 유형 숙련도]
+Tank: 92 
+Bruiser: 94 
+Carry: 93 
+Ranged\_TOP: 91 
+AP\_TOP: 91 
+
+[플레이 성향]
+Aggression: 92        # 공격성 
+RiskTaking: 93        # 위험 감수 
+Consistency:  93      # 경기력 안정성 
+Clutch: 90            # 중요 경기/중요 순간 
+ResourceDemand: 86     # 자원 요구도 
+
+[팀 적응]
+TeamChemistry: 90 
+CoachTrust: 100 
+FeedbackAcceptance: # 피드백 수용 (신인답지않은 롤력과 실력 그리고 막내답게 말 잘들음)
+대표챔 암베사 요릭 크샨테
+[정글 선수]
+
+이름: XUN 
+팀: BLG 
+나이: 24세 
+OVR: 92 
+
+[기본 능력치]
+Mechanics: 94 
+GameSense: 98 
+Laning: 98            # 정글에서는 초반 동선/주도권/갱킹 능력으로 사용 
+TeamFight: 97 
+Macro: 98 
+TeamPlay: 97 
+Mental: 98 
+ChampionPool: 97 
+
+[현재 상태]
+Form: 98 
+Condition: 97 
+
+[포지션 숙련도]
+JUNGLE: 100 
+
+[역할 숙련도]
+TEMPO\_JUNGLE: 98      # 초반 동선/갱킹/템포 
+CARRY\_JUNGLE: 97      # 자원 먹고 직접 캐리 
+FACILITATOR: 96       # 라인 보좌형 
+OBJECTIVE\_CONTROL: 96  # 용/전령/바론 중심 
+INVADE\_JUNGLE: 95     # 카정/상대 정글 압박 
+TEAMFIGHT\_JUNGLE: 98   # 한타 기여 
+
+[챔피언 유형 숙련도]
+Carry: 97 
+Tank: 96 
+Bruiser: 95 
+AP\_Jungle: 94 
+Utility: 94 
+EarlyGame: 95 
+
+[플레이 성향]
+Aggression:  97
+RiskTaking: 96 
+Consistency: 95 
+Clutch: 97 
+PathingCreativity: 96 # 동선 창의성 
+ObjectiveSense: 96    # 오브젝트 감각 
+
+[팀 적응]
+TeamChemistry: 100 
+CoachTrust: 100  
+FeedbackAcceptance: (양대인의 피드백으로 정글의 신이 됨)
+대표챔 리신 나피리 자르반
+[미드 선수]
+
+이름: **Knight**  
+팀: BLG 
+나이: 26살 
+OVR: 93 
+
+[기본 능력치]
+Mechanics: 97 
+GameSense: 96 
+Laning: 98 
+TeamFight: 97 
+Macro: 97 
+TeamPlay: 97 
+Mental: 97 
+ChampionPool: 96 
+
+[현재 상태]
+Form: 98 
+Condition: 95 
+
+[포지션 숙련도]
+MID:
+
+[역할 숙련도]
+MID\_CARRY: 98         # 자원 집중 캐리 
+ROAM\_MID: 97         # 로밍/사이드 영향 
+CONTROL\_MID:  97      # 운영/라인 컨트롤 
+TEAMFIGHT\_MID: 98     # 한타 중심 
+UTILITY\_MID:  96      # 팀 보조 
+SIDE\_LANE\_MID: 96     # 사이드 운영 
+
+[챔피언 유형 숙련도]
+ControlMage: 97 
+StandingMage: 98 
+Assassin: 96 
+MeleeMID: 94 
+AD\_MID: 96 
+Utility: 96 
+ScalingMage: 97 
+
+[플레이 성향]
+Aggression: 97 
+RiskTaking: 80 
+Consistency: 96 
+Clutch: 98 
+LanePressure: 97 
+RoamTendency: 96 
+
+[팀 적응]
+TeamChemistry: 100 
+CoachTrust: 100 
+FeedbackAcceptance: (2026기준 쵸비 다음 혹은 동급으로 평가되는 세체미 후보)
+대표챔 라이즈 신드라 오리아나
+[원딜 선수]
+
+이름: Viper 
+팀: BLG  
+나이:25살 
+OVR: 91 
+
+[기본 능력치]
+Mechanics: 96 
+GameSense: 98 
+Laning: 95 
+TeamFight: 97 
+Macro: 97 
+TeamPlay: 98 
+Mental: 97 
+ChampionPool: 100 
+
+[현재 상태]
+Form: 97 
+Condition: 96 
+
+[포지션 숙련도]
+ADC: 100 
+
+[역할 숙련도]
+HYPER\_CARRY: 94       # 자원 집중 후 후반 캐리 
+WEAK\_SIDE: 98         # 저자원 생존/기여 
+BOT\_LANE\_PRESSURE:97  # 바텀 라인전 압박 
+TEAMFIGHT\_CARRY: 99   # 순수 한타 딜링 
+UTILITY\_ADC: 100        # 유틸/팀 보조 
+EARLY\_GAME\_ADC: 98     # 초반 스노우볼 
+
+[챔피언 유형 숙련도]
+CritMarksman: 100 
+HyperCarry: 100 
+LaneBully: 100 
+UtilityADC: 100 
+AP\_Bot: 100 
+ShortRangeADC: 100 
+LongRangeADC: 100
+
+[플레이 성향]
+Aggression: 96 
+RiskTaking: 85 (철저히 전부 다 계산해서 해야된다면 박음 안해도되면 절대 X) 
+Consistency: 95 
+Clutch: 94 
+Positioning: 98 
+ResourceDemand: 76 
+
+[팀 적응]
+TeamChemistry: 100 
+SupportChemistry: 97 (아주 가끔 서로 다른생각을 할때가 있긴함) 
+CoachTrust: 100 
+FeedbackAcceptance: (모든 역할을 수행할려함 고통받는역할이라도 마다하지않고 바로 함)
+대표챔 이즈리얼 유나라 애쉬
+[서포터 선수]
+
+이름: ON 
+팀: BLG 
+나이: 23살 
+OVR: 92 
+
+[기본 능력치]
+Mechanics: 98
+GameSense: 97 
+Laning: 98 
+TeamFight: 98 
+Macro: 96 
+TeamPlay: 97 
+Mental: 94 
+ChampionPool: 98 
+
+[현재 상태]
+Form: 97 
+Condition: 96 
+
+[포지션 숙련도]
+SUPPORT: 100 
+
+[역할 숙련도]
+ROAM\_SUPPORT: 97      # 로밍 
+ENGAGE\_SUPPORT: 96    # 이니시 
+ENCHANTER\_SUPPORT: 97  # 원딜 보좌 
+LANE\_SUPPORT: 98      # 바텀 라인전 
+SHOTCALL\_SUPPORT: 97  # 오더/운영 
+VISION\_CONTROL: 97    # 시야 장악 
+
+[챔피언 유형 숙련도]
+Engage: 96 
+Enchanter: 97 
+Tank: 94 
+Poke: 98 
+MageSupport: 97 
+Unorthodox: 97         # 비정상/조커 서폿 픽 
+
+[플레이 성향]
+Aggression:  97
+RiskTaking: 94 
+Consistency: 95 
+Clutch: 97 
+RoamTendency: 98 
+Shotcalling: 96 
+
+[팀 적응]
+TeamChemistry: 100 
+ADC\_Chemistry: 97 
+CoachTrust: 100 
+FeedbackAcceptance: (양대인의 밴픽에 잘적응하고 잘수행중)
+대표챔 바드 카르마 세라핀
+
+TES
+[탑 선수]
+
+이름: 369(현재 휴식)                # 선수 이름 / 닉네임
+팀:      TES             # 현재 소속 팀
+나이:25살                 # 현재 커리어 내 나이
+OVR:     86             # TOP 포지션 기준 기본 종합 능력치
+
+
+[기본 능력치]
+
+Mechanics:  93          # 순수 조작 능력.
+                      # 스킬 적중, 무빙, 반응속도, 콤보 수행 등 피지컬적인 능력.
+
+GameSense:    94        # 순간적인 상황 판단 능력.
+                      # 싸울지 빠질지, 상대 스킬 상태, 갱 위험 등을 빠르게 판단하는 능력.
+
+Laning:  91             # 순수 라인전 능력.
+                      # CS, 딜교환, 웨이브 관리, 솔킬 압박, 라인 주도권 등을 종합.
+
+TeamFight:  92          # 한타 수행 능력.
+                      # 포지셔닝, 진입 타이밍, 타겟 선정, 스킬 활용 등을 종합.
+
+Macro:     92           # 전체 게임 운영 능력.
+                      # 사이드 관리, 텔레포트 판단, 오브젝트 준비, 라인 배분 등을 판단하는 능력.
+
+TeamPlay:    91         # 팀원과 맞춰 움직이는 능력.
+                      # 정글과의 호흡, 한타 합류, 팀 지시 수행, 연계 플레이 등을 포함.
+
+Mental:   91(현재 멘탈이 망가져 아예 휴식)            # 압박 및 부진 상황을 견디는 능력.
+                      # 연패, 중요한 경기, 실수 이후 경기력 유지 등에 영향.
+
+ChampionPool: 90        # 사용할 수 있는 챔피언 유형의 넓이와 숙련도.
+                      # 높을수록 다양한 메타와 밴픽에 대응하기 쉬움.
+
+
+[현재 상태]
+
+Form:   90              # 최근 경기력.
+                      # 기본 실력과 별개로 현재 얼마나 잘하고 있는지를 나타냄.
+                      # 연승, 좋은 경기, 피드백 등에 따라 상승하거나 하락 가능.
+
+Condition:   86         # 현재 체력/집중력 상태.
+                      # 훈련 과다, 연속 경기 등으로 낮아질 수 있음.
+                      # 너무 낮으면 Form 및 실제 경기력에 악영향.
+
+
+[포지션 숙련도]
+
+TOP:    100              # TOP 포지션 자체에 대한 숙련도.
+                      # 본 포지션이면 일반적으로 매우 높음.
+                      # 다른 포지션에서 전향한 선수는 낮을 수 있음.
+
+
+[역할 숙련도]
+
+TOP_CARRY:   85         # 탑에 많은 자원을 몰아줬을 때 직접 게임을 캐리하는 능력.
+                      # Carry 챔프, 정글 지원, 높은 Gold Share와 궁합이 좋음.
+
+WEAK_SIDE:    85        # 적은 자원을 받고 혼자 버티는 능력.
+                      # 갱 지원 없이도 데스를 최소화하고 필요한 성장량을 확보하는 능력.
+
+SPLIT_PUSH:    86       # 사이드 라인 운영 능력.
+                      # 1:1 압박, 사이드 웨이브 관리, 합류 타이밍, 텔레포트 활용 등이 중요.
+
+TEAMFIGHT_TOP:   89     # 한타 중심 탑 역할 숙련도.
+                      # 사이드보다 5:5 교전과 팀 합류를 중시하는 플레이.
+
+TANK_TOP:  91           # 탱커/앞라인 역할 숙련도.
+                      # 적은 자원으로 버티며 아군 캐리를 보호하고 공간을 만드는 역할.
+
+
+[챔피언 유형 숙련도]
+
+Tank:       100          # 순수 탱커형 탑 챔피언 숙련도.
+                      # 앞라인, CC, 저자원 플레이에 강함.
+
+Bruiser:     96         # 전사형 챔피언 숙련도.
+                      # 딜과 탱킹을 동시에 수행하며 장기 교전에 강한 유형.
+
+Carry:    87            # 자원을 받아 직접 캐리하는 공격형 탑 챔피언 숙련도.
+                      # 높은 Mechanics와 TOP_CARRY 역할과 궁합이 좋음.
+
+Ranged_TOP:    80       # 원거리 탑 챔피언 숙련도.
+                      # 라인 압박과 견제에 강하지만 한타 구조나 생존 난도가 다를 수 있음.
+
+AP_TOP:         87      # 마법 피해 중심 탑 챔피언 숙련도.
+                      # 조합의 피해 유형을 바꾸거나 특정 메타에서 활용.
+
+
+[플레이 성향]
+
+Aggression:    86       # 공격성.
+                      # 높을수록 딜교, 솔킬, 적극적인 교전을 많이 시도.
+
+RiskTaking:    75       # 위험 감수 성향.
+                      # 높을수록 실패 위험이 있는 과감한 플레이를 선택하는 경향이 큼.
+
+Consistency:  86        # 경기력 안정성.
+                      # 높을수록 고점과 저점 차이가 작고 꾸준히 자신의 실력을 냄.
+
+Clutch:       85        # 중요한 경기/중요 순간에서의 수행 능력.
+                      # 5세트, 탈락전, 마지막 한타 등 압박 상황에 영향.
+
+ResourceDemand:  70     # 자원 요구도.
+                      # 높을수록 Gold, 정글 개입, 밴픽 우선권 등을 많이 받아야 최대 성능 발휘.
+                      # 낮으면 적은 자원으로도 효율적으로 역할 수행 가능.
+대표챔 사이온 럼블 나르
+
+[팀 적응]
+
+TeamChemistry:  91      # 현재 팀 전체와의 호흡.
+                      # 같이 훈련하고 경기할수록 상승 가능.
+
+CoachTrust:   100        # 현재 감독에 대한 신뢰도.
+                      # 피드백 반응, 역할 수용, 재계약 등에 영향.
+
+FeedbackAcceptance:  100 # 감독 피드백을 얼마나 잘 받아들이는지.
+                      # 높으면 지적이나 전술 변경을 비교적 빠르게 수용.
+[탑 선수]
+
+이름:   ZUIAN              # 선수 이름 / 닉네임
+팀:          TES         # 현재 소속 팀
+나이:       21살          # 현재 커리어 내 나이
+OVR:            88      # TOP 포지션 기준 기본 종합 능력치
+
+
+[기본 능력치]
+
+Mechanics:    90        # 순수 조작 능력.
+                      # 스킬 적중, 무빙, 반응속도, 콤보 수행 등 피지컬적인 능력.
+
+GameSense:     85       # 순간적인 상황 판단 능력.
+                      # 싸울지 빠질지, 상대 스킬 상태, 갱 위험 등을 빠르게 판단하는 능력.
+
+Laning:        90       # 순수 라인전 능력.
+                      # CS, 딜교환, 웨이브 관리, 솔킬 압박, 라인 주도권 등을 종합.
+
+TeamFight:      91      # 한타 수행 능력.
+                      # 포지셔닝, 진입 타이밍, 타겟 선정, 스킬 활용 등을 종합.
+
+Macro:        85        # 전체 게임 운영 능력.
+                      # 사이드 관리, 텔레포트 판단, 오브젝트 준비, 라인 배분 등을 판단하는 능력.
+
+TeamPlay:      87       # 팀원과 맞춰 움직이는 능력.
+                      # 정글과의 호흡, 한타 합류, 팀 지시 수행, 연계 플레이 등을 포함.
+
+Mental:          94     # 압박 및 부진 상황을 견디는 능력.
+                      # 연패, 중요한 경기, 실수 이후 경기력 유지 등에 영향.
+
+ChampionPool:   91      # 사용할 수 있는 챔피언 유형의 넓이와 숙련도.
+                      # 높을수록 다양한 메타와 밴픽에 대응하기 쉬움.
+
+
+[현재 상태]
+
+Form:     90            # 최근 경기력.
+                      # 기본 실력과 별개로 현재 얼마나 잘하고 있는지를 나타냄.
+                      # 연승, 좋은 경기, 피드백 등에 따라 상승하거나 하락 가능.
+
+Condition:  91          # 현재 체력/집중력 상태.
+                      # 훈련 과다, 연속 경기 등으로 낮아질 수 있음.
+                      # 너무 낮으면 Form 및 실제 경기력에 악영향.
+
+
+[포지션 숙련도]
+
+TOP:   100               # TOP 포지션 자체에 대한 숙련도.
+                      # 본 포지션이면 일반적으로 매우 높음.
+                      # 다른 포지션에서 전향한 선수는 낮을 수 있음.
+
+
+[역할 숙련도]
+
+TOP_CARRY:    85        # 탑에 많은 자원을 몰아줬을 때 직접 게임을 캐리하는 능력.
+                      # Carry 챔프, 정글 지원, 높은 Gold Share와 궁합이 좋음.
+
+WEAK_SIDE:      86      # 적은 자원을 받고 혼자 버티는 능력.
+                      # 갱 지원 없이도 데스를 최소화하고 필요한 성장량을 확보하는 능력.
+
+SPLIT_PUSH:      87     # 사이드 라인 운영 능력.
+                      # 1:1 압박, 사이드 웨이브 관리, 합류 타이밍, 텔레포트 활용 등이 중요.
+
+TEAMFIGHT_TOP:   88     # 한타 중심 탑 역할 숙련도.
+                      # 사이드보다 5:5 교전과 팀 합류를 중시하는 플레이.
+
+TANK_TOP:      91       # 탱커/앞라인 역할 숙련도.
+                      # 적은 자원으로 버티며 아군 캐리를 보호하고 공간을 만드는 역할.
+
+
+[챔피언 유형 숙련도]
+
+Tank:        91         # 순수 탱커형 탑 챔피언 숙련도.
+                      # 앞라인, CC, 저자원 플레이에 강함.
+
+Bruiser:       90       # 전사형 챔피언 숙련도.
+                      # 딜과 탱킹을 동시에 수행하며 장기 교전에 강한 유형.
+
+Carry:         87       # 자원을 받아 직접 캐리하는 공격형 탑 챔피언 숙련도.
+                      # 높은 Mechanics와 TOP_CARRY 역할과 궁합이 좋음.
+
+Ranged_TOP:     85      # 원거리 탑 챔피언 숙련도.
+                      # 라인 압박과 견제에 강하지만 한타 구조나 생존 난도가 다를 수 있음.
+
+AP_TOP:     90          # 마법 피해 중심 탑 챔피언 숙련도.
+                      # 조합의 피해 유형을 바꾸거나 특정 메타에서 활용.
+
+
+[플레이 성향]
+
+Aggression:   90        # 공격성.
+                      # 높을수록 딜교, 솔킬, 적극적인 교전을 많이 시도.
+
+RiskTaking:     70      # 위험 감수 성향.
+                      # 높을수록 실패 위험이 있는 과감한 플레이를 선택하는 경향이 큼.
+
+Consistency:     90     # 경기력 안정성.
+                      # 높을수록 고점과 저점 차이가 작고 꾸준히 자신의 실력을 냄.
+
+Clutch:       85        # 중요한 경기/중요 순간에서의 수행 능력.
+                      # 5세트, 탈락전, 마지막 한타 등 압박 상황에 영향.
+
+ResourceDemand:   85    # 자원 요구도.
+                      # 높을수록 Gold, 정글 개입, 밴픽 우선권 등을 많이 받아야 최대 성능 발휘.
+                      # 낮으면 적은 자원으로도 효율적으로 역할 수행 가능.
+대표챔 럼블 암베사 크산테
+
+[팀 적응]
+
+TeamChemistry:   96     # 현재 팀 전체와의 호흡.
+                      # 같이 훈련하고 경기할수록 상승 가능.
+
+CoachTrust:     100      # 현재 감독에 대한 신뢰도.
+                      # 피드백 반응, 역할 수용, 재계약 등에 영향.
+
+FeedbackAcceptance: (말 잘들음)  # 감독 피드백을 얼마나 잘 받아들이는지.
+                      # 높으면 지적이나 전술 변경을 비교적 빠르게 수용.
+[정글 선수]
+
+이름:  Tian               # 선수 이름
+팀:   TES                # 현재 소속 팀
+나이:     26살            # 현재 나이
+OVR:     89             # JUNGLE 기준 기본 종합 능력치
+
+
+[기본 능력치]
+
+Mechanics: 91           # 스킬 활용, 반응속도, 소규모 교전 등 순수 피지컬.
+
+GameSense: 92           # 갱킹 각, 역갱, 교전 판단 등 순간 판단 능력.
+
+Laning:    94           # 정글에서는 일반적인 라인전 대신
+                      # 초반 동선, 정글 주도권, 갱킹 성공 가능성,
+                      # 상대 정글과의 성장 경쟁 능력으로 사용.
+
+TeamFight:   93         # 한타에서의 진입, 타겟 선정, 스킬 활용 능력.
+
+Macro:        92        # 맵 전체 흐름과 다음 행동을 설계하는 운영 능력.
+                      # 어느 라인을 봐줄지, 오브젝트를 포기할지 등을 판단.
+
+TeamPlay:   93          # 라이너와 맞춰 갱킹/교전/오브젝트를 수행하는 능력.
+
+Mental:     90          # 초반 동선 실패, 오브젝트 스틸 실패,
+                      # 중요한 경기 등에서 흔들리지 않는 정도.
+
+ChampionPool: 91        # 다양한 정글 유형을 소화하는 능력.
+                      # 탱커, 캐리, AP, 초반형 등 메타 변화 대응에 중요.
+
+
+[현재 상태]
+
+Form:    88             # 최근 정글 경기력.
+Condition: 92           # 현재 체력/집중력 상태.
+
+
+[포지션 숙련도]
+
+JUNGLE:        100       # JUNGLE 포지션 숙련도.
+
+
+[역할 숙련도]
+
+TEMPO_JUNGLE:    90     # 초반 동선과 갱킹을 이용해 게임 템포를 빠르게 가져오는 역할.
+                      # 라인 개입과 초기 주도권 확보에 특화.
+
+CARRY_JUNGLE:  92       # 정글 본인이 많은 자원을 먹고 직접 캐리하는 역할.
+                      # 성장형 정글러와 궁합이 좋음.
+
+FACILITATOR:    87      # 라이너를 키워주는 보좌형 정글.
+                      # 자신의 성장보다 라인 지원을 우선.
+
+OBJECTIVE_CONTROL: 90   # 용, 전령, 바론 등 오브젝트 중심 운영 숙련도.
+                      # 오브젝트 타이밍과 싸움 설계에 중요.
+
+INVADE_JUNGLE:  91      # 상대 정글 침입, 카정, 성장 방해에 특화된 역할.
+
+TEAMFIGHT_JUNGLE: 92    # 중후반 한타에서 높은 기여를 하는 역할.
+
+
+[챔피언 유형 숙련도]
+
+Carry:    89            # 많은 자원을 먹고 딜로 캐리하는 정글러.
+
+Tank:       87          # 탱킹과 CC 중심 정글러.
+
+Bruiser:     90         # 교전 지속력이 좋은 전사형 정글러.
+
+AP_Jungle:     89       # 마법 피해 중심 정글 챔피언.
+
+Utility:       86       # 팀 보조, CC, 버프 등에 강한 정글러.
+
+EarlyGame:     89       # 초반 갱킹 및 교전에 매우 강한 정글 유형.
+
+
+[플레이 성향]
+
+Aggression:    90       # 적극적인 갱킹, 카정, 교전 시도 성향.
+
+RiskTaking:      89     # 위험한 카정, 다이브, 50:50 교전 등을 선택하는 성향.
+
+Consistency:      80    # 정글 경기력의 안정성.
+
+Clutch:      92         # 중요 오브젝트/중요 교전에서의 수행 능력.
+
+PathingCreativity: 94   # 동선 창의성.
+                      # 상대가 예상하기 어려운 정글 루트,
+                      # 역갱 동선, 카정 타이밍 등을 만들어내는 능력.
+
+ObjectiveSense:   94    # 오브젝트 감각.
+                      # 용/전령/바론을 언제 시작하고 포기해야 하는지,
+                      # 상대 위치를 보고 오브젝트를 교환할지 판단하는 능력.
+
+
+[팀 적응]
+
+TeamChemistry:   100     # 팀 전체와의 호흡.
+
+CoachTrust:    100       # 감독에 대한 신뢰.
+
+FeedbackAcceptance: (잘받아들임)  # 감독의 피드백을 받아들이는 정도.
+대표챔 자르반 4세 리신 오공
+[미드 선수]
+
+이름:     Creme            # 선수 이름
+팀:            TES       # 현재 팀
+나이:        22세         # 현재 나이
+OVR:       89           # MID 기준 기본 종합 능력치
+
+
+[기본 능력치]
+
+Mechanics:  94          # 스킬샷, 무빙, 콤보 등 순수 조작 능력.
+
+GameSense:  93          # 갱 회피, 교전 선택, 킬각 판단 등 순간 판단.
+
+Laning:    94           # CS, 딜교, 웨이브 관리, 솔킬 압박 등 미드 라인전 능력.
+
+TeamFight:   92         # 한타에서 딜링, 진입, 포지셔닝, 스킬 활용 능력.
+
+Macro:    90            # 사이드 운영, 합류, 오브젝트 준비 등 전체 운영 능력.
+
+TeamPlay:  92           # 정글/서폿과의 연계 및 팀 플레이 능력.
+
+Mental:   85(국제전때 너무 못함)            # 압박 상황, 중요한 경기, 부진 대응 능력.
+
+ChampionPool: 92        # 다양한 미드 챔피언 유형을 소화하는 능력.
+
+
+[현재 상태]
+
+Form:      90           # 최근 경기력.
+Condition:   94         # 현재 체력/집중력.
+
+
+[포지션 숙련도]
+
+MID:           100       # MID 포지션 숙련도.
+
+
+[역할 숙련도]
+
+MID_CARRY:     93       # 많은 자원을 받아 직접 캐리하는 역할.
+
+ROAM_MID:      93       # 라인을 밀고 TOP/BOT/JUNGLE에 영향력을 주는 역할.
+
+CONTROL_MID:    92      # 웨이브 관리, 주도권 유지, 상대 움직임 제한 등
+                      # 게임의 중심을 안정적으로 통제하는 역할.
+
+TEAMFIGHT_MID:    92    # 중후반 한타에서 강력한 영향력을 내는 역할.
+
+UTILITY_MID:    89      # 딜보다는 CC, 보호, 운영 등 팀을 지원하는 역할.
+
+SIDE_LANE_MID:   90     # 중후반 사이드 라인을 담당하며
+                      # 압박과 합류 타이밍을 만드는 역할.
+
+
+[챔피언 유형 숙련도]
+
+ControlMage:   92       # 영역 통제와 안정적인 한타가 강한 메이지.
+
+StandingMage:    94     # 뒤에서 안정적으로 자리 잡고 지속적으로 딜을 넣는
+                      # 전통적인 포지셔닝형 메이지 유형.
+                      # 명칭은 추후 다른 이름으로 변경해도 됨.
+
+Assassin:       97      # 순간 폭딜과 암살에 특화된 미드 챔피언.
+
+MeleeMID:     96        # 근접 미드 챔피언.
+
+AD_MID:      96         # 물리 피해 중심 미드 챔피언.
+
+Utility:     90         # 팀 보조, CC, 로밍 등에 특화된 미드.
+
+ScalingMage:   95       # 초반보다 중후반 성장 후 강해지는 메이지.
+
+
+[플레이 성향]
+
+Aggression:   94        # 라인전/교전에서의 공격성.
+
+RiskTaking:     92      # 과감한 솔킬, 로밍, 다이브 등을 시도하는 성향.
+
+Consistency:    90      # 경기력 안정성.
+
+Clutch:       87        # 중요한 순간의 해결 능력.
+
+LanePressure:   91      # 라인에서 상대를 얼마나 강하게 압박하는지.
+                      # CS 압박, 체력 압박, 웨이브 주도권 등에 영향.
+
+RoamTendency:    86     # 라인에 남기보다 다른 지역으로 움직이는 성향.
+                      # 높을수록 TOP/BOT/정글 로밍 빈도가 높아짐.
+
+
+[팀 적응]
+
+TeamChemistry:   100     # 현재 팀과의 호흡.
+
+CoachTrust:         100  # 감독 신뢰도.
+
+FeedbackAcceptance:  94 # 감독 피드백 수용 정도.|
+아리 카시오페아 애니
+
+[원딜 선수]
+
+이름:       JackeyLove          # 선수 이름
+팀:              TES  # 현재 소속 팀
+나이:           25살      # 현재 나이
+OVR:      88            # ADC 기준 기본 종합 능력치
+
+
+[기본 능력치]
+
+Mechanics:  94          # 카이팅, 무빙, 스킬 활용, 반응속도 등 순수 피지컬.
+
+GameSense:    92        # 위험 판단, 상대 진입각 파악, 딜각 판단 등.
+
+Laning:      89         # CS, 딜교환, 웨이브 관리, 바텀 주도권 확보 능력.
+
+TeamFight:     92       # 중후반 한타에서 실제로 딜을 넣는 능력.
+
+Macro:         90       # 사이드/미드 웨이브를 먹는 위치,
+                      # 합류 타이밍, 안전한 성장 동선 등을 판단하는 능력.
+
+TeamPlay:    91         # 서포터 및 팀원과의 연계 능력.
+
+Mental:      87         # 집중 견제, 연속 데스, 중요한 한타에서도 흔들리지 않는 능력.
+
+ChampionPool:  90       # 다양한 ADC 유형을 소화하는 능력.
+
+
+[현재 상태]
+
+Form:       91          # 최근 경기력.
+Condition:    92        # 현재 체력/집중력.
+
+
+[포지션 숙련도]
+
+ADC:          100        # ADC 포지션 숙련도.
+
+
+[역할 숙련도]
+
+HYPER_CARRY:  100        # 많은 자원을 받아 중후반에 게임을 캐리하는 역할.
+                      # 높은 ResourceDemand와 궁합이 있을 수 있음.
+
+WEAK_SIDE:  82          # 적은 자원과 적은 지원으로도 살아남고 기여하는 역할.
+                      # 상체 중심 전략에서 중요.
+
+BOT_LANE_PRESSURE: 95    # 바텀 라인에서 강하게 압박해 초반 우위를 만드는 역할.
+
+TEAMFIGHT_CARRY:  95    # 한타에서 안정적으로 높은 지속 딜을 넣는 역할.
+
+UTILITY_ADC:    90      # 직접적인 딜 외에 CC, 지원, 운영 등으로 기여하는 역할.
+
+EARLY_GAME_ADC:   92    # 초반부터 강하게 압박하고 스노우볼을 만드는 역할.
+
+
+[챔피언 유형 숙련도]
+
+CritMarksman:  100       # 치명타 기반 전통적인 평타 원딜 유형.
+
+HyperCarry:    100       # 초반은 약하지만 중후반 성장 시 매우 강한 원딜.
+
+LaneBully:     92       # 강력한 초반 라인전과 주도권을 가진 원딜.
+
+UtilityADC:     91      # CC/지원 기능 등 팀 기여 능력이 높은 원딜.
+
+AP_Bot:     90          # 바텀 AP 챔피언 숙련도.
+
+ShortRangeADC: 100        # 짧은 사거리 대신 강한 교전력/폭발력을 가진 ADC.
+                      # 높은 Positioning 능력을 요구하는 경우가 많음.
+
+LongRangeADC: 92        # 긴 사거리로 안전한 딜링 및 포킹이 가능한 ADC.
+
+
+[플레이 성향]
+
+Aggression:    95       # 라인전과 한타에서의 공격성.
+
+RiskTaking:     96      # 위험을 감수하면서 딜을 넣거나 킬각을 보는 성향.
+
+Consistency:  89        # 매 경기 안정적으로 딜을 넣는 정도.
+
+Clutch:     87          # 결정적인 한타/5세트 등에서의 수행 능력.
+
+Positioning:  92        # 원딜의 핵심 특수 능력.
+                      # 한타에서 안전하면서도 최대한 많은 딜을 넣는 위치 선정 능력.
+                      # 상대 암살자, 이니시 등을 피하면서 딜하는 능력.
+
+ResourceDemand: 94      # 자원 요구도.
+                      # 높으면 CS, Gold, 정글 개입, 서폿 보호 등을 많이 받아야 최대 성능.
+                      # 낮으면 저자원에서도 효율적으로 플레이 가능.
+
+
+[팀 적응]
+
+TeamChemistry:    100    # 팀 전체와의 호흡.
+
+SupportChemistry: 97    # 현재 서포터와의 바텀 듀오 호흡.
+                      # 라인전, 로밍 타이밍, 한타 보호 등에 영향.
+
+CoachTrust:       100    # 감독에 대한 신뢰.
+
+FeedbackAcceptance:  잘따름 # 감독 피드백 수용 정도.
+
+
+[서포터 선수]
+
+이름:       Zhuo          # 선수 이름
+팀:           TES        # 현재 소속 팀
+나이:         25살        # 현재 나이
+OVR:     86             # SUPPORT 기준 기본 종합 능력치
+
+
+[기본 능력치]
+
+Mechanics: 86           # 스킬 적중, CC 활용, 세이브 등 순수 조작 능력.
+
+GameSense:   86         # 이니시/후퇴/로밍/시야 진입 등의 순간 판단.
+
+Laning:     86          # 바텀 라인전 능력.
+                      # 딜교, 부쉬 활용, ADC 보호, 상대 압박 등을 포함.
+
+TeamFight:  85          # 한타에서 이니시, 보호, CC, 포지셔닝 등을 수행하는 능력.
+
+Macro:       87         # 맵 이동, 시야 배치, 오브젝트 준비, 로밍 판단 등.
+
+TeamPlay:    88         # 팀원과의 연계와 보조 능력.
+                      # 서포터에게 매우 중요한 능력치.
+
+Mental:      86         # 중요한 이니시 실패, 연속 데스 등의 상황에서의 안정성.
+
+ChampionPool:  88       # 다양한 서포터 챔피언 유형을 소화하는 능력.
+
+
+[현재 상태]
+
+Form:        86         # 최근 경기력.
+Condition:    92        # 현재 체력/집중력.
+
+
+[포지션 숙련도]
+
+SUPPORT:       100       # SUPPORT 포지션 숙련도.
+
+
+[역할 숙련도]
+
+ROAM_SUPPORT:  90       # ADC와 떨어져 MID/TOP/JUNGLE에 영향을 주는 로밍 역할.
+
+ENGAGE_SUPPORT:  87     # 먼저 싸움을 여는 이니시 역할.
+
+ENCHANTER_SUPPORT:88    # ADC 및 핵심 캐리를 보호하고 강화하는 역할.
+
+LANE_SUPPORT:    86     # 바텀 라인전에 집중해 ADC와 함께 주도권을 만드는 역할.
+
+SHOTCALL_SUPPORT: 86    # 팀의 운영과 교전 방향을 지휘하는 역할.
+
+VISION_CONTROL:    87   # 와드, 시야 제거, 오브젝트 주변 시야 장악 역할.
+
+
+[챔피언 유형 숙련도]
+
+Engage:        85       # 먼저 진입하거나 CC로 싸움을 여는 챔피언.
+
+Enchanter:     87       # 힐, 실드, 버프 등 캐리 보호형 챔피언.
+
+Tank:         85        # 앞라인과 탱킹 역할을 수행하는 서포터.
+
+Poke:       86          # 긴 사거리 견제로 라인과 오브젝트 지역을 압박하는 유형.
+
+MageSupport:  83        # 높은 마법 피해와 견제를 가진 딜 중심 서포터.
+
+Unorthodox:    75       # 비정상/조커 서폿 픽 숙련도.
+                      # 일반적인 서포터 챔피언이 아닌 특이한 픽을
+                      # 실제 전략으로 활용하는 능력.
+                      # 밴픽에서 예상 밖의 변수를 만드는 데 강함.
+
+
+[플레이 성향]
+
+Aggression:      84     # 적극적으로 딜교/이니시를 시도하는 정도.
+
+RiskTaking:      86     # 위험한 시야 장악, 로밍, 과감한 이니시 등을 선택하는 성향.
+
+Consistency:     85     # 경기력 안정성.
+
+Clutch:        86       # 결정적인 순간에 좋은 이니시/세이브를 만들어내는 능력.
+
+RoamTendency:    83     # 바텀 라인에 머무르기보다 다른 지역으로 움직이려는 성향.
+                      # 높을수록 상체 로밍 빈도가 높음.
+
+Shotcalling:    84      # 팀 전체에 오더를 내리는 능력.
+                      # 용/바론 시작, 교전 여부, 라인 배분, 후퇴 등을 판단하고
+                      # 팀 움직임을 정리하는 능력.
+
+
+[팀 적응]
+
+TeamChemistry:   100     # 팀 전체와의 호흡.
+
+ADC_Chemistry:    97    # 현재 ADC와의 바텀 듀오 호흡.
+                      # 라인전, 이니시 호응, 보호 타이밍 등에 영향.
+
+CoachTrust:      100     # 감독에 대한 신뢰.
+
+FeedbackAcceptance: (일단 듣고 해낼려함)  # 감독 피드백을 얼마나 잘 받아들이는지.
+
+[탑 선수]
+
+이름: Zeus
+팀: HLE
+나이: 22세
+OVR: 93
+
+[기본 능력치]
+Mechanics: 98
+GameSense: 96
+Laning: 98
+TeamFight: 97
+Macro: 96
+TeamPlay: 95
+Mental: 96
+ChampionPool: 97
+
+[현재 상태]
+Form: 96
+Condition: 96
+
+[포지션 숙련도]
+TOP: 100
+
+[역할 숙련도]
+TOP_CARRY: 98
+WEAK_SIDE: 96
+SPLIT_PUSH: 99
+TEAMFIGHT_TOP: 98
+TANK_TOP: 94
+
+[챔피언 유형 숙련도]
+Tank: 91
+Bruiser: 100
+Carry: 99
+Ranged_TOP: 99
+AP_TOP: 96
+
+[플레이 성향]
+Aggression: 97
+RiskTaking: 91
+Consistency: 96
+Clutch: 99
+ResourceDemand: 88
+
+[팀 적응]
+TeamChemistry: 97
+CoachTrust: 100
+FeedbackAcceptance: 98
+
+[대표 챔피언]
+제이스
+나르
+잭스
+
+[특징]
+완성형 육각형 탑
+캐리력 최고급
+사이드 장인
+클러치 매우 강함
+탱커는 상대적으로 약점
+탱커를 잡아도 가끔 브루저처럼 뒤를 보다가 사고가 날 수 있음
+[정글 선수]
+
+이름: Kanavi
+팀: HLE
+나이: 25세
+OVR: 91
+
+[기본 능력치]
+Mechanics: 96
+GameSense: 95
+Laning: 97
+TeamFight: 95
+Macro: 94
+TeamPlay: 96
+Mental: 96
+ChampionPool: 94
+
+[현재 상태]
+Form: 95
+Condition: 96
+
+[포지션 숙련도]
+JUNGLE: 100
+
+[역할 숙련도]
+TEMPO_JUNGLE: 99
+CARRY_JUNGLE: 97
+FACILITATOR: 91
+OBJECTIVE_CONTROL: 93
+INVADE_JUNGLE: 100
+TEAMFIGHT_JUNGLE: 95
+
+[챔피언 유형 숙련도]
+Carry: 97
+Tank: 88
+Bruiser: 98
+AP_Jungle: 90
+Utility: 91
+EarlyGame: 100
+
+[플레이 성향]
+Aggression: 100
+RiskTaking: 100
+Consistency: 80
+Clutch: 97
+PathingCreativity: 98
+ObjectiveSense: 94
+
+[팀 적응]
+TeamChemistry: 98
+CoachTrust: 100
+FeedbackAcceptance: 98
+
+[대표 챔피언]
+바이
+리 신
+판테온
+
+[특징]
+HLE의 초반 템포 엔진
+상대 정글 침투와 카정, 다이브에 매우 강함
+초반 플랜이 성공하면 팀 전체 경기력이 크게 상승
+게임이 안 풀리면 공격적으로 복구하려다가 연속으로 던질 수 있음
+멘탈은 강하지만 경기 안정성은 낮은 편
+[미드 선수]
+
+이름: Zeka
+팀: HLE
+나이: 23세
+OVR: 90
+
+[기본 능력치]
+Mechanics: 97
+GameSense: 94
+Laning: 97
+TeamFight: 96
+Macro: 95
+TeamPlay: 95
+Mental: 96
+ChampionPool: 86
+
+[현재 상태]
+Form: 95
+Condition: 96
+
+[포지션 숙련도]
+MID: 100
+
+[역할 숙련도]
+MID_CARRY: 98
+ROAM_MID: 93
+CONTROL_MID: 87
+TEAMFIGHT_MID: 97
+UTILITY_MID: 84
+SIDE_LANE_MID: 97
+
+[챔피언 유형 숙련도]
+ControlMage: 84
+StandingMage: 82
+Assassin: 100
+MeleeMID: 100
+AD_MID: 98
+Utility: 84
+ScalingMage: 85
+
+[플레이 성향]
+Aggression: 98
+RiskTaking: 95
+Consistency: 89
+Clutch: 99
+LanePressure: 98
+RoamTendency: 90
+
+[팀 적응]
+TeamChemistry: 98
+CoachTrust: 100
+FeedbackAcceptance: 98
+
+[대표 챔피언]
+사일러스
+아칼리
+요네
+
+[특징]
+전형적인 칼챔 장인 미드
+라인전 매우 강함
+칼챔 고점은 세계 최고급
+고점이 터지면 최상급 미드도 라인에서 패버릴 수 있음
+최근 스탠딩 메이지 폭을 늘리고 있지만 아직 약점
+정통 메이지 메타에서 성능이 내려갈 수 있음
+[원딜 선수]
+
+이름: Gumayusi
+팀: HLE
+나이: 24세
+OVR: 90
+
+[기본 능력치]
+Mechanics: 96
+GameSense: 97
+Laning: 99
+TeamFight: 96
+Macro: 95
+TeamPlay: 96
+Mental: 97
+ChampionPool: 95
+
+[현재 상태]
+Form: 96
+Condition: 96
+
+[포지션 숙련도]
+ADC: 100
+
+[역할 숙련도]
+HYPER_CARRY: 86
+WEAK_SIDE: 99
+BOT_LANE_PRESSURE: 100
+TEAMFIGHT_CARRY: 96
+UTILITY_ADC: 98
+EARLY_GAME_ADC: 100
+
+[챔피언 유형 숙련도]
+CritMarksman: 94
+HyperCarry: 86
+LaneBully: 100
+UtilityADC: 99
+AP_Bot: 88
+ShortRangeADC: 94
+LongRangeADC: 97
+
+[플레이 성향]
+Aggression: 94
+RiskTaking: 82
+Consistency: 97
+Clutch: 99
+Positioning: 97
+ResourceDemand: 66
+
+[팀 적응]
+TeamChemistry: 98
+SupportChemistry: 98
+CoachTrust: 100
+FeedbackAcceptance: 99
+
+[대표 챔피언]
+진
+케이틀린
+애쉬
+
+[특수 약점]
+Ezreal Proficiency: 75
+Hypercarry Preference: 72
+
+[특징]
+저자원 라인전형 원딜
+자원을 많이 안 먹고도 라인전을 이길 수 있음
+스노우볼 메타에 매우 강함
+약한 쪽 수행 능력 최고급
+클러치 매우 강함
+현재는 하이퍼캐리 스타일을 거의 선호하지 않음
+이즈리얼은 명확한 특수 약점
+[서포터 선수]
+
+이름: Delight
+팀: HLE
+나이: 23세
+OVR: 89
+
+[기본 능력치]
+Mechanics: 88
+GameSense: 96
+Laning: 94
+TeamFight: 97
+Macro: 95
+TeamPlay: 96
+Mental: 94
+ChampionPool: 94
+
+[현재 상태]
+Form: 94
+Condition: 96
+
+[포지션 숙련도]
+SUPPORT: 100
+
+[역할 숙련도]
+ROAM_SUPPORT: 95
+ENGAGE_SUPPORT: 100
+ENCHANTER_SUPPORT: 84
+LANE_SUPPORT: 91
+SHOTCALL_SUPPORT: 97
+VISION_CONTROL: 96
+
+[챔피언 유형 숙련도]
+Engage: 100
+Enchanter: 84
+Tank: 99
+Poke: 86
+MageSupport: 84
+Unorthodox: 89
+
+[플레이 성향]
+Aggression: 96
+RiskTaking: 92
+Consistency: 94
+Clutch: 98
+RoamTendency: 94
+Shotcalling: 97
+
+[팀 적응]
+TeamChemistry: 98
+ADC_Chemistry: 98
+CoachTrust: 100
+FeedbackAcceptance: 99
+
+[대표 챔피언]
+바드
+세라핀
+라칸
+
+[특징]
+게임을 읽는 능력이 강한 이니시형 서포터
+탱커/이니시 숙련도 최고급
+결정적인 이니시가 트레이드마크
+유틸 서포터는 최근 확장 중이지만 아직 전문 분야는 아님
+피드백 수용도 높음
+[탑 선수]
+
+이름: Kiin
+팀: GEN
+나이: 27세
+OVR: 90
+
+[기본 능력치]
+Mechanics: 96
+GameSense: 96
+Laning: 96
+TeamFight: 96
+Macro: 95
+TeamPlay: 95
+Mental: 95
+ChampionPool: 95
+
+[현재 상태]
+Form: 95
+Condition: 95
+
+[포지션 숙련도]
+TOP: 100
+
+[역할 숙련도]
+TOP_CARRY: 96
+WEAK_SIDE: 99
+SPLIT_PUSH: 98
+TEAMFIGHT_TOP: 98
+TANK_TOP: 98
+
+[챔피언 유형 숙련도]
+Tank: 98
+Bruiser: 97
+Carry: 96
+Ranged_TOP: 96
+AP_TOP: 95
+
+[플레이 성향]
+Aggression: 90
+RiskTaking: 82
+Consistency: 100
+Clutch: 96
+ResourceDemand: 73
+
+[팀 적응]
+TeamChemistry: 100
+CoachTrust: 100
+FeedbackAcceptance: 100
+
+[대표 챔피언]
+나르
+크산테
+제이스
+
+[특징]
+완성형 육각형 탑라이너
+모든 역할에서 최소 상위권 이상의 수행력을 보임
+저자원, 캐리, 탱커, 사이드, 한타 모두 가능
+경기력이 무너지는 경우가 극히 적음
+저점에서도 최소 1인분 이상을 보장
+사이드 운영 능력이 매우 뛰어남
+팀 전술과 피드백 수용도가 매우 높음
+[미드 선수]
+
+이름: Chovy
+팀: GEN
+나이: 25세
+OVR: 93
+
+[기본 능력치]
+Mechanics: 98
+GameSense: 97
+Laning: 98
+TeamFight: 96
+Macro: 96
+TeamPlay: 95
+Mental: 94
+ChampionPool: 95
+
+[현재 상태]
+Form: 97
+Condition: 96
+
+[포지션 숙련도]
+MID: 100
+
+[역할 숙련도]
+MID_CARRY: 100
+ROAM_MID: 94
+CONTROL_MID: 99
+TEAMFIGHT_MID: 97
+UTILITY_MID: 94
+SIDE_LANE_MID: 100
+
+[챔피언 유형 숙련도]
+ControlMage: 99
+StandingMage: 99
+Assassin: 96
+MeleeMID: 96
+AD_MID: 97
+Utility: 94
+ScalingMage: 100
+
+[플레이 성향]
+Aggression: 92
+RiskTaking: 78
+Consistency: 99
+Clutch: 94
+LanePressure: 100
+RoamTendency: 86
+
+[팀 적응]
+TeamChemistry: 100
+CoachTrust: 100
+FeedbackAcceptance: 99
+
+[대표 챔피언]
+라이즈
+애니비아
+애니
+
+[특징]
+2026 GEN의 핵심 전력
+현시점 LCK 미드 최상위권
+Knight와 세계 최고 미드 평가를 양분
+라인전과 성장 능력이 특히 압도적
+폼이 조금 떨어져도 리그 최상급 퍼포먼스를 유지
+챔피언 폭이 매우 넓어 대표 챔피언 선정 자체가 어려운 선수
+정규시즌 MVP/POM 경쟁에서 항상 최상위권
+사이드 운영과 자원 성장 능력이 세계 최고 수준
+현재까지 월즈 우승이 없다는 점이 커리어의 가장 큰 미완성 요소
+[원딜 선수]
+
+이름: Ruler
+팀: GEN
+나이: 27세
+OVR: 90
+
+[기본 능력치]
+Mechanics: 95
+GameSense: 95
+Laning: 95
+TeamFight: 96
+Macro: 94
+TeamPlay: 95
+Mental: 95
+ChampionPool: 95
+
+[현재 상태]
+Form: 94
+Condition: 94
+
+[포지션 숙련도]
+ADC: 100
+
+[역할 숙련도]
+HYPER_CARRY: 92
+WEAK_SIDE: 93
+BOT_LANE_PRESSURE: 94
+TEAMFIGHT_CARRY: 98
+UTILITY_ADC: 94
+EARLY_GAME_ADC: 91
+
+[챔피언 유형 숙련도]
+CritMarksman: 97
+HyperCarry: 94
+LaneBully: 93
+UtilityADC: 94
+AP_Bot: 88
+ShortRangeADC: 95
+LongRangeADC: 97
+
+[플레이 성향]
+Aggression: 91
+RiskTaking: 84
+Consistency: 92
+Clutch: 98
+Positioning: 99
+ResourceDemand: 82
+
+[팀 적응]
+TeamChemistry: 100
+SupportChemistry: 97
+CoachTrust: 100
+FeedbackAcceptance: 99
+
+[대표 챔피언]
+진
+이즈리얼
+유나라
+
+[특징]
+과거 하이퍼캐리의 대명사였던 베테랑 원딜
+현재는 전성기처럼 모든 자원을 몰아받는 스타일보다 팀 시스템에 맞춘 플레이 비중이 높음
+한타 포지셔닝과 후반 딜링은 여전히 최상급
+시즌 초반에는 부진했지만 이후 폼을 회복하며 상위권 퍼포먼스로 복귀
+2026 시즌 내 폼 기복이 비교적 컸음
+경험과 클러치 능력이 매우 뛰어남
+[서포터 선수]
+
+이름: Duro
+팀: GEN
+나이: 24세
+OVR: 88
+
+[기본 능력치]
+Mechanics: 94
+GameSense: 94
+Laning: 91
+TeamFight: 95
+Macro: 94
+TeamPlay: 94
+Mental: 91
+ChampionPool: 92
+
+[현재 상태]
+Form: 91
+Condition: 95
+
+[포지션 숙련도]
+SUPPORT: 100
+
+[역할 숙련도]
+ROAM_SUPPORT: 93
+ENGAGE_SUPPORT: 94
+ENCHANTER_SUPPORT: 94
+LANE_SUPPORT: 91
+SHOTCALL_SUPPORT: 96
+VISION_CONTROL: 96
+
+[챔피언 유형 숙련도]
+Engage: 93
+Enchanter: 95
+Tank: 92
+Poke: 93
+MageSupport: 91
+Unorthodox: 94
+
+[플레이 성향]
+Aggression: 87
+RiskTaking: 82
+Consistency: 96
+Clutch: 93
+RoamTendency: 92
+Shotcalling: 96
+
+[팀 적응]
+TeamChemistry: 100
+ADC_Chemistry: 98
+CoachTrust: 100
+FeedbackAcceptance: 99
+
+[대표 챔피언]
+바드
+카르마
+세라핀
+
+[특징]
+GEN의 안정장치 역할을 하는 서포터
+팀이 흔들릴 때 운영과 시야를 정리해 게임 구조를 유지하는 능력이 뛰어남
+현재는 압도적인 개인 퍼포먼스가 자주 나오지는 않음
+2025 시즌에는 리그 최고 서포터급 고점을 보여준 경험이 있음
+이니시와 유틸 모두 가능한 균형형
+위험한 플레이를 억지로 만들기보다 확률 높은 선택을 선호
+GEN의 강한 라이너들이 편하게 플레이할 수 있도록 판을 정리하는 타입
+[탑 선수]
+
+이름: Doran
+팀: T1
+나이: 26세
+OVR: 84
+
+[기본 능력치]
+Mechanics: 88
+GameSense: 85
+Laning: 82
+TeamFight: 87
+Macro: 85
+TeamPlay: 86
+Mental: 94
+ChampionPool: 92
+
+[현재 상태]
+Form: 74
+Condition: 91
+
+[포지션 숙련도]
+TOP: 100
+
+[역할 숙련도]
+TOP_CARRY: 82
+WEAK_SIDE: 84
+SPLIT_PUSH: 84
+TEAMFIGHT_TOP: 89
+TANK_TOP: 90
+
+[챔피언 유형 숙련도]
+Tank: 90
+Bruiser: 87
+Carry: 84
+Ranged_TOP: 83
+AP_TOP: 85
+
+[플레이 성향]
+Aggression: 91
+RiskTaking: 92
+Consistency: 69
+Clutch: 85
+ResourceDemand: 78
+
+[팀 적응]
+TeamChemistry: 94
+CoachTrust: 98
+FeedbackAcceptance: 98
+
+[대표 챔피언]
+제이스
+암베사
+사이온
+
+[특징]
+2026 시즌 극심한 저폼 상태
+과거에는 높은 고점을 여러 차례 보여줬지만 최근에는 그 고점 자체가 거의 나오지 않음
+공격적인 플레이를 선호하지만 현재는 캐리 역할 수행력이 부족함
+그렇다고 완전한 저자원 버티기형 탑도 아니라 역할 정체성이 애매해진 상태
+현재 가장 안정적인 활용법은 탱커와 한타 중심 역할
+챔피언 폭 자체는 넓어 밴픽이 심하게 막히는 선수는 아님
+멘탈과 피드백 수용 능력은 좋은 편이지만 경기력 자체가 내려가 있음
+폼 변동성이 매우 큰 선수
+[정글 선수]
+
+이름: Oner
+팀: T1
+나이: 23세
+OVR: 88
+
+[기본 능력치]
+Mechanics: 94
+GameSense: 90
+Laning: 89
+TeamFight: 94
+Macro: 90
+TeamPlay: 91
+Mental: 95
+ChampionPool: 94
+
+[현재 상태]
+Form: 79
+Condition: 91
+
+[포지션 숙련도]
+JUNGLE: 100
+
+[역할 숙련도]
+TEMPO_JUNGLE: 92
+CARRY_JUNGLE: 91
+FACILITATOR: 89
+OBJECTIVE_CONTROL: 90
+INVADE_JUNGLE: 89
+TEAMFIGHT_JUNGLE: 97
+
+[챔피언 유형 숙련도]
+Carry: 93
+Tank: 91
+Bruiser: 97
+AP_Jungle: 88
+Utility: 89
+EarlyGame: 94
+
+[플레이 성향]
+Aggression: 95
+RiskTaking: 91
+Consistency: 83
+Clutch: 98
+PathingCreativity: 89
+ObjectiveSense: 91
+
+[팀 적응]
+TeamChemistry: 98
+CoachTrust: 100
+FeedbackAcceptance: 99
+
+[대표 챔피언]
+리 신
+바이
+신 짜오
+
+[특징]
+T1 상체 교전의 핵심 전력
+강한 피지컬과 소규모 교전 능력이 가장 큰 장점
+특히 싸움이 발생했을 때 순간적인 스킬 활용과 진입 능력이 뛰어남
+중요 경기에서 고점을 만들어낼 수 있는 클러치형 정글러
+2026 시즌 1~2라운드에는 팀을 상위권으로 버티게 하는 핵심 중 하나였음
+3~4라운드 들어 현재 폼이 크게 하락하면서 영향력이 감소
+기본 실력 자체가 떨어진 선수라기보다 현재 경기력이 본래 체급을 못 따라가는 상태
+[미드 선수]
+
+이름: Faker
+팀: T1
+나이: 30세
+OVR: 85
+
+[기본 능력치]
+Mechanics: 84
+GameSense: 97
+Laning: 84
+TeamFight: 93
+Macro: 97
+TeamPlay: 97
+Mental: 97
+ChampionPool: 98
+
+[현재 상태]
+Form: 78
+Condition: 90
+
+[포지션 숙련도]
+MID: 100
+
+[역할 숙련도]
+MID_CARRY: 84
+ROAM_MID: 98
+CONTROL_MID: 98
+TEAMFIGHT_MID: 96
+UTILITY_MID: 99
+SIDE_LANE_MID: 91
+
+[챔피언 유형 숙련도]
+ControlMage: 98
+StandingMage: 96
+Assassin: 88
+MeleeMID: 88
+AD_MID: 90
+Utility: 100
+ScalingMage: 97
+
+[플레이 성향]
+Aggression: 82
+RiskTaking: 85
+Consistency: 82
+Clutch: 100
+LanePressure: 78
+RoamTendency: 97
+
+[팀 적응]
+TeamChemistry: 100
+CoachTrust: 100
+FeedbackAcceptance: 100
+
+[대표 챔피언]
+애니비아
+라이즈
+아지르
+
+[특징]
+30세의 최고참 베테랑 미드
+현재 순수 라인전과 피지컬은 전성기에 비해 크게 하락
+정규시즌에서는 라인전 단계부터 크게 밀리는 경기가 자주 발생
+개인 캐리보다는 운영, 로밍, 한타 설계, 팀플레이에서 높은 영향력을 가짐
+어떤 메타가 와도 넓은 챔피언 폭과 경험을 통해 적응 가능
+중요도가 높은 국제대회와 탈락전에서 경기력이 크게 상승하는 특수한 선수
+Champions/월즈에서 정규시즌과 전혀 다른 수준의 퍼포먼스를 보여줄 수 있음
+[원딜 선수]
+
+이름: Peyz
+팀: T1
+나이: 20세
+OVR: 90
+
+[기본 능력치]
+Mechanics: 97
+GameSense: 94
+Laning: 96
+TeamFight: 96
+Macro: 94
+TeamPlay: 95
+Mental: 95
+ChampionPool: 94
+
+[현재 상태]
+Form: 98
+Condition: 96
+
+[포지션 숙련도]
+ADC: 100
+
+[역할 숙련도]
+HYPER_CARRY: 99
+WEAK_SIDE: 90
+BOT_LANE_PRESSURE: 97
+TEAMFIGHT_CARRY: 99
+UTILITY_ADC: 93
+EARLY_GAME_ADC: 96
+
+[챔피언 유형 숙련도]
+CritMarksman: 99
+HyperCarry: 100
+LaneBully: 97
+UtilityADC: 93
+AP_Bot: 87
+ShortRangeADC: 97
+LongRangeADC: 98
+
+[플레이 성향]
+Aggression: 96
+RiskTaking: 90
+Consistency: 98
+Clutch: 98
+Positioning: 98
+ResourceDemand: 91
+
+[팀 적응]
+TeamChemistry: 99
+SupportChemistry: 100
+CoachTrust: 100
+FeedbackAcceptance: 99
+
+[대표 챔피언]
+케이틀린
+루시안
+애쉬
+
+[특징]
+2026 T1의 가장 확실한 상수 중 하나
+Keria와 함께 팀의 경기력을 떠받치는 핵심 바텀 전력
+라인전을 이기면서 동시에 후반 하이퍼캐리 역할까지 수행 가능
+젊은 선수임에도 중요 경기에서 크게 흔들리지 않음
+공격적인 딜각을 적극적으로 찾지만 무모하게 들이박는 스타일은 아님
+자원을 많이 받을수록 캐리력이 크게 상승
+현재 Form이 매우 높아 Base OVR 90 이상으로 체감되는 경기가 많음
+[서포터 선수]
+
+이름: Keria
+팀: T1
+나이: 23세
+OVR: 91
+
+[기본 능력치]
+Mechanics: 96
+GameSense: 97
+Laning: 97
+TeamFight: 97
+Macro: 97
+TeamPlay: 96
+Mental: 94
+ChampionPool: 97
+
+[현재 상태]
+Form: 98
+Condition: 96
+
+[포지션 숙련도]
+SUPPORT: 100
+
+[역할 숙련도]
+ROAM_SUPPORT: 100
+ENGAGE_SUPPORT: 97
+ENCHANTER_SUPPORT: 98
+LANE_SUPPORT: 100
+SHOTCALL_SUPPORT: 99
+VISION_CONTROL: 98
+
+[챔피언 유형 숙련도]
+Engage: 97
+Enchanter: 99
+Tank: 94
+Poke: 99
+MageSupport: 99
+Unorthodox: 100
+
+[플레이 성향]
+Aggression: 97
+RiskTaking: 94
+Consistency: 97
+Clutch: 99
+RoamTendency: 100
+Shotcalling: 99
+
+[팀 적응]
+TeamChemistry: 100
+ADC_Chemistry: 100
+CoachTrust: 100
+FeedbackAcceptance: 100
+
+[대표 챔피언]
+세라핀
+니코
+카밀
+
+[특징]
+2026 T1의 핵심 전력
+Peyz와 함께 현재 T1 경기력을 떠받치는 가장 확실한 상수
+강력한 바텀 라인전과 빠른 로밍으로 초반 게임을 직접 터뜨릴 수 있음
+원딜 보좌, 이니시, 포킹, 유틸, 조커픽까지 대부분의 서포터 역할을 최고 수준으로 수행
+Faker 다음으로 팀 내 전술적 영향력이 큰 선수
+Tom과 함께 밴픽 방향과 팀 게임 플랜 설계에 크게 관여
+일반적인 서포터 챔피언뿐 아니라 비정상적인 조커픽까지 실제 전략으로 활용 가능
+중요 경기에서의 클러치 능력도 매우 높음
+[탑 선수]
+
+이름: Siwoo
+팀: DK
+나이: 20세
+OVR: 88
+
+[기본 능력치]
+Mechanics: 94
+GameSense: 90
+Laning: 92
+TeamFight: 93
+Macro: 89
+TeamPlay: 91
+Mental: 92
+ChampionPool: 92
+
+[현재 상태]
+Form: 94
+Condition: 96
+
+[포지션 숙련도]
+TOP: 100
+
+[역할 숙련도]
+TOP_CARRY: 94
+WEAK_SIDE: 90
+SPLIT_PUSH: 92
+TEAMFIGHT_TOP: 95
+TANK_TOP: 91
+
+[챔피언 유형 숙련도]
+Tank: 91
+Bruiser: 96
+Carry: 95
+Ranged_TOP: 92
+AP_TOP: 90
+
+[플레이 성향]
+Aggression: 95
+RiskTaking: 92
+Consistency: 90
+Clutch: 92
+ResourceDemand: 85
+
+[팀 적응]
+TeamChemistry: 96
+CoachTrust: 100
+FeedbackAcceptance: 100
+
+[대표 챔피언]
+암베사
+크산테
+럼블
+
+[특징]
+젊고 공격적인 캐리형 탑
+강한 피지컬과 한타 진입 능력이 장점
+cvMax 피드백을 빠르게 흡수하며 성장하는 선수
+아직 운영과 경험에서 최정상급 탑보다 부족하지만 성장 여지가 큼
+폼이 좋은 날은 OVR 이상으로 상대 탑을 찍어누를 수 있음
+[정글 선수]
+
+이름: Lucid
+팀: DK
+나이: 21세
+OVR: 89
+
+[기본 능력치]
+Mechanics: 96
+GameSense: 93
+Laning: 94
+TeamFight: 95
+Macro: 92
+TeamPlay: 94
+Mental: 94
+ChampionPool: 93
+
+[현재 상태]
+Form: 95
+Condition: 96
+
+[포지션 숙련도]
+JUNGLE: 100
+
+[역할 숙련도]
+TEMPO_JUNGLE: 97
+CARRY_JUNGLE: 95
+FACILITATOR: 93
+OBJECTIVE_CONTROL: 94
+INVADE_JUNGLE: 95
+TEAMFIGHT_JUNGLE: 96
+
+[챔피언 유형 숙련도]
+Carry: 96
+Tank: 92
+Bruiser: 97
+AP_Jungle: 92
+Utility: 91
+EarlyGame: 97
+
+[플레이 성향]
+Aggression: 97
+RiskTaking: 94
+Consistency: 92
+Clutch: 95
+PathingCreativity: 95
+ObjectiveSense: 94
+
+[팀 적응]
+TeamChemistry: 98
+CoachTrust: 100
+FeedbackAcceptance: 100
+
+[대표 챔피언]
+리 신
+바이
+신 짜오
+
+[특징]
+DK 초반 템포의 핵심
+강한 피지컬과 적극적인 교전 설계가 장점
+ShowMaker와 함께 미드정글 주도권을 만드는 핵심 선수
+젊은 선수지만 중요한 교전에서도 과감하게 진입
+cvMax 체제에서 성장 속도가 빠른 정글러
+[미드 선수]
+
+이름: ShowMaker
+팀: DK
+나이: 26세
+OVR: 89
+
+[기본 능력치]
+Mechanics: 94
+GameSense: 96
+Laning: 94
+TeamFight: 96
+Macro: 96
+TeamPlay: 96
+Mental: 96
+ChampionPool: 97
+
+[현재 상태]
+Form: 94
+Condition: 94
+
+[포지션 숙련도]
+MID: 100
+
+[역할 숙련도]
+MID_CARRY: 95
+ROAM_MID: 98
+CONTROL_MID: 97
+TEAMFIGHT_MID: 97
+UTILITY_MID: 97
+SIDE_LANE_MID: 92
+
+[챔피언 유형 숙련도]
+ControlMage: 98
+StandingMage: 97
+Assassin: 95
+MeleeMID: 93
+AD_MID: 92
+Utility: 98
+ScalingMage: 97
+
+[플레이 성향]
+Aggression: 91
+RiskTaking: 87
+Consistency: 95
+Clutch: 98
+LanePressure: 94
+RoamTendency: 97
+
+[팀 적응]
+TeamChemistry: 100
+CoachTrust: 100
+FeedbackAcceptance: 99
+
+[대표 챔피언]
+신드라
+르블랑
+아리
+
+[특징]
+DK의 정신적 중심이자 미드정글 운영 핵심
+개인 캐리와 팀 보조를 모두 높은 수준으로 수행
+Lucid와 함께 상체 템포를 설계하는 선수
+라인전부터 게임 전체 운영까지 약점이 적음
+큰 경기와 중요한 한타에서의 클러치가 매우 강함
+과거 절대적인 피지컬 캐리형에서 현재는 운영과 팀플레이 비중이 더 커진 상태
+[원딜 선수]
+
+이름: Smash
+팀: DK
+나이: 20세
+OVR: 89
+
+[기본 능력치]
+Mechanics: 97
+GameSense: 91
+Laning: 95
+TeamFight: 96
+Macro: 90
+TeamPlay: 93
+Mental: 92
+ChampionPool: 92
+
+[현재 상태]
+Form: 96
+Condition: 97
+
+[포지션 숙련도]
+ADC: 100
+
+[역할 숙련도]
+HYPER_CARRY: 98
+WEAK_SIDE: 87
+BOT_LANE_PRESSURE: 96
+TEAMFIGHT_CARRY: 98
+UTILITY_ADC: 88
+EARLY_GAME_ADC: 95
+
+[챔피언 유형 숙련도]
+CritMarksman: 98
+HyperCarry: 99
+LaneBully: 96
+UtilityADC: 89
+AP_Bot: 84
+ShortRangeADC: 96
+LongRangeADC: 96
+
+[플레이 성향]
+Aggression: 97
+RiskTaking: 94
+Consistency: 90
+Clutch: 94
+Positioning: 96
+ResourceDemand: 92
+
+[팀 적응]
+TeamChemistry: 96
+SupportChemistry: 94
+CoachTrust: 100
+FeedbackAcceptance: 100
+
+[대표 챔피언]
+징크스
+카이사
+루시안
+
+[특징]
+공격적인 젊은 캐리형 원딜
+강한 피지컬과 한타 딜링 능력이 가장 큰 장점
+자원을 많이 받을수록 캐리력이 크게 증가
+라인전에서도 주도권을 만들 수 있어 단순 후반형 원딜은 아님
+경험 부족 때문에 가끔 과감한 딜각이 사고로 이어질 수 있음
+cvMax 체제에서 성장 가능성이 매우 높은 선수
+[서포터 선수]
+
+이름: Career
+팀: DK
+나이: 22세
+OVR: 86
+
+[기본 능력치]
+Mechanics: 87
+GameSense: 92
+Laning: 86
+TeamFight: 93
+Macro: 92
+TeamPlay: 94
+Mental: 91
+ChampionPool: 90
+
+[현재 상태]
+Form: 91
+Condition: 96
+
+[포지션 숙련도]
+SUPPORT: 100
+
+[역할 숙련도]
+ROAM_SUPPORT: 94
+ENGAGE_SUPPORT: 95
+ENCHANTER_SUPPORT: 86
+LANE_SUPPORT: 80
+SHOTCALL_SUPPORT: 92
+VISION_CONTROL: 93
+
+[챔피언 유형 숙련도]
+Engage: 96
+Enchanter: 86
+Tank: 95
+Poke: 81
+MageSupport: 80
+Unorthodox: 86
+
+[플레이 성향]
+Aggression: 92
+RiskTaking: 91
+Consistency: 90
+Clutch: 92
+RoamTendency: 95
+Shotcalling: 91
+
+[팀 적응]
+TeamChemistry: 97
+ADC_Chemistry: 96
+CoachTrust: 100
+FeedbackAcceptance: 100
+
+[대표 챔피언]
+라칸
+노틸러스
+렐
+_______
+[선수]
+이름:
+팀 / 포지션 / 나이 / OVR:
+
+기본:
+Mechanics:
+GameSense:
+Laning:
+TeamFight:
+Macro:
+TeamPlay:
+Mental:
+ChampionPool:
+
+핵심 역할:
+예) TOP_CARRY 97 / WEAK_SIDE 83 / SPLIT 95
+
+성향:
+예) 공격적, 리스크 큼, 클러치 강함, 자원 많이 요구
+
+대표챔:
+3개
+
+특징:
+예) 탱커 못함 / 사이드 장인 / 피드백 잘 받음 / 폼 기복 큼
+
+_______
+[탑 선수]
+
+이름:                 # 선수 이름 / 닉네임
+팀:                   # 현재 소속 팀
+나이:                 # 현재 커리어 내 나이
+OVR:                  # TOP 포지션 기준 기본 종합 능력치
+
+
+[기본 능력치]
+
+Mechanics:            # 순수 조작 능력.
+                      # 스킬 적중, 무빙, 반응속도, 콤보 수행 등 피지컬적인 능력.
+
+GameSense:            # 순간적인 상황 판단 능력.
+                      # 싸울지 빠질지, 상대 스킬 상태, 갱 위험 등을 빠르게 판단하는 능력.
+
+Laning:               # 순수 라인전 능력.
+                      # CS, 딜교환, 웨이브 관리, 솔킬 압박, 라인 주도권 등을 종합.
+
+TeamFight:            # 한타 수행 능력.
+                      # 포지셔닝, 진입 타이밍, 타겟 선정, 스킬 활용 등을 종합.
+
+Macro:                # 전체 게임 운영 능력.
+                      # 사이드 관리, 텔레포트 판단, 오브젝트 준비, 라인 배분 등을 판단하는 능력.
+
+TeamPlay:             # 팀원과 맞춰 움직이는 능력.
+                      # 정글과의 호흡, 한타 합류, 팀 지시 수행, 연계 플레이 등을 포함.
+
+Mental:               # 압박 및 부진 상황을 견디는 능력.
+                      # 연패, 중요한 경기, 실수 이후 경기력 유지 등에 영향.
+
+ChampionPool:         # 사용할 수 있는 챔피언 유형의 넓이와 숙련도.
+                      # 높을수록 다양한 메타와 밴픽에 대응하기 쉬움.
+
+
+[현재 상태]
+
+Form:                 # 최근 경기력.
+                      # 기본 실력과 별개로 현재 얼마나 잘하고 있는지를 나타냄.
+                      # 연승, 좋은 경기, 피드백 등에 따라 상승하거나 하락 가능.
+
+Condition:            # 현재 체력/집중력 상태.
+                      # 훈련 과다, 연속 경기 등으로 낮아질 수 있음.
+                      # 너무 낮으면 Form 및 실제 경기력에 악영향.
+
+
+[포지션 숙련도]
+
+TOP:                  # TOP 포지션 자체에 대한 숙련도.
+                      # 본 포지션이면 일반적으로 매우 높음.
+                      # 다른 포지션에서 전향한 선수는 낮을 수 있음.
+
+
+[역할 숙련도]
+
+TOP_CARRY:            # 탑에 많은 자원을 몰아줬을 때 직접 게임을 캐리하는 능력.
+                      # Carry 챔프, 정글 지원, 높은 Gold Share와 궁합이 좋음.
+
+WEAK_SIDE:            # 적은 자원을 받고 혼자 버티는 능력.
+                      # 갱 지원 없이도 데스를 최소화하고 필요한 성장량을 확보하는 능력.
+
+SPLIT_PUSH:           # 사이드 라인 운영 능력.
+                      # 1:1 압박, 사이드 웨이브 관리, 합류 타이밍, 텔레포트 활용 등이 중요.
+
+TEAMFIGHT_TOP:        # 한타 중심 탑 역할 숙련도.
+                      # 사이드보다 5:5 교전과 팀 합류를 중시하는 플레이.
+
+TANK_TOP:             # 탱커/앞라인 역할 숙련도.
+                      # 적은 자원으로 버티며 아군 캐리를 보호하고 공간을 만드는 역할.
+
+
+[챔피언 유형 숙련도]
+
+Tank:                 # 순수 탱커형 탑 챔피언 숙련도.
+                      # 앞라인, CC, 저자원 플레이에 강함.
+
+Bruiser:              # 전사형 챔피언 숙련도.
+                      # 딜과 탱킹을 동시에 수행하며 장기 교전에 강한 유형.
+
+Carry:                # 자원을 받아 직접 캐리하는 공격형 탑 챔피언 숙련도.
+                      # 높은 Mechanics와 TOP_CARRY 역할과 궁합이 좋음.
+
+Ranged_TOP:           # 원거리 탑 챔피언 숙련도.
+                      # 라인 압박과 견제에 강하지만 한타 구조나 생존 난도가 다를 수 있음.
+
+AP_TOP:               # 마법 피해 중심 탑 챔피언 숙련도.
+                      # 조합의 피해 유형을 바꾸거나 특정 메타에서 활용.
+
+
+[플레이 성향]
+
+Aggression:           # 공격성.
+                      # 높을수록 딜교, 솔킬, 적극적인 교전을 많이 시도.
+
+RiskTaking:           # 위험 감수 성향.
+                      # 높을수록 실패 위험이 있는 과감한 플레이를 선택하는 경향이 큼.
+
+Consistency:          # 경기력 안정성.
+                      # 높을수록 고점과 저점 차이가 작고 꾸준히 자신의 실력을 냄.
+
+Clutch:               # 중요한 경기/중요 순간에서의 수행 능력.
+                      # 5세트, 탈락전, 마지막 한타 등 압박 상황에 영향.
+
+ResourceDemand:       # 자원 요구도.
+                      # 높을수록 Gold, 정글 개입, 밴픽 우선권 등을 많이 받아야 최대 성능 발휘.
+                      # 낮으면 적은 자원으로도 효율적으로 역할 수행 가능.
+
+
+[팀 적응]
+
+TeamChemistry:        # 현재 팀 전체와의 호흡.
+                      # 같이 훈련하고 경기할수록 상승 가능.
+
+CoachTrust:           # 현재 감독에 대한 신뢰도.
+                      # 피드백 반응, 역할 수용, 재계약 등에 영향.
+
+FeedbackAcceptance:   # 감독 피드백을 얼마나 잘 받아들이는지.
+                      # 높으면 지적이나 전술 변경을 비교적 빠르게 수용.
+[정글 선수]
+
+이름:                 # 선수 이름
+팀:                   # 현재 소속 팀
+나이:                 # 현재 나이
+OVR:                  # JUNGLE 기준 기본 종합 능력치
+
+
+[기본 능력치]
+
+Mechanics:            # 스킬 활용, 반응속도, 소규모 교전 등 순수 피지컬.
+
+GameSense:            # 갱킹 각, 역갱, 교전 판단 등 순간 판단 능력.
+
+Laning:               # 정글에서는 일반적인 라인전 대신
+                      # 초반 동선, 정글 주도권, 갱킹 성공 가능성,
+                      # 상대 정글과의 성장 경쟁 능력으로 사용.
+
+TeamFight:            # 한타에서의 진입, 타겟 선정, 스킬 활용 능력.
+
+Macro:                # 맵 전체 흐름과 다음 행동을 설계하는 운영 능력.
+                      # 어느 라인을 봐줄지, 오브젝트를 포기할지 등을 판단.
+
+TeamPlay:             # 라이너와 맞춰 갱킹/교전/오브젝트를 수행하는 능력.
+
+Mental:               # 초반 동선 실패, 오브젝트 스틸 실패,
+                      # 중요한 경기 등에서 흔들리지 않는 정도.
+
+ChampionPool:         # 다양한 정글 유형을 소화하는 능력.
+                      # 탱커, 캐리, AP, 초반형 등 메타 변화 대응에 중요.
+
+
+[현재 상태]
+
+Form:                 # 최근 정글 경기력.
+Condition:            # 현재 체력/집중력 상태.
+
+
+[포지션 숙련도]
+
+JUNGLE:               # JUNGLE 포지션 숙련도.
+
+
+[역할 숙련도]
+
+TEMPO_JUNGLE:         # 초반 동선과 갱킹을 이용해 게임 템포를 빠르게 가져오는 역할.
+                      # 라인 개입과 초기 주도권 확보에 특화.
+
+CARRY_JUNGLE:         # 정글 본인이 많은 자원을 먹고 직접 캐리하는 역할.
+                      # 성장형 정글러와 궁합이 좋음.
+
+FACILITATOR:          # 라이너를 키워주는 보좌형 정글.
+                      # 자신의 성장보다 라인 지원을 우선.
+
+OBJECTIVE_CONTROL:    # 용, 전령, 바론 등 오브젝트 중심 운영 숙련도.
+                      # 오브젝트 타이밍과 싸움 설계에 중요.
+
+INVADE_JUNGLE:        # 상대 정글 침입, 카정, 성장 방해에 특화된 역할.
+
+TEAMFIGHT_JUNGLE:     # 중후반 한타에서 높은 기여를 하는 역할.
+
+
+[챔피언 유형 숙련도]
+
+Carry:                # 많은 자원을 먹고 딜로 캐리하는 정글러.
+
+Tank:                 # 탱킹과 CC 중심 정글러.
+
+Bruiser:              # 교전 지속력이 좋은 전사형 정글러.
+
+AP_Jungle:            # 마법 피해 중심 정글 챔피언.
+
+Utility:              # 팀 보조, CC, 버프 등에 강한 정글러.
+
+EarlyGame:            # 초반 갱킹 및 교전에 매우 강한 정글 유형.
+
+
+[플레이 성향]
+
+Aggression:           # 적극적인 갱킹, 카정, 교전 시도 성향.
+
+RiskTaking:           # 위험한 카정, 다이브, 50:50 교전 등을 선택하는 성향.
+
+Consistency:          # 정글 경기력의 안정성.
+
+Clutch:               # 중요 오브젝트/중요 교전에서의 수행 능력.
+
+PathingCreativity:    # 동선 창의성.
+                      # 상대가 예상하기 어려운 정글 루트,
+                      # 역갱 동선, 카정 타이밍 등을 만들어내는 능력.
+
+ObjectiveSense:       # 오브젝트 감각.
+                      # 용/전령/바론을 언제 시작하고 포기해야 하는지,
+                      # 상대 위치를 보고 오브젝트를 교환할지 판단하는 능력.
+
+
+[팀 적응]
+
+TeamChemistry:        # 팀 전체와의 호흡.
+
+CoachTrust:           # 감독에 대한 신뢰.
+
+FeedbackAcceptance:   # 감독의 피드백을 받아들이는 정도.
+
+[미드 선수]
+
+이름:                 # 선수 이름
+팀:                   # 현재 팀
+나이:                 # 현재 나이
+OVR:                  # MID 기준 기본 종합 능력치
+
+
+[기본 능력치]
+
+Mechanics:            # 스킬샷, 무빙, 콤보 등 순수 조작 능력.
+
+GameSense:            # 갱 회피, 교전 선택, 킬각 판단 등 순간 판단.
+
+Laning:               # CS, 딜교, 웨이브 관리, 솔킬 압박 등 미드 라인전 능력.
+
+TeamFight:            # 한타에서 딜링, 진입, 포지셔닝, 스킬 활용 능력.
+
+Macro:                # 사이드 운영, 합류, 오브젝트 준비 등 전체 운영 능력.
+
+TeamPlay:             # 정글/서폿과의 연계 및 팀 플레이 능력.
+
+Mental:               # 압박 상황, 중요한 경기, 부진 대응 능력.
+
+ChampionPool:         # 다양한 미드 챔피언 유형을 소화하는 능력.
+
+
+[현재 상태]
+
+Form:                 # 최근 경기력.
+Condition:            # 현재 체력/집중력.
+
+
+[포지션 숙련도]
+
+MID:                  # MID 포지션 숙련도.
+
+
+[역할 숙련도]
+
+MID_CARRY:            # 많은 자원을 받아 직접 캐리하는 역할.
+
+ROAM_MID:             # 라인을 밀고 TOP/BOT/JUNGLE에 영향력을 주는 역할.
+
+CONTROL_MID:          # 웨이브 관리, 주도권 유지, 상대 움직임 제한 등
+                      # 게임의 중심을 안정적으로 통제하는 역할.
+
+TEAMFIGHT_MID:        # 중후반 한타에서 강력한 영향력을 내는 역할.
+
+UTILITY_MID:          # 딜보다는 CC, 보호, 운영 등 팀을 지원하는 역할.
+
+SIDE_LANE_MID:        # 중후반 사이드 라인을 담당하며
+                      # 압박과 합류 타이밍을 만드는 역할.
+
+
+[챔피언 유형 숙련도]
+
+ControlMage:          # 영역 통제와 안정적인 한타가 강한 메이지.
+
+StandingMage:         # 뒤에서 안정적으로 자리 잡고 지속적으로 딜을 넣는
+                      # 전통적인 포지셔닝형 메이지 유형.
+                      # 명칭은 추후 다른 이름으로 변경해도 됨.
+
+Assassin:             # 순간 폭딜과 암살에 특화된 미드 챔피언.
+
+MeleeMID:             # 근접 미드 챔피언.
+
+AD_MID:               # 물리 피해 중심 미드 챔피언.
+
+Utility:              # 팀 보조, CC, 로밍 등에 특화된 미드.
+
+ScalingMage:          # 초반보다 중후반 성장 후 강해지는 메이지.
+
+
+[플레이 성향]
+
+Aggression:           # 라인전/교전에서의 공격성.
+
+RiskTaking:           # 과감한 솔킬, 로밍, 다이브 등을 시도하는 성향.
+
+Consistency:          # 경기력 안정성.
+
+Clutch:               # 중요한 순간의 해결 능력.
+
+LanePressure:         # 라인에서 상대를 얼마나 강하게 압박하는지.
+                      # CS 압박, 체력 압박, 웨이브 주도권 등에 영향.
+
+RoamTendency:         # 라인에 남기보다 다른 지역으로 움직이는 성향.
+                      # 높을수록 TOP/BOT/정글 로밍 빈도가 높아짐.
+
+
+[팀 적응]
+
+TeamChemistry:        # 현재 팀과의 호흡.
+
+CoachTrust:           # 감독 신뢰도.
+
+FeedbackAcceptance:   # 감독 피드백 수용 정도.|
+
+
+[원딜 선수]
+
+이름:                 # 선수 이름
+팀:                   # 현재 소속 팀
+나이:                 # 현재 나이
+OVR:                  # ADC 기준 기본 종합 능력치
+
+
+[기본 능력치]
+
+Mechanics:            # 카이팅, 무빙, 스킬 활용, 반응속도 등 순수 피지컬.
+
+GameSense:            # 위험 판단, 상대 진입각 파악, 딜각 판단 등.
+
+Laning:               # CS, 딜교환, 웨이브 관리, 바텀 주도권 확보 능력.
+
+TeamFight:            # 중후반 한타에서 실제로 딜을 넣는 능력.
+
+Macro:                # 사이드/미드 웨이브를 먹는 위치,
+                      # 합류 타이밍, 안전한 성장 동선 등을 판단하는 능력.
+
+TeamPlay:             # 서포터 및 팀원과의 연계 능력.
+
+Mental:               # 집중 견제, 연속 데스, 중요한 한타에서도 흔들리지 않는 능력.
+
+ChampionPool:         # 다양한 ADC 유형을 소화하는 능력.
+
+
+[현재 상태]
+
+Form:                 # 최근 경기력.
+Condition:            # 현재 체력/집중력.
+
+
+[포지션 숙련도]
+
+ADC:                  # ADC 포지션 숙련도.
+
+
+[역할 숙련도]
+
+HYPER_CARRY:          # 많은 자원을 받아 중후반에 게임을 캐리하는 역할.
+                      # 높은 ResourceDemand와 궁합이 있을 수 있음.
+
+WEAK_SIDE:            # 적은 자원과 적은 지원으로도 살아남고 기여하는 역할.
+                      # 상체 중심 전략에서 중요.
+
+BOT_LANE_PRESSURE:    # 바텀 라인에서 강하게 압박해 초반 우위를 만드는 역할.
+
+TEAMFIGHT_CARRY:      # 한타에서 안정적으로 높은 지속 딜을 넣는 역할.
+
+UTILITY_ADC:          # 직접적인 딜 외에 CC, 지원, 운영 등으로 기여하는 역할.
+
+EARLY_GAME_ADC:       # 초반부터 강하게 압박하고 스노우볼을 만드는 역할.
+
+
+[챔피언 유형 숙련도]
+
+CritMarksman:         # 치명타 기반 전통적인 평타 원딜 유형.
+
+HyperCarry:           # 초반은 약하지만 중후반 성장 시 매우 강한 원딜.
+
+LaneBully:            # 강력한 초반 라인전과 주도권을 가진 원딜.
+
+UtilityADC:           # CC/지원 기능 등 팀 기여 능력이 높은 원딜.
+
+AP_Bot:               # 바텀 AP 챔피언 숙련도.
+
+ShortRangeADC:        # 짧은 사거리 대신 강한 교전력/폭발력을 가진 ADC.
+                      # 높은 Positioning 능력을 요구하는 경우가 많음.
+
+LongRangeADC:         # 긴 사거리로 안전한 딜링 및 포킹이 가능한 ADC.
+
+
+[플레이 성향]
+
+Aggression:           # 라인전과 한타에서의 공격성.
+
+RiskTaking:           # 위험을 감수하면서 딜을 넣거나 킬각을 보는 성향.
+
+Consistency:          # 매 경기 안정적으로 딜을 넣는 정도.
+
+Clutch:               # 결정적인 한타/5세트 등에서의 수행 능력.
+
+Positioning:          # 원딜의 핵심 특수 능력.
+                      # 한타에서 안전하면서도 최대한 많은 딜을 넣는 위치 선정 능력.
+                      # 상대 암살자, 이니시 등을 피하면서 딜하는 능력.
+
+ResourceDemand:       # 자원 요구도.
+                      # 높으면 CS, Gold, 정글 개입, 서폿 보호 등을 많이 받아야 최대 성능.
+                      # 낮으면 저자원에서도 효율적으로 플레이 가능.
+
+
+[팀 적응]
+
+TeamChemistry:        # 팀 전체와의 호흡.
+
+SupportChemistry:     # 현재 서포터와의 바텀 듀오 호흡.
+                      # 라인전, 로밍 타이밍, 한타 보호 등에 영향.
+
+CoachTrust:           # 감독에 대한 신뢰.
+
+FeedbackAcceptance:   # 감독 피드백 수용 정도.
+
+
+[서포터 선수]
+
+이름:                 # 선수 이름
+팀:                   # 현재 소속 팀
+나이:                 # 현재 나이
+OVR:                  # SUPPORT 기준 기본 종합 능력치
+
+
+[기본 능력치]
+
+Mechanics:            # 스킬 적중, CC 활용, 세이브 등 순수 조작 능력.
+
+GameSense:            # 이니시/후퇴/로밍/시야 진입 등의 순간 판단.
+
+Laning:               # 바텀 라인전 능력.
+                      # 딜교, 부쉬 활용, ADC 보호, 상대 압박 등을 포함.
+
+TeamFight:            # 한타에서 이니시, 보호, CC, 포지셔닝 등을 수행하는 능력.
+
+Macro:                # 맵 이동, 시야 배치, 오브젝트 준비, 로밍 판단 등.
+
+TeamPlay:             # 팀원과의 연계와 보조 능력.
+                      # 서포터에게 매우 중요한 능력치.
+
+Mental:               # 중요한 이니시 실패, 연속 데스 등의 상황에서의 안정성.
+
+ChampionPool:         # 다양한 서포터 챔피언 유형을 소화하는 능력.
+
+
+[현재 상태]
+
+Form:                 # 최근 경기력.
+Condition:            # 현재 체력/집중력.
+
+
+[포지션 숙련도]
+
+SUPPORT:              # SUPPORT 포지션 숙련도.
+
+
+[역할 숙련도]
+
+ROAM_SUPPORT:         # ADC와 떨어져 MID/TOP/JUNGLE에 영향을 주는 로밍 역할.
+
+ENGAGE_SUPPORT:       # 먼저 싸움을 여는 이니시 역할.
+
+ENCHANTER_SUPPORT:    # ADC 및 핵심 캐리를 보호하고 강화하는 역할.
+
+LANE_SUPPORT:         # 바텀 라인전에 집중해 ADC와 함께 주도권을 만드는 역할.
+
+SHOTCALL_SUPPORT:     # 팀의 운영과 교전 방향을 지휘하는 역할.
+
+VISION_CONTROL:       # 와드, 시야 제거, 오브젝트 주변 시야 장악 역할.
+
+
+[챔피언 유형 숙련도]
+
+Engage:               # 먼저 진입하거나 CC로 싸움을 여는 챔피언.
+
+Enchanter:            # 힐, 실드, 버프 등 캐리 보호형 챔피언.
+
+Tank:                 # 앞라인과 탱킹 역할을 수행하는 서포터.
+
+Poke:                 # 긴 사거리 견제로 라인과 오브젝트 지역을 압박하는 유형.
+
+MageSupport:          # 높은 마법 피해와 견제를 가진 딜 중심 서포터.
+
+Unorthodox:           # 비정상/조커 서폿 픽 숙련도.
+                      # 일반적인 서포터 챔피언이 아닌 특이한 픽을
+                      # 실제 전략으로 활용하는 능력.
+                      # 밴픽에서 예상 밖의 변수를 만드는 데 강함.
+
+
+[플레이 성향]
+
+Aggression:           # 적극적으로 딜교/이니시를 시도하는 정도.
+
+RiskTaking:           # 위험한 시야 장악, 로밍, 과감한 이니시 등을 선택하는 성향.
+
+Consistency:          # 경기력 안정성.
+
+Clutch:               # 결정적인 순간에 좋은 이니시/세이브를 만들어내는 능력.
+
+RoamTendency:         # 바텀 라인에 머무르기보다 다른 지역으로 움직이려는 성향.
+                      # 높을수록 상체 로밍 빈도가 높음.
+
+Shotcalling:          # 팀 전체에 오더를 내리는 능력.
+                      # 용/바론 시작, 교전 여부, 라인 배분, 후퇴 등을 판단하고
+                      # 팀 움직임을 정리하는 능력.
+
+
+[팀 적응]
+
+TeamChemistry:        # 팀 전체와의 호흡.
+
+ADC_Chemistry:        # 현재 ADC와의 바텀 듀오 호흡.
+                      # 라인전, 이니시 호응, 보호 타이밍 등에 영향.
+
+CoachTrust:           # 감독에 대한 신뢰.
+
+FeedbackAcceptance:   # 감독 피드백을 얼마나 잘 받아들이는지.

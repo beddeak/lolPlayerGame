@@ -29,6 +29,7 @@ import { AddTeamChemistrySetBonuses1787605200000 } from './migrations/1787605200
 import { AddChampionArchetypes1787608800000 } from './migrations/1787608800000-add-champion-archetypes';
 import { ExpandChampionArchetypes1787695200000 } from './migrations/1787695200000-expand-champion-archetypes';
 import { CreateBo3MatchSeries1787781600000 } from './migrations/1787781600000-create-bo3-match-series';
+import { AddPlayerMatchState1787868000000 } from './migrations/1787868000000-add-player-match-state';
 import { CreatePlayerCatalog1787237754573 } from './migrations/1787237754573-create-player-catalog';
 
 if (existsSync('.env')) {
@@ -76,6 +77,7 @@ const dataSource = new DataSource({
     AddChampionArchetypes1787608800000,
     ExpandChampionArchetypes1787695200000,
     CreateBo3MatchSeries1787781600000,
+    AddPlayerMatchState1787868000000,
   ],
   migrationsTableName: 'migrations',
   ssl: useSsl ? { rejectUnauthorized: true } : undefined,

@@ -20,6 +20,8 @@ export type SimpleMatchStatKey = keyof SimpleMatchPlayerStats;
 export interface SimpleMatchPlayerInput extends SimpleMatchPlayerStats {
   careerPlayerId: number;
   position: Position;
+  form: number;
+  condition: number;
   playerInstruction: PlayerInstruction | null;
   roleProficiency: number | null;
   championArchetype: ChampionArchetype | null;
@@ -48,6 +50,7 @@ export interface SimpleMatchTeamResult {
   activeSetBonuses: SetBonusSnapshot[];
   setBonusModifier: number;
   archetypeModifier: number;
+  stateModifier: number;
   baseAbility: number;
   rngModifier: number;
   performance: number;

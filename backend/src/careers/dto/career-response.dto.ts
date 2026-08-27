@@ -32,6 +32,8 @@ export class CareerPlayerResponseDto {
   currentTeamPlay!: number;
   currentMental!: number;
   currentChampionPool!: number;
+  form!: number;
+  condition!: number;
   playerCard!: PlayerCardResponseDto;
   roleProficiencies!: CareerPlayerRoleProficiencyResponseDto[];
 }

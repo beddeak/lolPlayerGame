@@ -132,6 +132,9 @@ export class Match {
   @Column({ type: 'double', default: 0 })
   teamAArchetypeModifier!: number;
 
+  @Column({ type: 'double', default: 0 })
+  teamAStateModifier!: number;
+
   @Column({ type: 'double' })
   teamBBaseAbility!: number;
 
@@ -174,6 +177,9 @@ export class Match {
 
   @Column({ type: 'double', default: 0 })
   teamBArchetypeModifier!: number;
+
+  @Column({ type: 'double', default: 0 })
+  teamBStateModifier!: number;
 
   @Column({
     type: 'enum',

@@ -11,6 +11,7 @@ import {
 } from 'typeorm';
 import { PlayerCard } from '../../players/entities/player-card.entity';
 import { Position } from '../../players/enums/position.enum';
+import { CAREER_PLAYER_STATE_CONFIG } from '../config/player-state.config';
 import { Career } from './career.entity';
 import { CareerPlayerRoleProficiency } from './career-player-role-proficiency.entity';
 import { CareerTeam } from './career-team.entity';
@@ -93,6 +94,20 @@ export class CareerPlayer {
 
   @Column({ type: 'tinyint', unsigned: true })
   currentChampionPool!: number;
+
+  @Column({
+    type: 'tinyint',
+    unsigned: true,
+    default: CAREER_PLAYER_STATE_CONFIG.initial.form,
+  })
+  form!: number;
+
+  @Column({
+    type: 'tinyint',
+    unsigned: true,
+    default: CAREER_PLAYER_STATE_CONFIG.initial.condition,
+  })
+  condition!: number;
 
   @OneToOne(() => Roster, (roster) => roster.careerPlayer)
   roster!: Roster | null;

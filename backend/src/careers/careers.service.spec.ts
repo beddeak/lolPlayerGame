@@ -189,6 +189,8 @@ describe('CareersService', () => {
     expect(result.teams[0].starters[0].careerPlayer.currentMechanics).toBe(
       playerCards[0].mechanics,
     );
+    expect(result.teams[0].starters[0].careerPlayer.form).toBe(50);
+    expect(result.teams[0].starters[0].careerPlayer.condition).toBe(100);
     expect(
       result.teams[0].starters[0].careerPlayer.roleProficiencies,
     ).toHaveLength(4);

@@ -280,6 +280,8 @@ export class MatchesService {
       teamPlay: careerPlayer.currentTeamPlay,
       mental: careerPlayer.currentMental,
       championPool: careerPlayer.currentChampionPool,
+      form: careerPlayer.form,
+      condition: careerPlayer.condition,
     };
   }
 
@@ -321,6 +323,7 @@ export class MatchesService {
         teamASetBonusModifier: teamAResult.setBonusModifier,
         teamAActiveSetBonuses: teamAResult.activeSetBonuses,
         teamAArchetypeModifier: teamAResult.archetypeModifier,
+        teamAStateModifier: teamAResult.stateModifier,
         teamBBaseAbility: teamBResult.baseAbility,
         teamBRngModifier: teamBResult.rngModifier,
         teamBPerformance: teamBResult.performance,
@@ -335,6 +338,7 @@ export class MatchesService {
         teamBSetBonusModifier: teamBResult.setBonusModifier,
         teamBActiveSetBonuses: teamBResult.activeSetBonuses,
         teamBArchetypeModifier: teamBResult.archetypeModifier,
+        teamBStateModifier: teamBResult.stateModifier,
         currentMeta: result.currentMeta,
       });
       const savedMatch = await manager.save(Match, match);
@@ -349,6 +353,17 @@ export class MatchesService {
       );
 
       await manager.save(MatchPlayerStat, playerStats);
+      await Promise.all(
+        statsResult.teams.flatMap((teamStats) =>
+          teamStats.playerStats.map((playerStat) =>
+            manager.update(CareerPlayer, playerStat.careerPlayerId, {
+              form: playerStat.formAfter,
+              condition: playerStat.conditionAfter,
+              currentMental: playerStat.mentalAfter,
+            }),
+          ),
+        ),
+      );
 
       return savedMatch.id;
     });
@@ -409,6 +424,8 @@ export class MatchesService {
         side === 'A'
           ? match.teamAArchetypeModifier
           : match.teamBArchetypeModifier,
+      stateModifier:
+        side === 'A' ? match.teamAStateModifier : match.teamBStateModifier,
       baseAbility:
         side === 'A' ? match.teamABaseAbility : match.teamBBaseAbility,
       rngModifier:
@@ -434,6 +451,16 @@ export class MatchesService {
       playerInstruction: playerStat.playerInstruction,
       roleProficiency: playerStat.roleProficiency,
       championArchetype: playerStat.championArchetype,
+      form: playerStat.form,
+      condition: playerStat.condition,
+      mental: playerStat.mental,
+      formModifier: playerStat.formModifier,
+      conditionModifier: playerStat.conditionModifier,
+      mentalModifier: playerStat.mentalModifier,
+      stateModifier: playerStat.stateModifier,
+      formAfter: playerStat.formAfter,
+      conditionAfter: playerStat.conditionAfter,
+      mentalAfter: playerStat.mentalAfter,
       kills: playerStat.kills,
       deaths: playerStat.deaths,
       assists: playerStat.assists,

@@ -17,6 +17,7 @@ import {
   PLAYER_INSTRUCTIONS_BY_POSITION,
   ROLE_PROFICIENCY_CONFIG,
 } from './config/player-instruction.config';
+import { CAREER_PLAYER_STATE_CONFIG } from './config/player-state.config';
 import { TEAM_STRATEGY_PROFICIENCY_CONFIG } from './config/team-strategy-proficiency.config';
 import { TEAM_CHEMISTRY_CONFIG } from './config/team-chemistry.config';
 import {
@@ -151,6 +152,8 @@ export class CareersService {
             currentTeamPlay: playerCard.teamPlay,
             currentMental: playerCard.mental,
             currentChampionPool: playerCard.championPool,
+            form: CAREER_PLAYER_STATE_CONFIG.initial.form,
+            condition: CAREER_PLAYER_STATE_CONFIG.initial.condition,
           }),
       );
       const savedCareerPlayers = await manager.save(
@@ -423,6 +426,8 @@ export class CareersService {
       currentTeamPlay: careerPlayer.currentTeamPlay,
       currentMental: careerPlayer.currentMental,
       currentChampionPool: careerPlayer.currentChampionPool,
+      form: careerPlayer.form,
+      condition: careerPlayer.condition,
       playerCard: this.toPlayerCardResponse(careerPlayer.playerCard),
       roleProficiencies: [...(careerPlayer.roleProficiencies ?? [])]
         .sort(

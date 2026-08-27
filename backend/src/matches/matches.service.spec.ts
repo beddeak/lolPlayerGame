@@ -43,6 +43,7 @@ describe('MatchesService', () => {
         value: SaveableEntity | SaveableEntity[],
       ): Promise<SaveableEntity | SaveableEntity[]> => Promise.resolve(value),
     ),
+    update: jest.fn().mockResolvedValue({ affected: 1 }),
   };
   const dataSource = {
     transaction: jest.fn(
@@ -64,6 +65,8 @@ describe('MatchesService', () => {
       currentTeamPlay: 70,
       currentMental: 70,
       currentChampionPool: 70,
+      form: 50,
+      condition: 100,
       roleProficiencies: [],
     }) as CareerPlayer;
   const createCareerTeam = (id: number, code: string): CareerTeam => {
@@ -171,6 +174,15 @@ describe('MatchesService', () => {
     expect(result.teams[0].playerStats).toHaveLength(5);
     expect(result.teams[0].baseAbility).toBe(70);
     expect(result.teams[0].archetypeModifier).toBe(0);
+    expect(result.teams[0].stateModifier).toBe(1.6);
+    expect(result.teams[0].playerStats[0]).toEqual(
+      expect.objectContaining({
+        form: 50,
+        condition: 100,
+        mental: 70,
+      }),
+    );
+    expect(entityManager.update).toHaveBeenCalledTimes(10);
     expect([teamA.id, teamB.id]).toContain(result.winnerTeamId);
   });
 
@@ -299,6 +311,7 @@ describe('MatchesService', () => {
         },
       ],
       teamAArchetypeModifier: 0.5,
+      teamAStateModifier: 1.6,
       teamBBaseAbility: 70,
       teamBRngModifier: -1,
       teamBPerformance: 69,
@@ -312,6 +325,7 @@ describe('MatchesService', () => {
       teamBSetBonusModifier: 0,
       teamBActiveSetBonuses: [],
       teamBArchetypeModifier: 0,
+      teamBStateModifier: 1.6,
       currentMeta: TeamStrategy.BALANCED,
       playerStats: [teamA, teamB].flatMap((team) =>
         STARTER_POSITIONS.map((position, index) => ({
@@ -324,6 +338,16 @@ describe('MatchesService', () => {
             team.id === teamA.id && position === Position.ADC
               ? ChampionArchetype.HYPER_CARRY
               : null,
+          form: 50,
+          condition: 100,
+          mental: 70,
+          formModifier: 0,
+          conditionModifier: 0,
+          mentalModifier: 1.6,
+          stateModifier: 1.6,
+          formAfter: 51,
+          conditionAfter: 94,
+          mentalAfter: 71,
           kills: index,
           deaths: index,
           assists: index,
@@ -349,6 +373,17 @@ describe('MatchesService', () => {
     expect(result.teams[0].playerStats).toHaveLength(5);
     expect(result.teams[0].activeSetBonuses[0].code).toBe('BOTTOM_DUO');
     expect(result.teams[0].archetypeModifier).toBe(0.5);
+    expect(result.teams[0].stateModifier).toBe(1.6);
+    expect(result.teams[0].playerStats[0]).toEqual(
+      expect.objectContaining({
+        form: 50,
+        condition: 100,
+        mental: 70,
+        formAfter: 51,
+        conditionAfter: 94,
+        mentalAfter: 71,
+      }),
+    );
     expect(
       result.teams[0].playerStats.find(
         (playerStat) => playerStat.position === Position.ADC,

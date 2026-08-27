@@ -22,6 +22,8 @@ describe('MatchStatsSimulationService', () => {
       playerInstruction: null,
       roleProficiency: null,
       championArchetype: null,
+      form: 50,
+      condition: 100,
       mechanics: ability,
       gameSense: ability,
       laning: ability,
@@ -173,6 +175,49 @@ describe('MatchStatsSimulationService', () => {
       expect(player.kp).toBeLessThanOrEqual(100);
       expect(player.rating).toBeGreaterThanOrEqual(0);
       expect(player.rating).toBeLessThanOrEqual(10);
+    }
+  });
+
+  it('snapshots state modifiers and calculates the next match state', () => {
+    const matchResult = matchSimulationService.simulate(
+      teamA,
+      teamB,
+      101,
+      TeamStrategy.BALANCED,
+    );
+    const result = statsSimulationService.simulate(
+      teamA,
+      teamB,
+      matchResult,
+      101,
+    );
+
+    for (const teamResult of result.teams) {
+      const won = teamResult.teamId === matchResult.winnerTeamId;
+
+      for (const player of teamResult.playerStats) {
+        expect(player).toEqual(
+          expect.objectContaining({
+            form: 50,
+            condition: 100,
+            mental: 70,
+            formModifier: 0,
+            conditionModifier: 0,
+            mentalModifier: 1.6,
+            stateModifier: 1.6,
+          }),
+        );
+        expect(player.conditionAfter).toBeLessThan(player.condition);
+        expect(player.formAfter).toBeGreaterThanOrEqual(0);
+        expect(player.formAfter).toBeLessThanOrEqual(100);
+        if (won) {
+          expect(player.mentalAfter).toBeGreaterThanOrEqual(player.mental);
+          expect(player.mentalAfter).toBeLessThanOrEqual(player.mental + 2);
+        } else {
+          expect(player.mentalAfter).toBeLessThanOrEqual(player.mental);
+          expect(player.mentalAfter).toBeGreaterThanOrEqual(player.mental - 2);
+        }
+      }
     }
   });
 });

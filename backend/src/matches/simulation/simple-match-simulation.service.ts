@@ -17,6 +17,7 @@ import {
   ChampionArchetypeTuning,
 } from '../config/champion-archetype.config';
 import { createSeededRandom } from './seeded-random';
+import { calculatePlayerMatchStateModifiers } from './player-match-state';
 import {
   SimpleMatchPlayerInput,
   SimpleMatchPlayerStats,
@@ -66,13 +67,26 @@ export class SimpleMatchSimulationService {
     randomValue: number,
     currentMeta: TeamStrategy,
   ): SimpleMatchTeamResult {
-    const baseAbility = this.calculateTeamAbility(team, {}, false);
-    const archetypeAdjustedAbility = this.calculateTeamAbility(team, {}, true);
+    const baseAbility = this.calculateTeamAbility(team, {}, false, false);
+    const archetypeAdjustedAbility = this.calculateTeamAbility(
+      team,
+      {},
+      true,
+      false,
+    );
     const archetypeModifier = archetypeAdjustedAbility - baseAbility;
+    const stateAdjustedAbility = this.calculateTeamAbility(
+      team,
+      {},
+      false,
+      true,
+    );
+    const stateModifier = stateAdjustedAbility - baseAbility;
     const setBonusStatModifiers = this.sumSetBonusStatModifiers(team);
     const setBonusAdjustedAbility = this.calculateTeamAbility(
       team,
       setBonusStatModifiers,
+      false,
       false,
     );
     const setBonusModifier = setBonusAdjustedAbility - baseAbility;
@@ -121,12 +135,14 @@ export class SimpleMatchSimulationService {
       activeSetBonuses: team.activeSetBonuses,
       setBonusModifier,
       archetypeModifier,
+      stateModifier,
       baseAbility,
       rngModifier,
       performance:
         baseAbility +
         setBonusModifier +
         archetypeModifier +
+        stateModifier +
         chemistryModifier +
         rngModifier +
         strategyProficiencyModifier +
@@ -138,6 +154,7 @@ export class SimpleMatchSimulationService {
     team: SimpleMatchTeamInput,
     statBonuses: Partial<Record<keyof SimpleMatchPlayerStats, number>>,
     applyChampionArchetype: boolean,
+    applyPlayerState: boolean,
   ): number {
     const strategyConfig = TEAM_STRATEGY_CONFIG[team.teamStrategy];
     const playerAbilities = team.players.map((player) => ({
@@ -146,6 +163,7 @@ export class SimpleMatchSimulationService {
         strategyConfig.statMultipliers,
         statBonuses,
         applyChampionArchetype,
+        applyPlayerState,
       ),
       positionMultiplier:
         strategyConfig.positionMultipliers[player.position] ?? 1,
@@ -200,6 +218,7 @@ export class SimpleMatchSimulationService {
     >,
     statBonuses: Partial<Record<keyof SimpleMatchPlayerStats, number>>,
     applyChampionArchetype: boolean,
+    applyPlayerState: boolean,
   ): number {
     const instructionStatMultipliers = player.playerInstruction
       ? PLAYER_INSTRUCTION_CONFIG[player.position][player.playerInstruction]
@@ -231,6 +250,9 @@ export class SimpleMatchSimulationService {
       this.calculateRoleProficiencyModifier(player) +
       (archetypeConfig
         ? this.calculateArchetypePhaseModifier(archetypeConfig)
+        : 0) +
+      (applyPlayerState
+        ? calculatePlayerMatchStateModifiers(player).stateModifier
         : 0)
     );
   }
@@ -356,6 +378,7 @@ export class SimpleMatchSimulationService {
       chemistryModifier: this.round(result.chemistryModifier),
       setBonusModifier: this.round(result.setBonusModifier),
       archetypeModifier: this.round(result.archetypeModifier),
+      stateModifier: this.round(result.stateModifier),
       performance: this.round(result.performance),
     };
   }

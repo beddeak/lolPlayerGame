@@ -50,6 +50,12 @@ interface CareerResponse {
     starters: Array<{
       starterPosition: Position;
       championArchetype: ChampionArchetype | null;
+      careerPlayer: {
+        id: number;
+        currentMental: number;
+        form: number;
+        condition: number;
+      };
     }>;
   }>;
 }
@@ -70,10 +76,22 @@ interface MatchResponse {
     activeSetBonuses: Array<{ code: string }>;
     setBonusModifier: number;
     archetypeModifier: number;
+    stateModifier: number;
     playerStats: Array<{
+      careerPlayerId: number;
       position: Position;
       playerInstruction: PlayerInstruction | null;
       championArchetype: ChampionArchetype | null;
+      form: number;
+      condition: number;
+      mental: number;
+      formModifier: number;
+      conditionModifier: number;
+      mentalModifier: number;
+      stateModifier: number;
+      formAfter: number;
+      conditionAfter: number;
+      mentalAfter: number;
     }>;
   }>;
 }
@@ -356,6 +374,14 @@ describe('Application authentication and career ownership (e2e)', () => {
     expect(teamB.starters).toHaveLength(5);
     expect(
       [...teamA.starters, ...teamB.starters].every(
+        (starter) =>
+          starter.careerPlayer.form === 50 &&
+          starter.careerPlayer.condition === 100 &&
+          starter.careerPlayer.currentMental === 70,
+      ),
+    ).toBe(true);
+    expect(
+      [...teamA.starters, ...teamB.starters].every(
         (starter) => starter.championArchetype === null,
       ),
     ).toBe(true);
@@ -505,6 +531,9 @@ describe('Application authentication and career ownership (e2e)', () => {
     expect(match.teams[0].chemistryModifier).toBe(0.8);
     expect(match.teams[0].setBonusModifier).toBeGreaterThan(0);
     expect(match.teams[0].archetypeModifier).not.toBe(0);
+    expect(
+      match.teams.every((team) => Number.isFinite(team.stateModifier)),
+    ).toBe(true);
     expect(match.teams[0].activeSetBonuses).toEqual([
       expect.objectContaining({ code: `E2E_BOTTOM_DUO_${fixtureKey}` }),
     ]);
@@ -519,6 +548,18 @@ describe('Application authentication and career ownership (e2e)', () => {
     expect(
       match.teams.reduce((total, team) => total + team.playerStats.length, 0),
     ).toBe(10);
+    expect(
+      match.teams
+        .flatMap((team) => team.playerStats)
+        .every(
+          (playerStat) =>
+            playerStat.form === 50 &&
+            playerStat.condition === 100 &&
+            playerStat.mental === 70 &&
+            playerStat.conditionAfter < playerStat.condition &&
+            Number.isFinite(playerStat.stateModifier),
+        ),
+    ).toBe(true);
 
     const storedMatchResponse = await api
       .get(`/matches/${match.matchId}`)
@@ -527,6 +568,30 @@ describe('Application authentication and career ownership (e2e)', () => {
     const storedMatch = storedMatchResponse.body as unknown as MatchResponse;
 
     expect(storedMatch).toEqual(match);
+
+    const postMatchCareerResponse = await api
+      .get(`/careers/${career.id}`)
+      .set('Authorization', `Bearer ${tokenA}`)
+      .expect(200);
+    const postMatchCareer =
+      postMatchCareerResponse.body as unknown as CareerResponse;
+    const currentPlayersById = new Map(
+      postMatchCareer.teams.flatMap((team) =>
+        team.starters.map(
+          (starter) => [starter.careerPlayer.id, starter.careerPlayer] as const,
+        ),
+      ),
+    );
+
+    for (const playerStat of match.teams.flatMap((team) => team.playerStats)) {
+      expect(currentPlayersById.get(playerStat.careerPlayerId)).toEqual(
+        expect.objectContaining({
+          form: playerStat.formAfter,
+          condition: playerStat.conditionAfter,
+          currentMental: playerStat.mentalAfter,
+        }),
+      );
+    }
     await api
       .get(`/matches/${match.matchId}`)
       .set('Authorization', `Bearer ${tokenB}`)
@@ -660,6 +725,23 @@ describe('Application authentication and career ownership (e2e)', () => {
     expect(game2.seriesGameNumber).toBe(2);
     expect(game2.seed).toBe(seriesBody.seed + 1);
     expect(game2TeamA.teamStrategy).toBe(TeamStrategy.TOP_CARRY);
+    const game1StateByPlayerId = new Map(
+      game1.teams.flatMap((gameTeam) =>
+        gameTeam.playerStats.map(
+          (playerStat) => [playerStat.careerPlayerId, playerStat] as const,
+        ),
+      ),
+    );
+
+    for (const playerStat of game2.teams.flatMap(
+      (gameTeam) => gameTeam.playerStats,
+    )) {
+      const previousGame = game1StateByPlayerId.get(playerStat.careerPlayerId)!;
+
+      expect(playerStat.form).toBe(previousGame.formAfter);
+      expect(playerStat.condition).toBe(previousGame.conditionAfter);
+      expect(playerStat.mental).toBe(previousGame.mentalAfter);
+    }
     expect(
       game2TeamA.playerStats.find(
         (playerStat) => playerStat.position === Position.MID,

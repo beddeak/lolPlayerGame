@@ -20,6 +20,8 @@ describe('SimpleMatchSimulationService', () => {
     playerInstruction: null,
     roleProficiency: null,
     championArchetype: null,
+    form: 50,
+    condition: 100,
     mechanics: ability,
     gameSense: ability,
     laning: ability,
@@ -115,6 +117,8 @@ describe('SimpleMatchSimulationService', () => {
           playerInstruction: null,
           roleProficiency: null,
           championArchetype: null,
+          form: 50,
+          condition: 100,
         }),
       ),
     };
@@ -140,6 +144,35 @@ describe('SimpleMatchSimulationService', () => {
         SIMPLE_MATCH_CONFIG.rngModifierMax,
       );
     }
+  });
+
+  it('applies Form, Condition, and Mental without changing base ability', () => {
+    const lowStateTeam = createTeam(30, 'LOW_STATE', 70);
+    const highStateTeam = createTeam(31, 'HIGH_STATE', 70);
+
+    lowStateTeam.players.forEach((player) => {
+      player.form = 20;
+      player.condition = 40;
+    });
+    highStateTeam.players.forEach((player) => {
+      player.form = 90;
+      player.condition = 100;
+    });
+
+    const result = service.simulate(
+      lowStateTeam,
+      highStateTeam,
+      100,
+      TeamStrategy.BALANCED,
+    );
+
+    expect(result.teams[0].baseAbility).toBe(70);
+    expect(result.teams[1].baseAbility).toBe(70);
+    expect(result.teams[0].stateModifier).toBeLessThan(0);
+    expect(result.teams[1].stateModifier).toBeGreaterThan(0);
+    expect(result.teams[1].performance).toBeGreaterThan(
+      result.teams[0].performance,
+    );
   });
 
   it('always lets a vastly stronger team beat the RNG range', () => {

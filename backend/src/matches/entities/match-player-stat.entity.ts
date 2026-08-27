@@ -9,6 +9,7 @@ import {
 } from 'typeorm';
 import { CareerPlayer } from '../../careers/entities/career-player.entity';
 import { CareerTeam } from '../../careers/entities/career-team.entity';
+import { CAREER_PLAYER_STATE_CONFIG } from '../../careers/config/player-state.config';
 import { PlayerInstruction } from '../../careers/enums/player-instruction.enum';
 import { ChampionArchetype } from '../../careers/enums/champion-archetype.enum';
 import { Position } from '../../players/enums/position.enum';
@@ -67,6 +68,52 @@ export class MatchPlayerStat {
 
   @Column({ type: 'enum', enum: ChampionArchetype, nullable: true })
   championArchetype!: ChampionArchetype | null;
+
+  @Column({
+    type: 'tinyint',
+    unsigned: true,
+    default: CAREER_PLAYER_STATE_CONFIG.initial.form,
+  })
+  form!: number;
+
+  @Column({
+    type: 'tinyint',
+    unsigned: true,
+    default: CAREER_PLAYER_STATE_CONFIG.initial.condition,
+  })
+  condition!: number;
+
+  @Column({ type: 'tinyint', unsigned: true, default: 50 })
+  mental!: number;
+
+  @Column({ type: 'double', default: 0 })
+  formModifier!: number;
+
+  @Column({ type: 'double', default: 0 })
+  conditionModifier!: number;
+
+  @Column({ type: 'double', default: 0 })
+  mentalModifier!: number;
+
+  @Column({ type: 'double', default: 0 })
+  stateModifier!: number;
+
+  @Column({
+    type: 'tinyint',
+    unsigned: true,
+    default: CAREER_PLAYER_STATE_CONFIG.initial.form,
+  })
+  formAfter!: number;
+
+  @Column({
+    type: 'tinyint',
+    unsigned: true,
+    default: CAREER_PLAYER_STATE_CONFIG.initial.condition,
+  })
+  conditionAfter!: number;
+
+  @Column({ type: 'tinyint', unsigned: true, default: 50 })
+  mentalAfter!: number;
 
   @Column({ type: 'tinyint', unsigned: true })
   kills!: number;

@@ -9,6 +9,16 @@ export interface MatchPlayerStatsResult {
   playerInstruction: PlayerInstruction | null;
   roleProficiency: number | null;
   championArchetype: ChampionArchetype | null;
+  form: number;
+  condition: number;
+  mental: number;
+  formModifier: number;
+  conditionModifier: number;
+  mentalModifier: number;
+  stateModifier: number;
+  formAfter: number;
+  conditionAfter: number;
+  mentalAfter: number;
   kills: number;
   deaths: number;
   assists: number;

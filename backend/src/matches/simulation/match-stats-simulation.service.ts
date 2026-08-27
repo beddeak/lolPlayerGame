@@ -2,6 +2,10 @@ import { Injectable } from '@nestjs/common';
 import { MATCH_STATS_CONFIG } from '../config/match-stats.config';
 import { createSeededRandom } from './seeded-random';
 import {
+  calculatePlayerMatchStateModifiers,
+  calculatePostMatchPlayerState,
+} from './player-match-state';
+import {
   MatchPlayerStatsResult,
   MatchStatsSimulationResult,
   MatchTeamStatsResult,
@@ -78,12 +82,14 @@ export class MatchStatsSimulationService {
           teamAKills,
           teamAPartials,
           matchResult.winnerTeamId === teamA.teamId,
+          durationMinutes,
         ),
         this.completeTeamStats(
           teamB.teamId,
           teamBKills,
           teamBPartials,
           matchResult.winnerTeamId === teamB.teamId,
+          durationMinutes,
         ),
       ],
     };
@@ -99,7 +105,8 @@ export class MatchStatsSimulationService {
     const killWeights = team.players.map(
       (player) =>
         MATCH_STATS_CONFIG.killWeightFloor +
-        (player.mechanics + player.teamFight) *
+        (this.getEffectiveStat(player, 'mechanics') +
+          this.getEffectiveStat(player, 'teamFight')) *
           this.randomBetween(
             random,
             MATCH_STATS_CONFIG.allocationRandomMultiplier.min,
@@ -109,7 +116,7 @@ export class MatchStatsSimulationService {
     const deathWeights = team.players.map(
       (player) =>
         MATCH_STATS_CONFIG.deathWeightFloor +
-        (100 - player.mental) *
+        (100 - this.getEffectiveStat(player, 'mental')) *
           this.randomBetween(
             random,
             MATCH_STATS_CONFIG.allocationRandomMultiplier.min,
@@ -135,8 +142,10 @@ export class MatchStatsSimulationService {
       const dpm = Math.max(
         MATCH_STATS_CONFIG.dpm.minimum,
         MATCH_STATS_CONFIG.dpm.base +
-          player.mechanics * MATCH_STATS_CONFIG.dpm.mechanicsMultiplier +
-          player.teamFight * MATCH_STATS_CONFIG.dpm.teamFightMultiplier +
+          this.getEffectiveStat(player, 'mechanics') *
+            MATCH_STATS_CONFIG.dpm.mechanicsMultiplier +
+          this.getEffectiveStat(player, 'teamFight') *
+            MATCH_STATS_CONFIG.dpm.teamFightMultiplier +
           this.randomBetween(
             random,
             MATCH_STATS_CONFIG.dpm.randomMin,
@@ -146,8 +155,9 @@ export class MatchStatsSimulationService {
       const goldPerMinute = Math.max(
         MATCH_STATS_CONFIG.goldPerMinute.minimum,
         MATCH_STATS_CONFIG.goldPerMinute.base +
-          player.laning * MATCH_STATS_CONFIG.goldPerMinute.laningMultiplier +
-          player.mechanics *
+          this.getEffectiveStat(player, 'laning') *
+            MATCH_STATS_CONFIG.goldPerMinute.laningMultiplier +
+          this.getEffectiveStat(player, 'mechanics') *
             MATCH_STATS_CONFIG.goldPerMinute.mechanicsMultiplier +
           this.randomBetween(
             random,
@@ -185,7 +195,8 @@ export class MatchStatsSimulationService {
       }
 
       const laningDifference =
-        teamAPlayer.player.laning - teamBPlayer.player.laning;
+        this.getEffectiveStat(teamAPlayer.player, 'laning') -
+        this.getEffectiveStat(teamBPlayer.player, 'laning');
       const gdAt15 = Math.round(
         laningDifference *
           MATCH_STATS_CONFIG.laneDifference.goldPerLaningPoint +
@@ -216,6 +227,7 @@ export class MatchStatsSimulationService {
     teamKills: number,
     partials: PartialPlayerStats[],
     isWinner: boolean,
+    durationMinutes: number,
   ): MatchTeamStatsResult {
     const totalDpm = partials.reduce((total, player) => total + player.dpm, 0);
     const totalGold = partials.reduce(
@@ -238,6 +250,13 @@ export class MatchStatsSimulationService {
         kp,
         isWinner,
       );
+      const stateModifiers = calculatePlayerMatchStateModifiers(partial.player);
+      const postMatchState = calculatePostMatchPlayerState(
+        partial.player,
+        rating,
+        durationMinutes,
+        isWinner,
+      );
 
       return {
         careerPlayerId: partial.player.careerPlayerId,
@@ -246,6 +265,13 @@ export class MatchStatsSimulationService {
         playerInstruction: partial.player.playerInstruction,
         roleProficiency: partial.player.roleProficiency,
         championArchetype: partial.player.championArchetype,
+        form: partial.player.form,
+        condition: partial.player.condition,
+        mental: partial.player.mental,
+        ...stateModifiers,
+        formAfter: postMatchState.form,
+        conditionAfter: postMatchState.condition,
+        mentalAfter: postMatchState.mental,
         kills: partial.kills,
         deaths: partial.deaths,
         assists: partial.assists,
@@ -281,6 +307,19 @@ export class MatchStatsSimulationService {
       (isWinner ? config.winnerBonus : 0);
 
     return Math.min(config.max, Math.max(config.min, rating));
+  }
+
+  private getEffectiveStat(
+    player: SimpleMatchPlayerInput,
+    stat: keyof Pick<
+      SimpleMatchPlayerInput,
+      'mechanics' | 'teamFight' | 'laning' | 'mental'
+    >,
+  ): number {
+    const stateModifier =
+      calculatePlayerMatchStateModifiers(player).stateModifier;
+
+    return Math.min(100, Math.max(0, player[stat] + stateModifier));
   }
 
   private allocateIntegerTotal(total: number, weights: number[]): number[] {
