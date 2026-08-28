@@ -2257,6 +2257,763 @@ FeedbackAcceptance: 100
 라칸
 노틸러스
 렐
+# BNK FEARX — 확정용 6인 로스터
+
+## Clear — TOP
+
+[탑 선수]
+
+이름: Clear
+팀: BNK FEARX
+나이: 23세
+OVR: 81
+
+[기본 능력치]
+
+Mechanics: 87
+GameSense: 86
+Laning: 86
+TeamFight: 91
+Macro: 90
+TeamPlay: 91
+Mental: 90
+ChampionPool: 87
+
+[현재 상태]
+
+Form: 95
+Condition: 95
+
+[포지션 숙련도]
+
+TOP: 100
+
+[역할 숙련도]
+
+TOP_CARRY: 84
+WEAK_SIDE: 94
+SPLIT_PUSH: 90
+TEAMFIGHT_TOP: 88
+TANK_TOP: 94
+
+[챔피언 유형 숙련도]
+
+Tank: 92
+Bruiser: 87
+Carry: 81
+Ranged_TOP: 81
+AP_TOP: 83
+
+[플레이 성향]
+
+Aggression: 86
+RiskTaking: 70
+Consistency: 84
+Clutch: 87
+ResourceDemand: 75
+
+[팀 적응]
+
+TeamChemistry: 100
+CoachTrust: 100
+FeedbackAcceptance: 98
+
+[대표 챔피언]
+
+크산테
+레넥톤
+럼블
+
+## Raptor — JUNGLE
+
+[정글 선수]
+
+이름: Raptor
+팀: BNK FEARX
+나이: 21세
+OVR: 82
+
+[기본 능력치]
+
+Mechanics: 88
+GameSense: 87
+Laning: 86
+TeamFight: 87
+Macro: 87
+TeamPlay: 88
+Mental: 90
+ChampionPool: 90
+
+[현재 상태]
+
+Form: 90
+Condition: 90
+
+[포지션 숙련도]
+
+JUNGLE: 100
+
+[역할 숙련도]
+
+TEMPO_JUNGLE: 86
+CARRY_JUNGLE: 84
+FACILITATOR: 88
+OBJECTIVE_CONTROL: 86
+INVADE_JUNGLE: 84
+TEAMFIGHT_JUNGLE: 85
+
+[챔피언 유형 숙련도]
+
+Carry: 83
+Tank: 87
+Bruiser: 88
+AP_Jungle: 84
+Utility: 85
+EarlyGame: 87
+
+[플레이 성향]
+
+Aggression: 86
+RiskTaking: 88
+Consistency: 85
+Clutch: 86
+PathingCreativity: 84
+ObjectiveSense: 85
+
+[팀 적응]
+
+TeamChemistry: 100
+CoachTrust: 100
+FeedbackAcceptance: 96
+
+[대표 챔피언]
+
+미입력
+
+## VicLa — MID
+
+[미드 선수]
+
+이름: VicLa
+팀: BNK FEARX
+나이: 22세
+OVR: 83
+
+[기본 능력치]
+
+Mechanics: 87
+GameSense: 86
+Laning: 84
+TeamFight: 85
+Macro: 85
+TeamPlay: 85
+Mental: 86
+ChampionPool: 90
+
+[현재 상태]
+
+Form: 89
+Condition: 90
+
+[포지션 숙련도]
+
+MID: 100
+
+[역할 숙련도]
+
+MID_CARRY: 86
+ROAM_MID: 87
+CONTROL_MID: 86
+TEAMFIGHT_MID: 88
+UTILITY_MID: 85
+SIDE_LANE_MID: 87
+
+[챔피언 유형 숙련도]
+
+ControlMage: 98
+StandingMage: 98
+Assassin: 96
+MeleeMID: 92
+AD_MID: 91
+Utility: 94
+ScalingMage: 95
+
+[플레이 성향]
+
+Aggression: 87
+RiskTaking: 84
+Consistency: 85
+Clutch: 84
+LanePressure: 86
+RoamTendency: 84
+
+[팀 적응]
+
+TeamChemistry: 100
+CoachTrust: 100
+FeedbackAcceptance: 98
+
+[대표 챔피언]
+
+아리
+카시오페아
+애니
+
+## Daystar — MID / BENCH
+
+[미드 선수]
+
+이름: Daystar
+팀: BNK FEARX
+나이: 22세
+OVR: 80
+상태: 벤치
+
+[기본 능력치]
+
+Mechanics: 84
+GameSense: 82
+Laning: 75
+TeamFight: 80
+Macro: 82
+TeamPlay: 81
+Mental: 89
+ChampionPool: 90
+
+[현재 상태]
+
+Form: BENCH
+Condition: BENCH
+
+[포지션 숙련도]
+
+MID: 100
+
+[역할 숙련도]
+
+MID_CARRY: 81
+ROAM_MID: 82
+CONTROL_MID: 80
+TEAMFIGHT_MID: 84
+UTILITY_MID: 82
+SIDE_LANE_MID: 85
+
+[챔피언 유형 숙련도]
+
+ControlMage: 80
+StandingMage: 80
+Assassin: 85
+MeleeMID: 80
+AD_MID: 80
+Utility: 80
+ScalingMage: 80
+
+[플레이 성향]
+
+Aggression: 81
+RiskTaking: 80
+Consistency: 82
+Clutch: 75
+LanePressure: 74
+RoamTendency: 84
+
+[팀 적응]
+
+TeamChemistry: 84
+CoachTrust: 100
+FeedbackAcceptance: 100
+
+[대표 챔피언]
+
+미입력
+
+## Taeyoon — ADC
+
+[원딜 선수]
+
+이름: Taeyoon
+팀: BNK FEARX
+나이: 24세
+OVR: 83
+
+[기본 능력치]
+
+Mechanics: 88
+GameSense: 87
+Laning: 87
+TeamFight: 89
+Macro: 88
+TeamPlay: 89
+Mental: 95
+ChampionPool: 91
+
+[현재 상태]
+
+Form: 92
+Condition: 100
+
+[포지션 숙련도]
+
+ADC: 100
+
+[역할 숙련도]
+
+HYPER_CARRY: 89
+WEAK_SIDE: 86
+BOT_LANE_PRESSURE: 86
+TEAMFIGHT_CARRY: 90
+UTILITY_ADC: 87
+EARLY_GAME_ADC: 86
+
+[챔피언 유형 숙련도]
+
+CritMarksman: 100
+HyperCarry: 96
+LaneBully: 91
+UtilityADC: 92
+AP_Bot: 87
+ShortRangeADC: 100
+LongRangeADC: 94
+
+[플레이 성향]
+
+Aggression: 89
+RiskTaking: 86
+Consistency: 87
+Clutch: 86
+Positioning: 89
+ResourceDemand: 87
+
+[팀 적응]
+
+TeamChemistry: 100
+SupportChemistry: 100
+CoachTrust: 100
+FeedbackAcceptance: 100
+
+[대표 챔피언]
+
+유나라
+루시안
+이즈리얼
+
+## Kellin — SUPPORT
+
+[서포터 선수]
+
+이름: Kellin
+팀: BNK FEARX
+나이: 25세
+OVR: 85
+
+[기본 능력치]
+
+Mechanics: 90
+GameSense: 88
+Laning: 94
+TeamFight: 95
+Macro: 92
+TeamPlay: 96
+Mental: 95
+ChampionPool: 94
+
+[현재 상태]
+
+Form: 95
+Condition: 95
+
+[포지션 숙련도]
+
+SUPPORT: 100
+
+[역할 숙련도]
+
+ROAM_SUPPORT: 90
+ENGAGE_SUPPORT: 88
+ENCHANTER_SUPPORT: 100
+LANE_SUPPORT: 100
+SHOTCALL_SUPPORT: 94
+VISION_CONTROL: 93
+
+[챔피언 유형 숙련도]
+
+Engage: 92
+Enchanter: 100
+Tank: 90
+Poke: 92
+MageSupport: 90
+Unorthodox: 75
+
+[플레이 성향]
+
+Aggression: 92
+RiskTaking: 75
+Consistency: 95
+Clutch: 92
+RoamTendency: 85
+Shotcalling: 88
+
+[팀 적응]
+
+TeamChemistry: 100
+ADC_Chemistry: 100
+CoachTrust: 100
+FeedbackAcceptance: 100
+
+[대표 챔피언]
+
+밀리오
+니코
+카르마
+# KT Rolster
+
+## Perfect — TOP
+
+[탑 선수]
+
+이름: Perfect
+팀: KT Rolster
+나이: 22세
+OVR: 87
+
+[기본 능력치]
+
+Mechanics: 93
+GameSense: 90
+Laning: 92
+TeamFight: 92
+Macro: 90
+TeamPlay: 91
+Mental: 92
+ChampionPool: 92
+
+[현재 상태]
+
+Form: 89
+Condition: 91
+
+[포지션 숙련도]
+
+TOP: 100
+
+[역할 숙련도]
+
+TOP_CARRY: 93
+WEAK_SIDE: 88
+SPLIT_PUSH: 92
+TEAMFIGHT_TOP: 92
+TANK_TOP: 90
+
+[챔피언 유형 숙련도]
+
+Tank: 96
+Bruiser: 98
+Carry: 97
+Ranged_TOP: 97
+AP_TOP: 96
+
+[플레이 성향]
+
+Aggression: 97
+RiskTaking: 85
+Consistency: 94
+Clutch: 93
+ResourceDemand: 88
+
+[팀 적응]
+
+TeamChemistry: 100
+CoachTrust: 100
+FeedbackAcceptance: 95
+
+[대표 챔피언]
+
+자헨
+나르
+제이스
+
+## Cuzz — JUNGLE
+
+[정글 선수]
+
+이름: Cuzz
+팀: KT Rolster
+나이: 26세
+OVR: 86
+
+[기본 능력치]
+
+Mechanics: 88
+GameSense: 94
+Laning: 90
+TeamFight: 91
+Macro: 90
+TeamPlay: 90
+Mental: 87
+ChampionPool: 89
+
+[현재 상태]
+
+Form: 88
+Condition: 95
+
+[포지션 숙련도]
+
+JUNGLE: 100
+
+[역할 숙련도]
+
+TEMPO_JUNGLE: 94
+CARRY_JUNGLE: 86
+FACILITATOR: 95
+OBJECTIVE_CONTROL: 94
+INVADE_JUNGLE: 90
+TEAMFIGHT_JUNGLE: 91
+
+[챔피언 유형 숙련도]
+
+Carry: 86
+Tank: 93
+Bruiser: 91
+AP_Jungle: 92
+Utility: 90
+EarlyGame: 90
+
+[플레이 성향]
+
+Aggression: 87
+RiskTaking: 70
+Consistency: 86
+Clutch: 87
+PathingCreativity: 88
+ObjectiveSense: 86
+
+[팀 적응]
+
+TeamChemistry: 100
+CoachTrust: 100
+FeedbackAcceptance: 97
+
+[대표 챔피언]
+
+녹턴
+판테온
+자르반 4세
+
+## Bdd — MID
+
+[미드 선수]
+
+이름: Bdd
+팀: KT Rolster
+나이: 27세
+OVR: 88
+
+[기본 능력치]
+
+Mechanics: 93
+GameSense: 92
+Laning: 92
+TeamFight: 92
+Macro: 93
+TeamPlay: 92
+Mental: 92
+ChampionPool: 94
+
+[현재 상태]
+
+Form: 93
+Condition: 96
+
+[포지션 숙련도]
+
+MID: 100
+
+[역할 숙련도]
+
+MID_CARRY: 94
+ROAM_MID: 95
+CONTROL_MID: 94
+TEAMFIGHT_MID: 96
+UTILITY_MID: 91
+SIDE_LANE_MID: 93
+
+[챔피언 유형 숙련도]
+
+ControlMage: 96
+StandingMage: 95
+Assassin: 94
+MeleeMID: 95
+AD_MID: 93
+Utility: 92
+ScalingMage: 94
+
+[플레이 성향]
+
+Aggression: 94
+RiskTaking: 85
+Consistency: 94
+Clutch: 95
+LanePressure: 94
+RoamTendency: 91
+
+[팀 적응]
+
+TeamChemistry: 100
+CoachTrust: 100
+FeedbackAcceptance: 96
+
+[대표 챔피언]
+
+라이즈
+요네
+애니
+
+## Jiwoo — ADC
+
+[원딜 선수]
+
+이름: Jiwoo
+팀: KT Rolster
+나이: 22세
+OVR: 85
+
+[기본 능력치]
+
+Mechanics: 92
+GameSense: 88
+Laning: 86
+TeamFight: 89
+Macro: 88
+TeamPlay: 87
+Mental: 86
+ChampionPool: 90
+
+[현재 상태]
+
+Form: 86
+Condition: 94
+
+[포지션 숙련도]
+
+ADC: 100
+
+[역할 숙련도]
+
+HYPER_CARRY: 92
+WEAK_SIDE: 83
+BOT_LANE_PRESSURE: 83
+TEAMFIGHT_CARRY: 88
+UTILITY_ADC: 87
+EARLY_GAME_ADC: 83
+
+[챔피언 유형 숙련도]
+
+CritMarksman: 100
+HyperCarry: 100
+LaneBully: 89
+UtilityADC: 91
+AP_Bot: 90
+ShortRangeADC: 100
+LongRangeADC: 91
+
+[플레이 성향]
+
+Aggression: 86
+RiskTaking: 85
+Consistency: 86
+Clutch: 81
+Positioning: 87
+ResourceDemand: 89
+
+[팀 적응]
+
+TeamChemistry: 85
+SupportChemistry: 85
+CoachTrust: 100
+FeedbackAcceptance: 97
+
+[대표 챔피언]
+
+이즈리얼
+제리
+유나라
+
+[특징]
+
+DRX와 KT의 트레이드로 KT에 합류한 지 얼마 되지 않아 아직 팀 적응이 완전하지 않음.
+기존 KT 원딜 Aiming은 DRX로 이동.
+성장이 필요한 하이퍼캐리형 원딜이며 현재 낮은 TeamChemistry와 SupportChemistry가 실전 경기력에 영향을 줄 수 있음.
+
+## Effort — SUPPORT
+
+[서포터 선수]
+
+이름: Effort
+팀: KT Rolster
+나이: 25세
+OVR: 86
+
+[기본 능력치]
+
+Mechanics: 85
+GameSense: 91
+Laning: 86
+TeamFight: 90
+Macro: 90
+TeamPlay: 91
+Mental: 89
+ChampionPool: 90
+
+[현재 상태]
+
+Form: 87
+Condition: 94
+
+[포지션 숙련도]
+
+SUPPORT: 100
+
+[역할 숙련도]
+
+ROAM_SUPPORT: 91
+ENGAGE_SUPPORT: 91
+ENCHANTER_SUPPORT: 88
+LANE_SUPPORT: 94
+SHOTCALL_SUPPORT: 92
+VISION_CONTROL: 91
+
+[챔피언 유형 숙련도]
+
+Engage: 100
+Enchanter: 95
+Tank: 100
+Poke: 98
+MageSupport: 84
+Unorthodox: 80
+
+[플레이 성향]
+
+Aggression: 92
+RiskTaking: 89
+Consistency: 89
+Clutch: 90
+RoamTendency: 91
+Shotcalling: 90
+
+[팀 적응]
+
+TeamChemistry: 100
+ADC_Chemistry: 85
+CoachTrust: 100
+FeedbackAcceptance: 95
+
+[대표 챔피언]
+
+노틸러스
+세라핀
+카르마
+
 _______
 [선수]
 이름:
