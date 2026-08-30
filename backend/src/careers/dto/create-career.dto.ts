@@ -18,6 +18,8 @@ import { Position } from '../../players/enums/position.enum';
 import {
   DEFAULT_CAREER_START_YEAR,
   INITIAL_CAREER_TEAM_COUNT,
+  MAX_CAREER_TEAM_COUNT,
+  MAX_BENCH_PLAYERS,
   STARTER_POSITIONS,
 } from '../constants/career.constants';
 import { Region } from '../enums/region.enum';
@@ -29,6 +31,12 @@ export class CreateCareerStarterDto {
 
   @IsEnum(Position)
   position!: Position;
+}
+
+export class CreateCareerBenchDto {
+  @IsInt()
+  @IsPositive()
+  playerCardId!: number;
 }
 
 export class CreateCareerTeamDto {
@@ -50,6 +58,13 @@ export class CreateCareerTeamDto {
   @ValidateNested({ each: true })
   @Type(() => CreateCareerStarterDto)
   starters!: CreateCareerStarterDto[];
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(MAX_BENCH_PLAYERS)
+  @ValidateNested({ each: true })
+  @Type(() => CreateCareerBenchDto)
+  benches?: CreateCareerBenchDto[];
 }
 
 export class CreateCareerDto {
@@ -66,7 +81,7 @@ export class CreateCareerDto {
 
   @IsArray()
   @ArrayMinSize(INITIAL_CAREER_TEAM_COUNT)
-  @ArrayMaxSize(INITIAL_CAREER_TEAM_COUNT)
+  @ArrayMaxSize(MAX_CAREER_TEAM_COUNT)
   @ValidateNested({ each: true })
   @Type(() => CreateCareerTeamDto)
   teams!: CreateCareerTeamDto[];

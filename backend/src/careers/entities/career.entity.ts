@@ -11,6 +11,8 @@ import { Account } from '../../auth/entities/account.entity';
 import { CareerPlayer } from './career-player.entity';
 import { CareerTeam } from './career-team.entity';
 import { TeamStrategy } from '../enums/team-strategy.enum';
+import { TrainingPeriod } from './training-period.entity';
+import { LeagueSplit } from '../../leagues/entities/league-split.entity';
 
 @Entity({ name: 'careers' })
 export class Career {
@@ -49,4 +51,10 @@ export class Career {
 
   @OneToMany(() => CareerPlayer, (careerPlayer) => careerPlayer.career)
   careerPlayers!: CareerPlayer[];
+
+  @OneToMany(() => TrainingPeriod, (trainingPeriod) => trainingPeriod.career)
+  trainingPeriods!: TrainingPeriod[];
+
+  @OneToMany(() => LeagueSplit, (leagueSplit) => leagueSplit.career)
+  leagueSplits!: LeagueSplit[];
 }

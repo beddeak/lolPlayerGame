@@ -9,7 +9,10 @@ import { In, QueryFailedError, Repository } from 'typeorm';
 import { CareerTeam } from '../careers/entities/career-team.entity';
 import { MatchSimulationResponseDto } from '../matches/dto/match-simulation-response.dto';
 import { MatchesService } from '../matches/matches.service';
-import { BO3_SERIES_CONFIG } from './config/bo3-series.config';
+import {
+  getSeriesWinsRequired,
+  MATCH_SERIES_CONFIG,
+} from './config/bo3-series.config';
 import { CreateMatchSeriesDto } from './dto/create-match-series.dto';
 import {
   MatchSeriesAnalysisResponseDto,
@@ -70,6 +73,7 @@ export class MatchSeriesService {
         teamBId: teamB.id,
         teamB,
         seed: dto.seed,
+        bestOf: dto.bestOf ?? MATCH_SERIES_CONFIG.defaultBestOf,
         games: [],
       }),
     );
@@ -98,7 +102,11 @@ export class MatchSeriesService {
     }
 
     const gameNumber = state.nextGameNumber!;
-    const seed = deriveSeriesGameSeed(series.seed, gameNumber);
+    const seed = deriveSeriesGameSeed(
+      series.seed,
+      gameNumber,
+      this.getBestOf(series),
+    );
 
     try {
       await this.matchesService.simulate(
@@ -197,8 +205,8 @@ export class MatchSeriesService {
     return {
       seriesId: series.id,
       careerId: series.careerId,
-      bestOf: BO3_SERIES_CONFIG.bestOf,
-      winsRequired: BO3_SERIES_CONFIG.winsRequired,
+      bestOf: this.getBestOf(series),
+      winsRequired: getSeriesWinsRequired(this.getBestOf(series)),
       status: state.status,
       winnerTeamId: state.winnerTeamId,
       nextGameNumber: state.nextGameNumber,
@@ -218,6 +226,8 @@ export class MatchSeriesService {
     winnerTeamId: number | null;
     nextGameNumber: number | null;
   } {
+    const bestOf = this.getBestOf(series);
+    const winsRequired = getSeriesWinsRequired(bestOf);
     const teamAWins = series.games.filter(
       (game) => game.winnerTeamId === series.teamAId,
     ).length;
@@ -225,9 +235,9 @@ export class MatchSeriesService {
       (game) => game.winnerTeamId === series.teamBId,
     ).length;
     const winnerTeamId =
-      teamAWins >= BO3_SERIES_CONFIG.winsRequired
+      teamAWins >= winsRequired
         ? series.teamAId
-        : teamBWins >= BO3_SERIES_CONFIG.winsRequired
+        : teamBWins >= winsRequired
           ? series.teamBId
           : null;
     const status =
@@ -237,10 +247,10 @@ export class MatchSeriesService {
 
     if (
       status === MatchSeriesStatus.IN_PROGRESS &&
-      series.games.length >= BO3_SERIES_CONFIG.maxGames
+      series.games.length >= bestOf
     ) {
       throw new ConflictException(
-        `MatchSeries ${series.id} has an invalid BO3 score`,
+        `MatchSeries ${series.id} has an invalid BO${bestOf} score`,
       );
     }
 
@@ -251,7 +261,7 @@ export class MatchSeriesService {
       winnerTeamId,
       nextGameNumber:
         status === MatchSeriesStatus.IN_PROGRESS
-          ? series.games.length + BO3_SERIES_CONFIG.firstGameNumber
+          ? series.games.length + MATCH_SERIES_CONFIG.firstGameNumber
           : null,
     };
   }
@@ -311,7 +321,11 @@ export class MatchSeriesService {
   }
 
   private round(value: number): number {
-    return Number(value.toFixed(BO3_SERIES_CONFIG.analysisDecimalPlaces));
+    return Number(value.toFixed(MATCH_SERIES_CONFIG.analysisDecimalPlaces));
+  }
+
+  private getBestOf(series: MatchSeries): number {
+    return series.bestOf ?? MATCH_SERIES_CONFIG.defaultBestOf;
   }
 
   private isDuplicateEntryError(error: unknown): boolean {

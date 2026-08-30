@@ -1,23 +1,24 @@
-import { BO3_SERIES_CONFIG } from './config/bo3-series.config';
+import { MATCH_SERIES_CONFIG } from './config/bo3-series.config';
 
 export function deriveSeriesGameSeed(
   seriesSeed: number,
   gameNumber: number,
+  bestOf: number = MATCH_SERIES_CONFIG.defaultBestOf,
 ): number {
   if (
     !Number.isInteger(gameNumber) ||
-    gameNumber < BO3_SERIES_CONFIG.firstGameNumber ||
-    gameNumber > BO3_SERIES_CONFIG.maxGames
+    gameNumber < MATCH_SERIES_CONFIG.firstGameNumber ||
+    gameNumber > bestOf
   ) {
     throw new RangeError(
-      `BO3 gameNumber must be between ${BO3_SERIES_CONFIG.firstGameNumber} and ${BO3_SERIES_CONFIG.maxGames}`,
+      `BO${bestOf} gameNumber must be between ${MATCH_SERIES_CONFIG.firstGameNumber} and ${bestOf}`,
     );
   }
 
   return (
     (seriesSeed +
-      (gameNumber - BO3_SERIES_CONFIG.firstGameNumber) *
-        BO3_SERIES_CONFIG.seedIncrement) %
-    BO3_SERIES_CONFIG.uint32Range
+      (gameNumber - MATCH_SERIES_CONFIG.firstGameNumber) *
+        MATCH_SERIES_CONFIG.seedIncrement) %
+    MATCH_SERIES_CONFIG.uint32Range
   );
 }

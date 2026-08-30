@@ -114,6 +114,7 @@ export class MatchesService {
           rosters: {
             careerPlayer: {
               roleProficiencies: true,
+              positionProficiencies: true,
             },
           },
         },
@@ -265,12 +266,22 @@ export class MatchesService {
             candidate.instruction === playerInstruction,
         )?.proficiency ?? null)
       : null;
+    const positionProficiency = (careerPlayer.positionProficiencies ?? []).find(
+      (candidate) => candidate.position === position,
+    )?.proficiency;
+
+    if (positionProficiency === undefined) {
+      throw new ConflictException(
+        `CareerPlayer ${careerPlayer.id} is missing ${position} position proficiency`,
+      );
+    }
 
     return {
       careerPlayerId: careerPlayer.id,
       position,
       playerInstruction,
       roleProficiency,
+      positionProficiency,
       championArchetype,
       mechanics: careerPlayer.currentMechanics,
       gameSense: careerPlayer.currentGameSense,
@@ -450,6 +461,7 @@ export class MatchesService {
       position: playerStat.position,
       playerInstruction: playerStat.playerInstruction,
       roleProficiency: playerStat.roleProficiency,
+      positionProficiency: playerStat.positionProficiency,
       championArchetype: playerStat.championArchetype,
       form: playerStat.form,
       condition: playerStat.condition,

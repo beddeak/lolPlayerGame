@@ -19,6 +19,7 @@ describe('SimpleMatchSimulationService', () => {
     position: STARTER_POSITIONS[index],
     playerInstruction: null,
     roleProficiency: null,
+    positionProficiency: 100,
     championArchetype: null,
     form: 50,
     condition: 100,
@@ -116,6 +117,7 @@ describe('SimpleMatchSimulationService', () => {
           position: STARTER_POSITIONS[index],
           playerInstruction: null,
           roleProficiency: null,
+          positionProficiency: 100,
           championArchetype: null,
           form: 50,
           condition: 100,
@@ -239,6 +241,24 @@ describe('SimpleMatchSimulationService', () => {
       lowProficiencyTeam,
       highProficiencyTeam,
       51,
+      TeamStrategy.BALANCED,
+    );
+
+    expect(result.teams[1].baseAbility).toBeGreaterThan(
+      result.teams[0].baseAbility,
+    );
+  });
+
+  it('penalizes a player used in a position they have not practiced', () => {
+    const offRoleTeam = createTeam(21, 'OFF_ROLE', 70);
+    const practicedTeam = createTeam(22, 'PRACTICED', 70);
+
+    offRoleTeam.players[0].positionProficiency = 20;
+
+    const result = service.simulate(
+      offRoleTeam,
+      practicedTeam,
+      58,
       TeamStrategy.BALANCED,
     );
 

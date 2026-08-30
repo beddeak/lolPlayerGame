@@ -26,6 +26,7 @@
       "teamPlay": 70,
       "mental": 70,
       "championPool": 70,
+      "personality": "DEVOTED",
       "potential": 75
     },
     {
@@ -45,6 +46,7 @@
       "teamPlay": 70,
       "mental": 70,
       "championPool": 70,
+      "personality": "LOYAL",
       "potential": 75
     },
     {
@@ -64,6 +66,7 @@
       "teamPlay": 70,
       "mental": 70,
       "championPool": 70,
+      "personality": "SELF_CENTERED",
       "potential": 75
     },
     {
@@ -83,6 +86,7 @@
       "teamPlay": 70,
       "mental": 70,
       "championPool": 70,
+      "personality": "SENSITIVE",
       "potential": 75
     },
     {
@@ -102,6 +106,7 @@
       "teamPlay": 70,
       "mental": 70,
       "championPool": 70,
+      "personality": "PROFESSIONAL",
       "potential": 75
     },
     {
@@ -121,6 +126,7 @@
       "teamPlay": 70,
       "mental": 70,
       "championPool": 70,
+      "personality": "PROFESSIONAL",
       "potential": 75
     },
     {
@@ -140,6 +146,7 @@
       "teamPlay": 70,
       "mental": 70,
       "championPool": 70,
+      "personality": "SELF_CENTERED",
       "potential": 75
     },
     {
@@ -159,6 +166,7 @@
       "teamPlay": 70,
       "mental": 70,
       "championPool": 70,
+      "personality": "SENSITIVE",
       "potential": 75
     },
     {
@@ -178,6 +186,7 @@
       "teamPlay": 70,
       "mental": 70,
       "championPool": 70,
+      "personality": "LOYAL",
       "potential": 75
     },
     {
@@ -197,7 +206,88 @@
       "teamPlay": 70,
       "mental": 70,
       "championPool": 70,
+      "personality": "DEVOTED",
       "potential": 75
+    },
+    {
+      "key": "blue_academy_top_2026",
+      "nickname": "Blue Academy Top",
+      "nationality": "KR",
+      "themeCode": "DEV_2026",
+      "cardYear": 2026,
+      "startingAge": 18,
+      "mainPosition": "TOP",
+      "imageUrl": "/player-cards/dev-blue-top.svg",
+      "mechanics": 64,
+      "gameSense": 61,
+      "laning": 66,
+      "teamFight": 60,
+      "macro": 58,
+      "teamPlay": 62,
+      "mental": 65,
+      "championPool": 61,
+      "personality": "DEVOTED",
+      "potential": 82
+    },
+    {
+      "key": "blue_academy_adc_2026",
+      "nickname": "Blue Academy ADC",
+      "nationality": "KR",
+      "themeCode": "DEV_2026",
+      "cardYear": 2026,
+      "startingAge": 19,
+      "mainPosition": "ADC",
+      "imageUrl": "/player-cards/dev-blue-adc.svg",
+      "mechanics": 70,
+      "gameSense": 62,
+      "laning": 68,
+      "teamFight": 66,
+      "macro": 58,
+      "teamPlay": 63,
+      "mental": 70,
+      "championPool": 64,
+      "personality": "SENSITIVE",
+      "potential": 85
+    },
+    {
+      "key": "red_academy_jungle_2026",
+      "nickname": "Red Academy Jungle",
+      "nationality": "CN",
+      "themeCode": "DEV_2026",
+      "cardYear": 2026,
+      "startingAge": 18,
+      "mainPosition": "JUNGLE",
+      "imageUrl": "/player-cards/dev-red-jungle.svg",
+      "mechanics": 66,
+      "gameSense": 65,
+      "laning": 59,
+      "teamFight": 63,
+      "macro": 64,
+      "teamPlay": 64,
+      "mental": 68,
+      "championPool": 62,
+      "personality": "LOYAL",
+      "potential": 84
+    },
+    {
+      "key": "red_academy_mid_2026",
+      "nickname": "Red Academy Mid",
+      "nationality": "CN",
+      "themeCode": "DEV_2026",
+      "cardYear": 2026,
+      "startingAge": 19,
+      "mainPosition": "MID",
+      "imageUrl": "/player-cards/dev-red-mid.svg",
+      "mechanics": 68,
+      "gameSense": 63,
+      "laning": 67,
+      "teamFight": 62,
+      "macro": 60,
+      "teamPlay": 61,
+      "mental": 66,
+      "championPool": 64,
+      "personality": "PROFESSIONAL",
+      "potential": 83
     }
   ],
   "setBonuses": [
@@ -244,6 +334,16 @@
           "playerCardKey": "blue_support_2026",
           "championArchetype": "UTILITY"
         }
+      ],
+      "benches": [
+        {
+          "playerCardKey": "blue_academy_top_2026",
+          "initialForm": 79
+        },
+        {
+          "playerCardKey": "blue_academy_adc_2026",
+          "initialForm": 76
+        }
       ]
     },
     {
@@ -275,6 +375,16 @@
           "position": "SUPPORT",
           "playerCardKey": "red_support_2026",
           "championArchetype": "TANK_ENGAGE"
+        }
+      ],
+      "benches": [
+        {
+          "playerCardKey": "red_academy_jungle_2026",
+          "initialForm": 82
+        },
+        {
+          "playerCardKey": "red_academy_mid_2026",
+          "initialForm": 74
         }
       ]
     }

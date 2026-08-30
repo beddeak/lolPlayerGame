@@ -11,8 +11,10 @@ import {
 } from 'typeorm';
 import { PlayerCard } from '../../players/entities/player-card.entity';
 import { Position } from '../../players/enums/position.enum';
+import { PlayerPersonality } from '../../players/enums/player-personality.enum';
 import { CAREER_PLAYER_STATE_CONFIG } from '../config/player-state.config';
 import { Career } from './career.entity';
+import { CareerPlayerPositionProficiency } from './career-player-position-proficiency.entity';
 import { CareerPlayerRoleProficiency } from './career-player-role-proficiency.entity';
 import { CareerTeam } from './career-team.entity';
 import { Roster } from './roster.entity';
@@ -109,6 +111,20 @@ export class CareerPlayer {
   })
   condition!: number;
 
+  @Column({
+    type: 'enum',
+    enum: PlayerPersonality,
+    default: PlayerPersonality.PROFESSIONAL,
+  })
+  personality!: PlayerPersonality;
+
+  @Column({
+    type: 'tinyint',
+    unsigned: true,
+    default: CAREER_PLAYER_STATE_CONFIG.initial.coachTrust,
+  })
+  coachTrust!: number;
+
   @OneToOne(() => Roster, (roster) => roster.careerPlayer)
   roster!: Roster | null;
 
@@ -117,4 +133,10 @@ export class CareerPlayer {
     (roleProficiency) => roleProficiency.careerPlayer,
   )
   roleProficiencies!: CareerPlayerRoleProficiency[];
+
+  @OneToMany(
+    () => CareerPlayerPositionProficiency,
+    (positionProficiency) => positionProficiency.careerPlayer,
+  )
+  positionProficiencies!: CareerPlayerPositionProficiency[];
 }

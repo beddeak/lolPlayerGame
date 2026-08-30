@@ -11,6 +11,7 @@ import { QueryPlayerCardDto } from './dto/query-player-card.dto';
 import { PlayerCard } from './entities/player-card.entity';
 import { Player } from './entities/player.entity';
 import { Theme } from './entities/theme.entity';
+import { PlayerPersonality } from './enums/player-personality.enum';
 import { isDuplicateEntryError } from './utils/database-error.util';
 
 @Injectable()
@@ -50,6 +51,7 @@ export class PlayerCardsService {
 
     const playerCard = this.playerCardsRepository.create({
       ...dto,
+      personality: dto.personality ?? PlayerPersonality.PROFESSIONAL,
       player,
       theme,
     });
@@ -138,6 +140,7 @@ export class PlayerCardsService {
       teamPlay: playerCard.teamPlay,
       mental: playerCard.mental,
       championPool: playerCard.championPool,
+      personality: playerCard.personality,
       player: {
         id: playerCard.player.id,
         nickname: playerCard.player.nickname,

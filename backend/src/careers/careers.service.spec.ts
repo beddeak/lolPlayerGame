@@ -8,15 +8,19 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { DataSource } from 'typeorm';
 import { PlayerCard } from '../players/entities/player-card.entity';
 import { Position } from '../players/enums/position.enum';
+import { PlayerPersonality } from '../players/enums/player-personality.enum';
 import { SetBonus } from '../set-bonuses/entities/set-bonus.entity';
 import { CareersService } from './careers.service';
 import { CreateCareerDto } from './dto/create-career.dto';
 import { CareerPlayer } from './entities/career-player.entity';
+import { CareerPlayerPositionProficiency } from './entities/career-player-position-proficiency.entity';
 import { CareerTeam } from './entities/career-team.entity';
 import { CareerTeamStrategyProficiency } from './entities/career-team-strategy-proficiency.entity';
 import { Career } from './entities/career.entity';
 import { Roster } from './entities/roster.entity';
+import { TrainingPeriod } from './entities/training-period.entity';
 import { Region } from './enums/region.enum';
+import { RosterRole } from './enums/roster-role.enum';
 import { TeamStrategy } from './enums/team-strategy.enum';
 
 describe('CareersService', () => {
@@ -57,7 +61,7 @@ describe('CareersService', () => {
     ),
   };
   const positions = Object.values(Position);
-  const playerCards: PlayerCard[] = Array.from({ length: 10 }, (_, index) => {
+  const playerCards: PlayerCard[] = Array.from({ length: 12 }, (_, index) => {
     const position = positions[index % positions.length];
 
     return {
@@ -76,6 +80,7 @@ describe('CareersService', () => {
       teamPlay: 85,
       mental: 86,
       championPool: 87,
+      personality: Object.values(PlayerPersonality)[index % 5],
       potential: 99,
       player: {
         id: index + 101,
@@ -158,7 +163,11 @@ describe('CareersService', () => {
                 ? 201
                 : entity === CareerTeamStrategyProficiency
                   ? 301
-                  : 401;
+                  : entity === CareerPlayerPositionProficiency
+                    ? 401
+                    : entity === TrainingPeriod
+                      ? 501
+                      : 601;
 
       values.forEach((item, index) => {
         item.id = firstId + index;
@@ -183,6 +192,7 @@ describe('CareersService', () => {
     expect(result.teams[1].isUserControlled).toBe(false);
     expect(result.teams[0].chemistry).toBe(50);
     expect(result.teams[0].activeSetBonuses).toEqual([]);
+    expect(result.teams[0].benches).toEqual([]);
     expect(
       result.teams[0].starters.map((starter) => starter.starterPosition),
     ).toEqual(positions);
@@ -191,9 +201,26 @@ describe('CareersService', () => {
     );
     expect(result.teams[0].starters[0].careerPlayer.form).toBe(50);
     expect(result.teams[0].starters[0].careerPlayer.condition).toBe(100);
+    expect(result.teams[0].starters[0].careerPlayer.personality).toBe(
+      playerCards[0].personality,
+    );
+    expect(result.teams[0].starters[0].careerPlayer.coachTrust).toBe(50);
     expect(
       result.teams[0].starters[0].careerPlayer.roleProficiencies,
     ).toHaveLength(4);
+    expect(
+      result.teams[0].starters[0].careerPlayer.positionProficiencies,
+    ).toEqual([
+      { position: Position.TOP, proficiency: 100 },
+      { position: Position.JUNGLE, proficiency: 20 },
+      { position: Position.MID, proficiency: 20 },
+      { position: Position.ADC, proficiency: 20 },
+      { position: Position.SUPPORT, proficiency: 20 },
+    ]);
+    expect(entityManager.create).toHaveBeenCalledWith(
+      TrainingPeriod,
+      expect.objectContaining({ careerId: 1, periodNumber: 1 }),
+    );
     expect(result.teams[0].strategyProficiencies).toHaveLength(8);
     expect(
       result.teams[0].strategyProficiencies.every(
@@ -204,6 +231,37 @@ describe('CareersService', () => {
       result.teams[0].starters[0].careerPlayer.playerCard,
     ).not.toHaveProperty('potential');
     expect(dataSource.transaction).toHaveBeenCalledTimes(1);
+  });
+
+  it('creates optional bench players with their natural positions', async () => {
+    dto.teams[0].benches = [{ playerCardId: 11 }];
+
+    const result = await service.create(7, dto);
+
+    expect(result.teams[0].benches).toHaveLength(1);
+    expect(result.teams[0].benches[0]).toEqual(
+      expect.objectContaining({
+        role: RosterRole.BENCH,
+        starterPosition: null,
+      }),
+    );
+    expect(result.teams[0].benches[0].careerPlayer).toEqual(
+      expect.objectContaining({
+        playerCardId: 11,
+        currentPosition: playerCards[10].mainPosition,
+      }),
+    );
+  });
+
+  it('rejects more than five bench players for one team', async () => {
+    dto.teams[0].benches = Array.from({ length: 6 }, (_, index) => ({
+      playerCardId: 11 + index,
+    }));
+
+    await expect(service.create(7, dto)).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
+    expect(dataSource.transaction).not.toHaveBeenCalled();
   });
 
   it('reports a set bonus only when every required card is on the team', async () => {
@@ -230,9 +288,42 @@ describe('CareersService', () => {
     expect(result.teams[1].activeSetBonuses).toEqual([]);
   });
 
+  it('does not activate a set bonus from a player who is only on the bench', async () => {
+    dto.teams[0].benches = [{ playerCardId: 11 }];
+    setBonusesRepository.find.mockResolvedValue([
+      {
+        id: 1,
+        code: 'STARTER_AND_BENCH_DUO',
+        name: 'Starter and Bench Duo',
+        description: null,
+        chemistryBonus: 10,
+        laningBonus: 4,
+        teamFightBonus: 2,
+        macroBonus: 0,
+        teamPlayBonus: 4,
+        requirements: [{ playerCardId: 1 }, { playerCardId: 11 }],
+      },
+    ]);
+
+    const result = await service.create(7, dto);
+
+    expect(result.teams[0].activeSetBonuses).toEqual([]);
+  });
+
   it('rejects a PlayerCard used by more than one team', async () => {
     dto.teams[1].starters[0].playerCardId =
       dto.teams[0].starters[0].playerCardId;
+
+    await expect(service.create(7, dto)).rejects.toBeInstanceOf(
+      ConflictException,
+    );
+    expect(dataSource.transaction).not.toHaveBeenCalled();
+  });
+
+  it('rejects a PlayerCard used as both starter and bench', async () => {
+    dto.teams[0].benches = [
+      { playerCardId: dto.teams[0].starters[0].playerCardId },
+    ];
 
     await expect(service.create(7, dto)).rejects.toBeInstanceOf(
       ConflictException,
@@ -258,7 +349,7 @@ describe('CareersService', () => {
   });
 
   it('rolls back creation when a requested PlayerCard does not exist', async () => {
-    entityManager.find.mockResolvedValue(playerCards.slice(0, -1));
+    entityManager.find.mockResolvedValue(playerCards.slice(0, 9));
 
     await expect(service.create(7, dto)).rejects.toBeInstanceOf(
       NotFoundException,

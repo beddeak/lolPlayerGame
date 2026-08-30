@@ -11,6 +11,7 @@ import {
 import { CareerTeam } from '../../careers/entities/career-team.entity';
 import { Career } from '../../careers/entities/career.entity';
 import { Match } from '../../matches/entities/match.entity';
+import { MatchFeedback } from './match-feedback.entity';
 
 @Entity({ name: 'match_series' })
 export class MatchSeries {
@@ -53,6 +54,9 @@ export class MatchSeries {
   @Column({ type: 'int', unsigned: true })
   seed!: number;
 
+  @Column({ type: 'tinyint', unsigned: true, default: 3 })
+  bestOf!: number;
+
   @CreateDateColumn({
     type: 'timestamp',
     precision: 0,
@@ -62,4 +66,7 @@ export class MatchSeries {
 
   @OneToMany(() => Match, (match) => match.series)
   games!: Match[];
+
+  @OneToMany(() => MatchFeedback, (feedback) => feedback.series)
+  feedbacks!: MatchFeedback[];
 }

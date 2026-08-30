@@ -11,7 +11,17 @@ import { PlayerInstruction } from '../src/careers/enums/player-instruction.enum'
 import { Region } from '../src/careers/enums/region.enum';
 import { TeamStrategy } from '../src/careers/enums/team-strategy.enum';
 import { ChampionArchetype } from '../src/careers/enums/champion-archetype.enum';
+import { TrainingCategory } from '../src/careers/enums/training-category.enum';
+import { TrainingType } from '../src/careers/enums/training-type.enum';
+import { LeagueSplit } from '../src/leagues/entities/league-split.entity';
+import { LeagueFixtureStatus } from '../src/leagues/enums/league-fixture-status.enum';
+import { LeagueSplitStatus } from '../src/leagues/enums/league-split-status.enum';
+import { LeagueStageStatus } from '../src/leagues/enums/league-stage-status.enum';
 import { MatchSeries } from '../src/match-series/entities/match-series.entity';
+import { MatchFeedbackPlayerEffect } from '../src/match-series/entities/match-feedback-player-effect.entity';
+import { MatchFeedback } from '../src/match-series/entities/match-feedback.entity';
+import { FeedbackOption } from '../src/match-series/enums/feedback-option.enum';
+import { FeedbackType } from '../src/match-series/enums/feedback-type.enum';
 import { MatchSeriesStatus } from '../src/match-series/enums/match-series-status.enum';
 import { MatchPlayerStat } from '../src/matches/entities/match-player-stat.entity';
 import { Match } from '../src/matches/entities/match.entity';
@@ -19,6 +29,7 @@ import { PlayerCard } from '../src/players/entities/player-card.entity';
 import { Player } from '../src/players/entities/player.entity';
 import { Theme } from '../src/players/entities/theme.entity';
 import { Position } from '../src/players/enums/position.enum';
+import { PlayerPersonality } from '../src/players/enums/player-personality.enum';
 import { SetBonus } from '../src/set-bonuses/entities/set-bonus.entity';
 
 interface IdResponse {
@@ -38,25 +49,37 @@ interface AuthResponse {
   };
 }
 
+interface CareerRosterResponse {
+  id: number;
+  starterPosition: Position | null;
+  championArchetype: ChampionArchetype | null;
+  careerPlayer: {
+    id: number;
+    currentMental: number;
+    form: number;
+    condition: number;
+    personality: PlayerPersonality;
+    coachTrust: number;
+    positionProficiencies: Array<{
+      position: Position;
+      proficiency: number;
+    }>;
+  };
+}
+
 interface CareerResponse {
   id: number;
   currentMeta: TeamStrategy;
   teams: Array<{
     id: number;
+    chemistry: number;
+    activeSetBonuses: Array<{ code: string }>;
     strategyProficiencies: Array<{
       strategy: TeamStrategy;
       proficiency: number;
     }>;
-    starters: Array<{
-      starterPosition: Position;
-      championArchetype: ChampionArchetype | null;
-      careerPlayer: {
-        id: number;
-        currentMental: number;
-        form: number;
-        condition: number;
-      };
-    }>;
+    starters: CareerRosterResponse[];
+    benches: CareerRosterResponse[];
   }>;
 }
 
@@ -81,6 +104,7 @@ interface MatchResponse {
       careerPlayerId: number;
       position: Position;
       playerInstruction: PlayerInstruction | null;
+      positionProficiency: number;
       championArchetype: ChampionArchetype | null;
       form: number;
       condition: number;
@@ -134,6 +158,109 @@ interface MatchSeriesAnalysisResponse {
   }> | null;
 }
 
+interface FeedbackResponse {
+  id: number;
+  seriesId: number;
+  afterGameId: number;
+  afterGameNumber: number;
+  type: FeedbackType;
+  option: FeedbackOption;
+  targetTeamId: number;
+  targetCareerPlayerId: number | null;
+  effects: Array<{
+    careerPlayerId: number;
+    personality: PlayerPersonality;
+    mentalBefore: number;
+    mentalDelta: number;
+    mentalAfter: number;
+    formBefore: number;
+    formDelta: number;
+    formAfter: number;
+    coachTrustBefore: number;
+    coachTrustDelta: number;
+    coachTrustAfter: number;
+  }>;
+}
+
+interface TrainingPeriodResponse {
+  id: number;
+  careerId: number;
+  periodNumber: number;
+  teamTraining: { used: number; limit: number; remaining: number };
+  individualTraining: { used: number; limit: number; remaining: number };
+  sessions: Array<{
+    id: number;
+    category: TrainingCategory;
+    type: TrainingType;
+    categorySequence: number;
+    careerTeamId: number;
+    careerPlayerId: number | null;
+    strategy: TeamStrategy | null;
+    position: Position | null;
+    instruction: PlayerInstruction | null;
+    growthSucceeded: boolean | null;
+    resultBefore: number;
+    resultDelta: number;
+    resultAfter: number;
+    conditionBefore: number | null;
+    conditionDelta: number | null;
+    conditionAfter: number | null;
+    formBefore: number | null;
+    formDelta: number | null;
+    formAfter: number | null;
+  }>;
+}
+
+interface LeagueSplitResponse {
+  id: number;
+  careerId: number;
+  year: number;
+  region: Region;
+  splitNumber: number;
+  status: LeagueSplitStatus;
+  activeStageCode: string | null;
+  stages: Array<{
+    code: string;
+    status: LeagueStageStatus;
+    bestOf: number;
+    currentRound: number;
+    fixtures: LeagueFixtureResponse[];
+  }>;
+  fixtures: LeagueFixtureResponse[];
+  standings: Array<{
+    rank: number;
+    teamId: number;
+    played: number;
+    seriesWins: number;
+    seriesLosses: number;
+    gameWins: number;
+    gameLosses: number;
+    gameDifference: number;
+  }>;
+}
+
+interface LeagueFixtureResponse {
+  id: number;
+  leagueStageId: number;
+  fixtureNumber: number;
+  stageFixtureNumber: number;
+  roundNumber: number;
+  bestOf: number;
+  status: LeagueFixtureStatus;
+  seriesId: number | null;
+  teamA: { id: number; code: string; name: string };
+  teamB: { id: number; code: string; name: string };
+  teamAWins: number;
+  teamBWins: number;
+  winnerTeamId: number | null;
+}
+
+interface LeagueFixtureGameResponse {
+  fixtureId: number;
+  series: MatchSeriesResponse;
+  split: LeagueSplitResponse;
+}
+
 describe('Application authentication and career ownership (e2e)', () => {
   const fixtureKey = `${Date.now()}_${process.pid}`;
   const accountIds: number[] = [];
@@ -146,6 +273,7 @@ describe('Application authentication and career ownership (e2e)', () => {
     Position.ADC,
     Position.SUPPORT,
   ];
+  const personalities = Object.values(PlayerPersonality);
   let app: INestApplication<App>;
   let dataSource: DataSource;
   let themeId: number | undefined;
@@ -153,6 +281,8 @@ describe('Application authentication and career ownership (e2e)', () => {
   let matchId: number | undefined;
   let matchSeriesId: number | undefined;
   let setBonusId: number | undefined;
+  let feedbackId: number | undefined;
+  let leagueSplitId: number | undefined;
 
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -249,7 +379,7 @@ describe('Application authentication and career ownership (e2e)', () => {
       .expect(201);
     themeId = (themeResponse.body as unknown as IdResponse).id;
 
-    for (let index = 0; index < 10; index += 1) {
+    for (let index = 0; index < 12; index += 1) {
       const position = positions[index % positions.length];
       const playerResponse = await api
         .post('/players')
@@ -279,6 +409,7 @@ describe('Application authentication and career ownership (e2e)', () => {
           teamPlay: 70,
           mental: 70,
           championPool: 70,
+          personality: personalities[index % personalities.length],
           potential: 80,
         })
         .expect(201);
@@ -338,20 +469,22 @@ describe('Application authentication and career ownership (e2e)', () => {
           {
             code: 'E2E_BLUE',
             name: 'E2E Blue',
-            region: Region.LCK,
+            region: Region.LEC,
             starters: positions.map((position, index) => ({
               playerCardId: playerCardIds[index],
               position,
             })),
+            benches: [{ playerCardId: playerCardIds[10] }],
           },
           {
             code: 'E2E_RED',
             name: 'E2E Red',
-            region: Region.LPL,
+            region: Region.LEC,
             starters: positions.map((position, index) => ({
               playerCardId: playerCardIds[index + positions.length],
               position,
             })),
+            benches: [{ playerCardId: playerCardIds[11] }],
           },
         ],
       })
@@ -372,18 +505,38 @@ describe('Application authentication and career ownership (e2e)', () => {
     expect(teamB.activeSetBonuses).toEqual([]);
     expect(teamA.starters).toHaveLength(5);
     expect(teamB.starters).toHaveLength(5);
+    expect(teamA.benches).toHaveLength(1);
+    expect(teamB.benches).toHaveLength(1);
     expect(
       [...teamA.starters, ...teamB.starters].every(
         (starter) =>
           starter.careerPlayer.form === 50 &&
           starter.careerPlayer.condition === 100 &&
-          starter.careerPlayer.currentMental === 70,
+          starter.careerPlayer.currentMental === 70 &&
+          starter.careerPlayer.coachTrust === 50,
       ),
     ).toBe(true);
     expect(
       [...teamA.starters, ...teamB.starters].every(
         (starter) => starter.championArchetype === null,
       ),
+    ).toBe(true);
+    expect(
+      [...teamA.starters, ...teamB.starters].every((starter) => {
+        const proficiencies = starter.careerPlayer.positionProficiencies;
+
+        return (
+          proficiencies.length === positions.length &&
+          proficiencies.find(
+            (proficiency) => proficiency.position === starter.starterPosition,
+          )?.proficiency === 100 &&
+          proficiencies
+            .filter(
+              (proficiency) => proficiency.position !== starter.starterPosition,
+            )
+            .every((proficiency) => proficiency.proficiency === 20)
+        );
+      }),
     ).toBe(true);
 
     const accountACareerList = await api
@@ -426,6 +579,51 @@ describe('Application authentication and career ownership (e2e)', () => {
       .set('Authorization', `Bearer ${tokenB}`)
       .send({ archetype: ChampionArchetype.HYPER_CARRY })
       .expect(404);
+    await api
+      .patch(
+        `/careers/${career.id}/teams/${teamA.id}/starters/${Position.TOP}/swap`,
+      )
+      .set('Authorization', `Bearer ${tokenB}`)
+      .send({ benchCareerPlayerId: teamA.benches[0].careerPlayer.id })
+      .expect(404);
+    await api
+      .patch(
+        `/careers/${career.id}/teams/${teamB.id}/starters/${Position.TOP}/swap`,
+      )
+      .set('Authorization', `Bearer ${tokenA}`)
+      .send({ benchCareerPlayerId: teamB.benches[0].careerPlayer.id })
+      .expect(404);
+
+    const originalTopStarterId = teamA.starters.find(
+      (starter) => starter.starterPosition === Position.TOP,
+    )!.careerPlayer.id;
+    const promotedTopStarterId = teamA.benches[0].careerPlayer.id;
+    await api
+      .patch(
+        `/careers/${career.id}/teams/${teamA.id}/starters/${Position.TOP}/swap`,
+      )
+      .set('Authorization', `Bearer ${tokenA}`)
+      .send({ benchCareerPlayerId: promotedTopStarterId })
+      .expect(200)
+      .expect(({ body }: { body: unknown }) => {
+        expect(body).toEqual(
+          expect.objectContaining({
+            careerId: career.id,
+            careerTeamId: teamA.id,
+            position: Position.TOP,
+            promotedStarter: expect.objectContaining({
+              careerPlayerId: promotedTopStarterId,
+              role: 'STARTER',
+              starterPosition: Position.TOP,
+            }),
+            demotedBench: expect.objectContaining({
+              careerPlayerId: originalTopStarterId,
+              role: 'BENCH',
+              starterPosition: null,
+            }),
+          }),
+        );
+      });
 
     await api
       .patch(`/careers/${career.id}/meta`)
@@ -492,6 +690,15 @@ describe('Application authentication and career ownership (e2e)', () => {
       (team) => team.id === teamA.id,
     )!;
 
+    expect(updatedTeamA.starters).toHaveLength(5);
+    expect(updatedTeamA.benches).toHaveLength(1);
+    expect(
+      updatedTeamA.starters.find(
+        (starter) => starter.starterPosition === Position.TOP,
+      )?.careerPlayer.id,
+    ).toBe(promotedTopStarterId);
+    expect(updatedTeamA.benches[0].careerPlayer.id).toBe(originalTopStarterId);
+
     for (const [position, archetype] of selectedArchetypes) {
       expect(
         updatedTeamA.starters.find(
@@ -548,6 +755,16 @@ describe('Application authentication and career ownership (e2e)', () => {
     expect(
       match.teams.reduce((total, team) => total + team.playerStats.length, 0),
     ).toBe(10);
+    expect(
+      match.teams[0].playerStats.some(
+        (playerStat) => playerStat.careerPlayerId === promotedTopStarterId,
+      ),
+    ).toBe(true);
+    expect(
+      match.teams[0].playerStats.some(
+        (playerStat) => playerStat.careerPlayerId === originalTopStarterId,
+      ),
+    ).toBe(false);
     expect(
       match.teams
         .flatMap((team) => team.playerStats)
@@ -693,6 +910,102 @@ describe('Application authentication and career ownership (e2e)', () => {
     ).toBe(true);
 
     await api
+      .post(`/match-series/${matchSeriesId}/feedback`)
+      .set('Authorization', `Bearer ${tokenB}`)
+      .send({
+        type: FeedbackType.TEAM,
+        option: FeedbackOption.REFOCUS_TEAM,
+      })
+      .expect(404);
+    await api
+      .post(`/match-series/${matchSeriesId}/feedback`)
+      .set('Authorization', `Bearer ${tokenA}`)
+      .send({
+        type: FeedbackType.TEAM,
+        option: FeedbackOption.TRUST_PLAYER,
+      })
+      .expect(400);
+
+    const feedbackResponse = await api
+      .post(`/match-series/${matchSeriesId}/feedback`)
+      .set('Authorization', `Bearer ${tokenA}`)
+      .send({
+        type: FeedbackType.TEAM,
+        option: FeedbackOption.REFOCUS_TEAM,
+      })
+      .expect(201);
+    const feedback = feedbackResponse.body as unknown as FeedbackResponse;
+    const feedbackEffectsByPlayerId = new Map(
+      feedback.effects.map((effect) => [effect.careerPlayerId, effect]),
+    );
+
+    feedbackId = feedback.id;
+    expect(feedback).toEqual(
+      expect.objectContaining({
+        seriesId: matchSeriesId,
+        afterGameId: game1.matchId,
+        afterGameNumber: 1,
+        type: FeedbackType.TEAM,
+        option: FeedbackOption.REFOCUS_TEAM,
+        targetTeamId: teamA.id,
+        targetCareerPlayerId: null,
+      }),
+    );
+    expect(feedback.effects).toHaveLength(5);
+    expect(
+      new Set(feedback.effects.map((effect) => effect.personality)).size,
+    ).toBeGreaterThan(1);
+    expect(
+      feedback.effects.every(
+        (effect) =>
+          effect.formAfter === effect.formBefore + effect.formDelta &&
+          effect.mentalAfter === effect.mentalBefore + effect.mentalDelta &&
+          effect.coachTrustAfter ===
+            effect.coachTrustBefore + effect.coachTrustDelta,
+      ),
+    ).toBe(true);
+
+    await api
+      .post(`/match-series/${matchSeriesId}/feedback`)
+      .set('Authorization', `Bearer ${tokenA}`)
+      .send({
+        type: FeedbackType.TEAM,
+        option: FeedbackOption.REFOCUS_TEAM,
+      })
+      .expect(409);
+
+    const feedbackHistoryResponse = await api
+      .get(`/match-series/${matchSeriesId}/feedbacks`)
+      .set('Authorization', `Bearer ${tokenA}`)
+      .expect(200);
+
+    expect(feedbackHistoryResponse.body).toEqual([feedback]);
+
+    const postFeedbackCareerResponse = await api
+      .get(`/careers/${career.id}`)
+      .set('Authorization', `Bearer ${tokenA}`)
+      .expect(200);
+    const postFeedbackCareer =
+      postFeedbackCareerResponse.body as unknown as CareerResponse;
+    const postFeedbackPlayersById = new Map(
+      postFeedbackCareer.teams.flatMap((team) =>
+        team.starters.map(
+          (starter) => [starter.careerPlayer.id, starter.careerPlayer] as const,
+        ),
+      ),
+    );
+
+    for (const effect of feedback.effects) {
+      expect(postFeedbackPlayersById.get(effect.careerPlayerId)).toEqual(
+        expect.objectContaining({
+          form: effect.formAfter,
+          currentMental: effect.mentalAfter,
+          coachTrust: effect.coachTrustAfter,
+        }),
+      );
+    }
+
+    await api
       .patch(`/careers/${career.id}/teams/${teamA.id}/strategy`)
       .set('Authorization', `Bearer ${tokenA}`)
       .send({ strategy: TeamStrategy.TOP_CARRY })
@@ -737,10 +1050,17 @@ describe('Application authentication and career ownership (e2e)', () => {
       (gameTeam) => gameTeam.playerStats,
     )) {
       const previousGame = game1StateByPlayerId.get(playerStat.careerPlayerId)!;
+      const feedbackEffect = feedbackEffectsByPlayerId.get(
+        playerStat.careerPlayerId,
+      );
 
-      expect(playerStat.form).toBe(previousGame.formAfter);
+      expect(playerStat.form).toBe(
+        feedbackEffect?.formAfter ?? previousGame.formAfter,
+      );
       expect(playerStat.condition).toBe(previousGame.conditionAfter);
-      expect(playerStat.mental).toBe(previousGame.mentalAfter);
+      expect(playerStat.mental).toBe(
+        feedbackEffect?.mentalAfter ?? previousGame.mentalAfter,
+      );
     }
     expect(
       game2TeamA.playerStats.find(
@@ -806,6 +1126,384 @@ describe('Application authentication and career ownership (e2e)', () => {
 
     expect(storedSeriesResponse.body).toEqual(completedSeries);
 
+    await api
+      .get(`/careers/${career.id}/training-periods/current`)
+      .set('Authorization', `Bearer ${tokenB}`)
+      .expect(404);
+    const initialTrainingPeriodResponse = await api
+      .get(`/careers/${career.id}/training-periods/current`)
+      .set('Authorization', `Bearer ${tokenA}`)
+      .expect(200);
+    const initialTrainingPeriod =
+      initialTrainingPeriodResponse.body as unknown as TrainingPeriodResponse;
+
+    expect(initialTrainingPeriod).toEqual(
+      expect.objectContaining({
+        careerId: career.id,
+        periodNumber: 1,
+        teamTraining: { used: 0, limit: 2, remaining: 2 },
+        individualTraining: { used: 0, limit: 2, remaining: 2 },
+        sessions: [],
+      }),
+    );
+
+    await api
+      .post(`/careers/${career.id}/training-periods/current/team`)
+      .set('Authorization', `Bearer ${tokenA}`)
+      .send({ type: TrainingType.STRATEGY })
+      .expect(400);
+    const strategyTrainingResponse = await api
+      .post(`/careers/${career.id}/training-periods/current/team`)
+      .set('Authorization', `Bearer ${tokenA}`)
+      .send({
+        type: TrainingType.STRATEGY,
+        strategy: TeamStrategy.TOP_CARRY,
+      })
+      .expect(201);
+    const strategyTraining =
+      strategyTrainingResponse.body as unknown as TrainingPeriodResponse;
+
+    expect(strategyTraining.teamTraining).toEqual({
+      used: 1,
+      limit: 2,
+      remaining: 1,
+    });
+    expect(strategyTraining.sessions[0]).toEqual(
+      expect.objectContaining({
+        category: TrainingCategory.TEAM,
+        type: TrainingType.STRATEGY,
+        strategy: TeamStrategy.TOP_CARRY,
+        resultBefore: 50,
+        resultDelta: 4,
+        resultAfter: 54,
+      }),
+    );
+
+    const chemistryTrainingResponse = await api
+      .post(`/careers/${career.id}/training-periods/current/team`)
+      .set('Authorization', `Bearer ${tokenA}`)
+      .send({ type: TrainingType.CHEMISTRY })
+      .expect(201);
+    const chemistryTraining =
+      chemistryTrainingResponse.body as unknown as TrainingPeriodResponse;
+
+    expect(chemistryTraining.teamTraining).toEqual({
+      used: 2,
+      limit: 2,
+      remaining: 0,
+    });
+    expect(chemistryTraining.sessions[1]).toEqual(
+      expect.objectContaining({
+        category: TrainingCategory.TEAM,
+        type: TrainingType.CHEMISTRY,
+        resultBefore: 50,
+        resultDelta: 3,
+        resultAfter: 53,
+      }),
+    );
+    await api
+      .post(`/careers/${career.id}/training-periods/current/team`)
+      .set('Authorization', `Bearer ${tokenA}`)
+      .send({ type: TrainingType.CHEMISTRY })
+      .expect(409);
+
+    const adcPlayer = teamA.starters.find(
+      (starter) => starter.starterPosition === Position.ADC,
+    )!.careerPlayer;
+
+    await api
+      .post(`/careers/${career.id}/training-periods/current/individual`)
+      .set('Authorization', `Bearer ${tokenA}`)
+      .send({
+        type: TrainingType.ROLE,
+        careerPlayerId: adcPlayer.id,
+        position: Position.ADC,
+        instruction: PlayerInstruction.ROAM_TOP,
+      })
+      .expect(400);
+    const positionTrainingResponse = await api
+      .post(`/careers/${career.id}/training-periods/current/individual`)
+      .set('Authorization', `Bearer ${tokenA}`)
+      .send({
+        type: TrainingType.POSITION,
+        careerPlayerId: adcPlayer.id,
+        position: Position.TOP,
+      })
+      .expect(201);
+    const positionTraining =
+      positionTrainingResponse.body as unknown as TrainingPeriodResponse;
+    const positionSession = positionTraining.sessions[2];
+
+    expect(positionSession).toEqual(
+      expect.objectContaining({
+        category: TrainingCategory.INDIVIDUAL,
+        type: TrainingType.POSITION,
+        careerPlayerId: adcPlayer.id,
+        position: Position.TOP,
+        resultBefore: 20,
+        resultDelta: 5,
+        resultAfter: 25,
+        growthSucceeded: true,
+      }),
+    );
+    expect(positionSession.conditionDelta).toBeLessThan(0);
+
+    const roleTrainingResponse = await api
+      .post(`/careers/${career.id}/training-periods/current/individual`)
+      .set('Authorization', `Bearer ${tokenA}`)
+      .send({
+        type: TrainingType.ROLE,
+        careerPlayerId: adcPlayer.id,
+        position: Position.ADC,
+        instruction: PlayerInstruction.HYPER_CARRY,
+      })
+      .expect(201);
+    const roleTraining =
+      roleTrainingResponse.body as unknown as TrainingPeriodResponse;
+    const roleSession = roleTraining.sessions[3];
+
+    expect(roleTraining.individualTraining).toEqual({
+      used: 2,
+      limit: 2,
+      remaining: 0,
+    });
+    expect(roleSession).toEqual(
+      expect.objectContaining({
+        category: TrainingCategory.INDIVIDUAL,
+        type: TrainingType.ROLE,
+        careerPlayerId: adcPlayer.id,
+        position: Position.ADC,
+        instruction: PlayerInstruction.HYPER_CARRY,
+        resultBefore: 50,
+        resultDelta: 4,
+        resultAfter: 54,
+        growthSucceeded: true,
+      }),
+    );
+    expect(Math.abs(roleSession.conditionDelta!)).toBeGreaterThan(
+      Math.abs(positionSession.conditionDelta!),
+    );
+    expect(roleSession.formAfter).toBeLessThanOrEqual(roleSession.formBefore!);
+    await api
+      .post(`/careers/${career.id}/training-periods/current/individual`)
+      .set('Authorization', `Bearer ${tokenA}`)
+      .send({
+        type: TrainingType.CHAMPION_POOL,
+        careerPlayerId: adcPlayer.id,
+      })
+      .expect(409);
+
+    const trainedCareerResponse = await api
+      .get(`/careers/${career.id}`)
+      .set('Authorization', `Bearer ${tokenA}`)
+      .expect(200);
+    const trainedCareer =
+      trainedCareerResponse.body as unknown as CareerResponse;
+    const trainedTeam = trainedCareer.teams.find(
+      (team) => team.id === teamA.id,
+    )!;
+    const trainedAdc = trainedTeam.starters.find(
+      (starter) => starter.starterPosition === Position.ADC,
+    )!.careerPlayer;
+
+    expect(trainedTeam.chemistry).toBe(53);
+    expect(
+      trainedTeam.strategyProficiencies.find(
+        (proficiency) => proficiency.strategy === TeamStrategy.TOP_CARRY,
+      )?.proficiency,
+    ).toBe(54);
+    expect(
+      trainedAdc.positionProficiencies.find(
+        (proficiency) => proficiency.position === Position.TOP,
+      )?.proficiency,
+    ).toBe(25);
+    expect(trainedAdc.condition).toBe(roleSession.conditionAfter);
+    expect(trainedAdc.form).toBe(roleSession.formAfter);
+
+    const leagueFormatsResponse = await api
+      .get(`/careers/${career.id}/league-splits/formats`)
+      .set('Authorization', `Bearer ${tokenA}`)
+      .expect(200);
+
+    expect(leagueFormatsResponse.body).toHaveLength(12);
+    expect(leagueFormatsResponse.body).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ region: Region.LCK, splitNumber: 1 }),
+        expect.objectContaining({ region: Region.LPL, splitNumber: 2 }),
+        expect.objectContaining({ region: Region.LEC, splitNumber: 3 }),
+        expect.objectContaining({ region: Region.LCS, splitNumber: 1 }),
+      ]),
+    );
+
+    await api
+      .post(`/careers/${career.id}/league-splits`)
+      .set('Authorization', `Bearer ${tokenB}`)
+      .send({ region: Region.LEC, splitNumber: 2 })
+      .expect(404);
+    await api
+      .post(`/careers/${career.id}/league-splits`)
+      .set('Authorization', `Bearer ${tokenA}`)
+      .send({ region: Region.LEC, splitNumber: 4 })
+      .expect(400);
+
+    const leagueSplitResponse = await api
+      .post(`/careers/${career.id}/league-splits`)
+      .set('Authorization', `Bearer ${tokenA}`)
+      .send({ region: Region.LEC, splitNumber: 2 })
+      .expect(201);
+    const leagueSplit =
+      leagueSplitResponse.body as unknown as LeagueSplitResponse;
+
+    leagueSplitId = leagueSplit.id;
+    expect(leagueSplit).toEqual(
+      expect.objectContaining({
+        careerId: career.id,
+        year: 2026,
+        region: Region.LEC,
+        splitNumber: 2,
+        status: LeagueSplitStatus.SCHEDULED,
+        activeStageCode: 'REGULAR_SEASON',
+      }),
+    );
+    expect(leagueSplit.stages.map((stage) => stage.code)).toEqual([
+      'REGULAR_SEASON',
+      'PLAYOFFS',
+    ]);
+    expect(leagueSplit.fixtures).toHaveLength(1);
+    expect(leagueSplit.fixtures[0].roundNumber).toBe(1);
+    expect(leagueSplit.fixtures[0]).toEqual(
+      expect.objectContaining({
+        status: LeagueFixtureStatus.SCHEDULED,
+        seriesId: null,
+        teamA: expect.objectContaining({ id: teamA.id }),
+        teamB: expect.objectContaining({ id: teamB.id }),
+      }),
+    );
+    expect(
+      leagueSplit.standings.every(
+        (standing) =>
+          standing.played === 0 &&
+          standing.seriesWins === 0 &&
+          standing.seriesLosses === 0,
+      ),
+    ).toBe(true);
+
+    await api
+      .post(`/careers/${career.id}/league-splits`)
+      .set('Authorization', `Bearer ${tokenA}`)
+      .send({ region: Region.LEC, splitNumber: 2 })
+      .expect(409);
+    await api
+      .get(`/careers/${career.id}/league-splits/${leagueSplit.id}`)
+      .set('Authorization', `Bearer ${tokenB}`)
+      .expect(404);
+    await api
+      .post(
+        `/careers/${career.id}/league-splits/${leagueSplit.id}/fixtures/${leagueSplit.fixtures[0].id}/games/simulate`,
+      )
+      .set('Authorization', `Bearer ${tokenB}`)
+      .expect(404);
+
+    const playLeagueFixture = async (
+      fixtureId: number,
+    ): Promise<LeagueFixtureGameResponse> => {
+      let advance: LeagueFixtureGameResponse;
+
+      do {
+        const response = await api
+          .post(
+            `/careers/${career.id}/league-splits/${leagueSplit.id}/fixtures/${fixtureId}/games/simulate`,
+          )
+          .set('Authorization', `Bearer ${tokenA}`)
+          .expect(201);
+
+        advance = response.body as unknown as LeagueFixtureGameResponse;
+      } while (advance.series.status !== MatchSeriesStatus.COMPLETED);
+
+      return advance;
+    };
+
+    const firstLeagueSeries = await playLeagueFixture(
+      leagueSplit.fixtures[0].id,
+    );
+    const firstCompletedSplit = firstLeagueSeries.split;
+    const firstWinnerStanding = firstCompletedSplit.standings.find(
+      (standing) => standing.teamId === firstLeagueSeries.series.winnerTeamId,
+    )!;
+
+    expect(firstCompletedSplit.status).toBe(LeagueSplitStatus.IN_PROGRESS);
+    expect(firstWinnerStanding).toEqual(
+      expect.objectContaining({ played: 1, seriesWins: 1 }),
+    );
+    expect(
+      firstCompletedSplit.standings.reduce(
+        (total, standing) => total + standing.gameWins,
+        0,
+      ),
+    ).toBe(firstLeagueSeries.series.games.length);
+    await api
+      .post(
+        `/careers/${career.id}/league-splits/${leagueSplit.id}/fixtures/${leagueSplit.fixtures[0].id}/games/simulate`,
+      )
+      .set('Authorization', `Bearer ${tokenA}`)
+      .expect(409);
+
+    expect(firstCompletedSplit.activeStageCode).toBe('PLAYOFFS');
+    expect(firstCompletedSplit.stages[0].status).toBe(
+      LeagueStageStatus.COMPLETED,
+    );
+    expect(firstCompletedSplit.stages[1].status).toBe(LeagueStageStatus.ACTIVE);
+
+    let completedLeagueSplit = firstCompletedSplit;
+    let playoffSeriesCount = 0;
+
+    while (completedLeagueSplit.status !== LeagueSplitStatus.COMPLETED) {
+      const activeStage = completedLeagueSplit.stages.find(
+        (stage) => stage.status === LeagueStageStatus.ACTIVE,
+      )!;
+      const activeFixture = activeStage.fixtures.find(
+        (fixture) =>
+          fixture.roundNumber === activeStage.currentRound &&
+          fixture.status !== LeagueFixtureStatus.COMPLETED,
+      )!;
+
+      expect(activeFixture.bestOf).toBe(5);
+      completedLeagueSplit = (await playLeagueFixture(activeFixture.id)).split;
+      playoffSeriesCount += 1;
+      expect(playoffSeriesCount).toBeLessThanOrEqual(3);
+    }
+
+    expect(completedLeagueSplit.status).toBe(LeagueSplitStatus.COMPLETED);
+    expect(completedLeagueSplit.activeStageCode).toBeNull();
+    expect(playoffSeriesCount).toBeGreaterThanOrEqual(2);
+    expect(
+      completedLeagueSplit.fixtures.every(
+        (fixture) => fixture.status === LeagueFixtureStatus.COMPLETED,
+      ),
+    ).toBe(true);
+    expect(
+      completedLeagueSplit.standings.every((standing) => standing.played === 1),
+    ).toBe(true);
+    expect(
+      completedLeagueSplit.standings.reduce(
+        (total, standing) => total + standing.seriesWins,
+        0,
+      ),
+    ).toBe(1);
+    expect(
+      completedLeagueSplit.standings.reduce(
+        (total, standing) => total + standing.gameWins,
+        0,
+      ),
+    ).toBe(firstLeagueSeries.series.games.length);
+
+    const leagueSplitListResponse = await api
+      .get(`/careers/${career.id}/league-splits`)
+      .set('Authorization', `Bearer ${tokenA}`)
+      .expect(200);
+
+    expect(leagueSplitListResponse.body).toEqual([completedLeagueSplit]);
+
     const storedAccount = await dataSource
       .getRepository(Account)
       .createQueryBuilder('account')
@@ -845,6 +1543,27 @@ describe('Application authentication and career ownership (e2e)', () => {
           await dataSource
             .getRepository(MatchSeries)
             .countBy({ id: matchSeriesId }),
+        ).toBe(0);
+      }
+
+      if (leagueSplitId !== undefined) {
+        expect(
+          await dataSource
+            .getRepository(LeagueSplit)
+            .countBy({ id: leagueSplitId }),
+        ).toBe(0);
+      }
+
+      if (feedbackId !== undefined) {
+        expect(
+          await dataSource
+            .getRepository(MatchFeedback)
+            .countBy({ id: feedbackId }),
+        ).toBe(0);
+        expect(
+          await dataSource
+            .getRepository(MatchFeedbackPlayerEffect)
+            .countBy({ feedbackId }),
         ).toBe(0);
       }
 

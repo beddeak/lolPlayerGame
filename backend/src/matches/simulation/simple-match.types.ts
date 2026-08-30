@@ -24,6 +24,7 @@ export interface SimpleMatchPlayerInput extends SimpleMatchPlayerStats {
   condition: number;
   playerInstruction: PlayerInstruction | null;
   roleProficiency: number | null;
+  positionProficiency: number;
   championArchetype: ChampionArchetype | null;
 }
 

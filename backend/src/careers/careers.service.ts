@@ -18,10 +18,13 @@ import {
   ROLE_PROFICIENCY_CONFIG,
 } from './config/player-instruction.config';
 import { CAREER_PLAYER_STATE_CONFIG } from './config/player-state.config';
+import { POSITION_PROFICIENCY_CONFIG } from './config/position-proficiency.config';
 import { TEAM_STRATEGY_PROFICIENCY_CONFIG } from './config/team-strategy-proficiency.config';
 import { TEAM_CHEMISTRY_CONFIG } from './config/team-chemistry.config';
 import {
   INITIAL_CAREER_TEAM_COUNT,
+  MAX_CAREER_TEAM_COUNT,
+  MAX_BENCH_PLAYERS,
   STARTER_POSITIONS,
 } from './constants/career.constants';
 import {
@@ -37,11 +40,13 @@ import {
   UpdateCareerMetaDto,
 } from './dto/update-career-meta.dto';
 import { CareerPlayerRoleProficiency } from './entities/career-player-role-proficiency.entity';
+import { CareerPlayerPositionProficiency } from './entities/career-player-position-proficiency.entity';
 import { CareerPlayer } from './entities/career-player.entity';
 import { CareerTeam } from './entities/career-team.entity';
 import { CareerTeamStrategyProficiency } from './entities/career-team-strategy-proficiency.entity';
 import { Career } from './entities/career.entity';
 import { Roster } from './entities/roster.entity';
+import { TrainingPeriod } from './entities/training-period.entity';
 import { RosterRole } from './enums/roster-role.enum';
 import { TeamStrategy } from './enums/team-strategy.enum';
 
@@ -61,9 +66,10 @@ export class CareersService {
   ): Promise<CareerResponseDto> {
     this.validateCareerSetup(dto);
 
-    const playerCardIds = dto.teams.flatMap((team) =>
-      team.starters.map((starter) => starter.playerCardId),
-    );
+    const playerCardIds = dto.teams.flatMap((team) => [
+      ...team.starters.map((starter) => starter.playerCardId),
+      ...(team.benches ?? []).map((bench) => bench.playerCardId),
+    ]);
 
     const career = await this.dataSource.transaction(async (manager) => {
       const playerCards = await manager.find(PlayerCard, {
@@ -90,6 +96,14 @@ export class CareersService {
         currentMeta: TeamStrategy.BALANCED,
       });
       const savedCareer = await manager.save(Career, newCareer);
+      await manager.save(
+        TrainingPeriod,
+        manager.create(TrainingPeriod, {
+          careerId: savedCareer.id,
+          career: savedCareer,
+          periodNumber: 1,
+        }),
+      );
 
       const careerTeams = dto.teams.map((team) =>
         manager.create(CareerTeam, {
@@ -126,15 +140,28 @@ export class CareersService {
         );
       });
 
-      const starterSetup = dto.teams.flatMap((team, teamIndex) =>
-        team.starters.map((starter) => ({
-          starter,
+      const rosterSetup = dto.teams.flatMap((team, teamIndex) => [
+        ...team.starters.map((starter) => ({
           careerTeam: savedCareerTeams[teamIndex],
           playerCard: playerCardsById.get(starter.playerCardId)!,
+          role: RosterRole.STARTER,
+          starterPosition: starter.position,
+          currentPosition: starter.position,
         })),
-      );
-      const careerPlayers = starterSetup.map(
-        ({ starter, careerTeam, playerCard }) =>
+        ...(team.benches ?? []).map((bench) => {
+          const playerCard = playerCardsById.get(bench.playerCardId)!;
+
+          return {
+            careerTeam: savedCareerTeams[teamIndex],
+            playerCard,
+            role: RosterRole.BENCH,
+            starterPosition: null,
+            currentPosition: playerCard.mainPosition,
+          };
+        }),
+      ]);
+      const careerPlayers = rosterSetup.map(
+        ({ careerTeam, playerCard, currentPosition }) =>
           manager.create(CareerPlayer, {
             careerId: savedCareer.id,
             career: savedCareer,
@@ -143,7 +170,7 @@ export class CareersService {
             currentTeamId: careerTeam.id,
             currentTeam: careerTeam,
             currentAge: playerCard.startingAge,
-            currentPosition: starter.position,
+            currentPosition,
             currentMechanics: playerCard.mechanics,
             currentGameSense: playerCard.gameSense,
             currentLaning: playerCard.laning,
@@ -154,6 +181,8 @@ export class CareersService {
             currentChampionPool: playerCard.championPool,
             form: CAREER_PLAYER_STATE_CONFIG.initial.form,
             condition: CAREER_PLAYER_STATE_CONFIG.initial.condition,
+            personality: playerCard.personality,
+            coachTrust: CAREER_PLAYER_STATE_CONFIG.initial.coachTrust,
           }),
       );
       const savedCareerPlayers = await manager.save(
@@ -161,13 +190,38 @@ export class CareersService {
         careerPlayers,
       );
 
-      const roleProficiencies = starterSetup.flatMap(
-        ({ starter }, careerPlayerIndex) =>
-          PLAYER_INSTRUCTIONS_BY_POSITION[starter.position].map((instruction) =>
+      const positionProficiencies = savedCareerPlayers.flatMap((careerPlayer) =>
+        STARTER_POSITIONS.map((position) =>
+          manager.create(CareerPlayerPositionProficiency, {
+            careerPlayerId: careerPlayer.id,
+            careerPlayer,
+            position,
+            proficiency:
+              position === careerPlayer.currentPosition
+                ? POSITION_PROFICIENCY_CONFIG.initialPrimary
+                : POSITION_PROFICIENCY_CONFIG.initialSecondary,
+          }),
+        ),
+      );
+      const savedPositionProficiencies = await manager.save(
+        CareerPlayerPositionProficiency,
+        positionProficiencies,
+      );
+
+      savedCareerPlayers.forEach((careerPlayer) => {
+        careerPlayer.positionProficiencies = savedPositionProficiencies.filter(
+          (positionProficiency) =>
+            positionProficiency.careerPlayerId === careerPlayer.id,
+        );
+      });
+
+      const roleProficiencies = rosterSetup.flatMap(
+        ({ currentPosition }, careerPlayerIndex) =>
+          PLAYER_INSTRUCTIONS_BY_POSITION[currentPosition].map((instruction) =>
             manager.create(CareerPlayerRoleProficiency, {
               careerPlayerId: savedCareerPlayers[careerPlayerIndex].id,
               careerPlayer: savedCareerPlayers[careerPlayerIndex],
-              position: starter.position,
+              position: currentPosition,
               instruction,
               proficiency: ROLE_PROFICIENCY_CONFIG.initial,
             }),
@@ -185,17 +239,18 @@ export class CareersService {
         );
       });
 
-      const rosters = starterSetup.map(({ starter, careerTeam }, index) =>
-        manager.create(Roster, {
-          careerTeamId: careerTeam.id,
-          careerTeam,
-          careerPlayerId: savedCareerPlayers[index].id,
-          careerPlayer: savedCareerPlayers[index],
-          role: RosterRole.STARTER,
-          starterPosition: starter.position,
-          playerInstruction: null,
-          championArchetype: null,
-        }),
+      const rosters = rosterSetup.map(
+        ({ role, starterPosition, careerTeam }, index) =>
+          manager.create(Roster, {
+            careerTeamId: careerTeam.id,
+            careerTeam,
+            careerPlayerId: savedCareerPlayers[index].id,
+            careerPlayer: savedCareerPlayers[index],
+            role,
+            starterPosition,
+            playerInstruction: null,
+            championArchetype: null,
+          }),
       );
       const savedRosters = await manager.save(Roster, rosters);
 
@@ -254,6 +309,7 @@ export class CareersService {
             rosters: {
               careerPlayer: {
                 roleProficiencies: true,
+                positionProficiencies: true,
                 playerCard: {
                   player: true,
                   theme: true,
@@ -294,9 +350,12 @@ export class CareersService {
   }
 
   private validateCareerSetup(dto: CreateCareerDto): void {
-    if (dto.teams.length !== INITIAL_CAREER_TEAM_COUNT) {
+    if (
+      dto.teams.length < INITIAL_CAREER_TEAM_COUNT ||
+      dto.teams.length > MAX_CAREER_TEAM_COUNT
+    ) {
       throw new BadRequestException(
-        `A new career must contain exactly ${INITIAL_CAREER_TEAM_COUNT} teams`,
+        `A new career must contain between ${INITIAL_CAREER_TEAM_COUNT} and ${MAX_CAREER_TEAM_COUNT} teams`,
       );
     }
 
@@ -313,6 +372,12 @@ export class CareersService {
     }
 
     for (const team of dto.teams) {
+      if ((team.benches?.length ?? 0) > MAX_BENCH_PLAYERS) {
+        throw new BadRequestException(
+          `Team ${team.code} cannot have more than ${MAX_BENCH_PLAYERS} bench players`,
+        );
+      }
+
       const positions = team.starters.map((starter) => starter.position);
       const positionSet = new Set(positions);
       const hasEveryStarterPosition = STARTER_POSITIONS.every((position) =>
@@ -330,9 +395,10 @@ export class CareersService {
       }
     }
 
-    const playerCardIds = dto.teams.flatMap((team) =>
-      team.starters.map((starter) => starter.playerCardId),
-    );
+    const playerCardIds = dto.teams.flatMap((team) => [
+      ...team.starters.map((starter) => starter.playerCardId),
+      ...(team.benches ?? []).map((bench) => bench.playerCardId),
+    ]);
 
     if (new Set(playerCardIds).size !== playerCardIds.length) {
       throw new ConflictException(
@@ -366,7 +432,9 @@ export class CareersService {
           })),
         activeSetBonuses: findActiveSetBonuses(
           setBonuses,
-          careerTeam.rosters.map((roster) => roster.careerPlayer.playerCardId),
+          careerTeam.rosters
+            .filter((roster) => roster.role === RosterRole.STARTER)
+            .map((roster) => roster.careerPlayer.playerCardId),
         ).map((setBonus) => toSetBonusResponse(setBonus)),
         starters: careerTeam.rosters
           .filter(
@@ -379,6 +447,10 @@ export class CareersService {
               (positionOrder.get(left.starterPosition!) ?? 0) -
               (positionOrder.get(right.starterPosition!) ?? 0),
           )
+          .map((roster) => this.toRosterResponse(roster)),
+        benches: careerTeam.rosters
+          .filter((roster) => roster.role === RosterRole.BENCH)
+          .sort((left, right) => left.id - right.id)
           .map((roster) => this.toRosterResponse(roster)),
       }));
 
@@ -428,6 +500,8 @@ export class CareersService {
       currentChampionPool: careerPlayer.currentChampionPool,
       form: careerPlayer.form,
       condition: careerPlayer.condition,
+      personality: careerPlayer.personality,
+      coachTrust: careerPlayer.coachTrust,
       playerCard: this.toPlayerCardResponse(careerPlayer.playerCard),
       roleProficiencies: [...(careerPlayer.roleProficiencies ?? [])]
         .sort(
@@ -439,6 +513,16 @@ export class CareersService {
           position: roleProficiency.position,
           instruction: roleProficiency.instruction,
           proficiency: roleProficiency.proficiency,
+        })),
+      positionProficiencies: [...(careerPlayer.positionProficiencies ?? [])]
+        .sort(
+          (left, right) =>
+            STARTER_POSITIONS.indexOf(left.position) -
+            STARTER_POSITIONS.indexOf(right.position),
+        )
+        .map((positionProficiency) => ({
+          position: positionProficiency.position,
+          proficiency: positionProficiency.proficiency,
         })),
     };
   }
@@ -460,6 +544,7 @@ export class CareersService {
       teamPlay: playerCard.teamPlay,
       mental: playerCard.mental,
       championPool: playerCard.championPool,
+      personality: playerCard.personality,
       player: {
         id: playerCard.player.id,
         nickname: playerCard.player.nickname,

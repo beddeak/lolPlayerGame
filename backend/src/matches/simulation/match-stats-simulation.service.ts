@@ -264,6 +264,7 @@ export class MatchStatsSimulationService {
         position: partial.player.position,
         playerInstruction: partial.player.playerInstruction,
         roleProficiency: partial.player.roleProficiency,
+        positionProficiency: partial.player.positionProficiency,
         championArchetype: partial.player.championArchetype,
         form: partial.player.form,
         condition: partial.player.condition,

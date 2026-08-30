@@ -1,0 +1,7 @@
+export enum PlayerPersonality {
+  DEVOTED = 'DEVOTED',
+  LOYAL = 'LOYAL',
+  SELF_CENTERED = 'SELF_CENTERED',
+  PROFESSIONAL = 'PROFESSIONAL',
+  SENSITIVE = 'SENSITIVE',
+}

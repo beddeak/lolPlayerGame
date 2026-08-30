@@ -18,6 +18,7 @@ import {
 } from '../config/champion-archetype.config';
 import { createSeededRandom } from './seeded-random';
 import { calculatePlayerMatchStateModifiers } from './player-match-state';
+import { POSITION_PROFICIENCY_MATCH_CONFIG } from '../config/position-proficiency.config';
 import {
   SimpleMatchPlayerInput,
   SimpleMatchPlayerStats,
@@ -247,6 +248,7 @@ export class SimpleMatchSimulationService {
 
     return (
       ability +
+      this.calculatePositionProficiencyModifier(player.positionProficiency) +
       this.calculateRoleProficiencyModifier(player) +
       (archetypeConfig
         ? this.calculateArchetypePhaseModifier(archetypeConfig)
@@ -344,6 +346,20 @@ export class SimpleMatchSimulationService {
 
     return (
       ((config.neutral - proficiency) / (config.neutral - config.min)) *
+      config.maxPenalty
+    );
+  }
+
+  private calculatePositionProficiencyModifier(proficiency: number): number {
+    const config = POSITION_PROFICIENCY_MATCH_CONFIG;
+    const normalized = this.clamp(proficiency, config.min, config.max);
+
+    if (normalized >= config.neutral) {
+      return 0;
+    }
+
+    return (
+      ((config.neutral - normalized) / (config.neutral - config.min)) *
       config.maxPenalty
     );
   }

@@ -8,6 +8,7 @@ import {
   Unique,
 } from 'typeorm';
 import { Position } from '../enums/position.enum';
+import { PlayerPersonality } from '../enums/player-personality.enum';
 import { Player } from './player.entity';
 import { Theme } from './theme.entity';
 
@@ -84,6 +85,13 @@ export class PlayerCard {
 
   @Column({ type: 'tinyint', unsigned: true })
   championPool!: number;
+
+  @Column({
+    type: 'enum',
+    enum: PlayerPersonality,
+    default: PlayerPersonality.PROFESSIONAL,
+  })
+  personality!: PlayerPersonality;
 
   @Column({ type: 'tinyint', unsigned: true })
   potential!: number;

@@ -68,6 +68,12 @@ describe('MatchesService', () => {
       form: 50,
       condition: 100,
       roleProficiencies: [],
+      positionProficiencies: STARTER_POSITIONS.map((position, index) => ({
+        id: id * 10 + index,
+        careerPlayerId: id,
+        position,
+        proficiency: 100,
+      })),
     }) as CareerPlayer;
   const createCareerTeam = (id: number, code: string): CareerTeam => {
     const careerTeam = {
@@ -334,6 +340,7 @@ describe('MatchesService', () => {
           position,
           playerInstruction: null,
           roleProficiency: null,
+          positionProficiency: 100,
           championArchetype:
             team.id === teamA.id && position === Position.ADC
               ? ChampionArchetype.HYPER_CARRY

@@ -6,6 +6,7 @@ import { PlayerCard } from './entities/player-card.entity';
 import { Player } from './entities/player.entity';
 import { Theme } from './entities/theme.entity';
 import { Position } from './enums/position.enum';
+import { PlayerPersonality } from './enums/player-personality.enum';
 import { PlayerCardsService } from './player-cards.service';
 
 describe('PlayerCardsService', () => {
@@ -86,8 +87,16 @@ describe('PlayerCardsService', () => {
     playersRepository.findOneBy.mockResolvedValue(player);
     themesRepository.findOneBy.mockResolvedValue(theme);
     playerCardsRepository.findOneBy.mockResolvedValue(null);
-    playerCardsRepository.create.mockReturnValue(playerCard);
-    playerCardsRepository.save.mockResolvedValue(playerCard);
+    playerCardsRepository.create.mockImplementation(
+      (value: Partial<PlayerCard>) =>
+        ({
+          id: playerCard.id,
+          ...value,
+        }) as PlayerCard,
+    );
+    playerCardsRepository.save.mockImplementation((value: PlayerCard) =>
+      Promise.resolve(value),
+    );
   });
 
   it('creates a player card without exposing potential', async () => {
@@ -100,6 +109,7 @@ describe('PlayerCardsService', () => {
       nationality: player.nationality,
     });
     expect(result.theme.code).toBe(theme.code);
+    expect(result.personality).toBe(PlayerPersonality.PROFESSIONAL);
   });
 
   it('rejects a duplicate player card', async () => {

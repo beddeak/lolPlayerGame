@@ -4,17 +4,32 @@ import { PasswordService } from '../../auth/password.service';
 import { Account } from '../../auth/entities/account.entity';
 import { CareersService } from '../../careers/careers.service';
 import { isChampionArchetypeAllowed } from '../../careers/config/champion-archetype.config';
+import {
+  PLAYER_INSTRUCTIONS_BY_POSITION,
+  ROLE_PROFICIENCY_CONFIG,
+} from '../../careers/config/player-instruction.config';
+import { CAREER_PLAYER_STATE_CONFIG } from '../../careers/config/player-state.config';
+import { POSITION_PROFICIENCY_CONFIG } from '../../careers/config/position-proficiency.config';
+import { TEAM_CHEMISTRY_CONFIG } from '../../careers/config/team-chemistry.config';
+import { TEAM_STRATEGY_PROFICIENCY_CONFIG } from '../../careers/config/team-strategy-proficiency.config';
+import { STARTER_POSITIONS } from '../../careers/constants/career.constants';
 import { CreateCareerDto } from '../../careers/dto/create-career.dto';
 import { CareerTeam } from '../../careers/entities/career-team.entity';
+import { CareerTeamStrategyProficiency } from '../../careers/entities/career-team-strategy-proficiency.entity';
+import { CareerPlayer } from '../../careers/entities/career-player.entity';
+import { CareerPlayerPositionProficiency } from '../../careers/entities/career-player-position-proficiency.entity';
+import { CareerPlayerRoleProficiency } from '../../careers/entities/career-player-role-proficiency.entity';
 import { Career } from '../../careers/entities/career.entity';
 import { Roster } from '../../careers/entities/roster.entity';
 import { ChampionArchetype } from '../../careers/enums/champion-archetype.enum';
 import { Region } from '../../careers/enums/region.enum';
 import { RosterRole } from '../../careers/enums/roster-role.enum';
+import { TeamStrategy } from '../../careers/enums/team-strategy.enum';
 import { PlayerCard } from '../../players/entities/player-card.entity';
 import { Player } from '../../players/entities/player.entity';
 import { Theme } from '../../players/entities/theme.entity';
 import { Position } from '../../players/enums/position.enum';
+import { PlayerPersonality } from '../../players/enums/player-personality.enum';
 import { SetBonus } from '../../set-bonuses/entities/set-bonus.entity';
 import { SetBonusRequirement } from '../../set-bonuses/entities/set-bonus-requirement.entity';
 import dataSource from '../data-source';
@@ -48,6 +63,10 @@ interface DevelopmentSeedData {
       playerCardKey: string;
       championArchetype?: ChampionArchetype;
     }>;
+    benches?: Array<{
+      playerCardKey: string;
+      initialForm: number;
+    }>;
   }>;
 }
 
@@ -68,6 +87,7 @@ interface DevelopmentPlayerCardData {
   teamPlay: number;
   mental: number;
   championPool: number;
+  personality: PlayerPersonality;
   potential: number;
 }
 
@@ -206,6 +226,7 @@ async function seedCatalog(
         teamPlay: cardData.teamPlay,
         mental: cardData.mental,
         championPool: cardData.championPool,
+        personality: cardData.personality,
         potential: cardData.potential,
       });
       playerCardsByKey.set(
@@ -218,19 +239,217 @@ async function seedCatalog(
   });
 }
 
+interface ExistingCareerSyncResult {
+  createdTeamCount: number;
+  createdStarterCount: number;
+}
+
+async function syncExistingCareerTeamsAndStarters(
+  careerId: number,
+  seedData: DevelopmentSeedData,
+  playerCardsByKey: Map<string, PlayerCard>,
+): Promise<ExistingCareerSyncResult> {
+  return dataSource.transaction(async (manager) => {
+    let createdTeamCount = 0;
+    let createdStarterCount = 0;
+
+    for (const teamData of seedData.teams) {
+      let careerTeam = await manager.findOneBy(CareerTeam, {
+        careerId,
+        code: teamData.code,
+      });
+
+      if (!careerTeam) {
+        careerTeam = await manager.save(
+          CareerTeam,
+          manager.create(CareerTeam, {
+            careerId,
+            code: teamData.code,
+            name: teamData.name,
+            region: teamData.region,
+            isUserControlled: teamData.code === seedData.managedTeamCode,
+            teamStrategy: TeamStrategy.BALANCED,
+            chemistry: TEAM_CHEMISTRY_CONFIG.initial,
+          }),
+        );
+        createdTeamCount += 1;
+      } else {
+        careerTeam.name = teamData.name;
+        careerTeam.region = teamData.region;
+        careerTeam.isUserControlled =
+          teamData.code === seedData.managedTeamCode;
+        careerTeam = await manager.save(CareerTeam, careerTeam);
+      }
+
+      for (const strategy of Object.values(TeamStrategy)) {
+        const existingProficiency = await manager.findOneBy(
+          CareerTeamStrategyProficiency,
+          { careerTeamId: careerTeam.id, strategy },
+        );
+
+        if (!existingProficiency) {
+          await manager.save(
+            CareerTeamStrategyProficiency,
+            manager.create(CareerTeamStrategyProficiency, {
+              careerTeamId: careerTeam.id,
+              careerTeam,
+              strategy,
+              proficiency: TEAM_STRATEGY_PROFICIENCY_CONFIG.initial,
+            }),
+          );
+        }
+      }
+
+      for (const starterData of teamData.starters) {
+        const playerCard = playerCardsByKey.get(starterData.playerCardKey);
+
+        if (!playerCard) {
+          throw new Error(
+            `Unknown PlayerCard key: ${starterData.playerCardKey}`,
+          );
+        }
+
+        const existingStarter = await manager.findOne(Roster, {
+          where: {
+            careerTeamId: careerTeam.id,
+            role: RosterRole.STARTER,
+            starterPosition: starterData.position,
+          },
+          relations: { careerPlayer: true },
+        });
+
+        if (existingStarter) {
+          if (existingStarter.careerPlayer.playerCardId !== playerCard.id) {
+            throw new Error(
+              `${teamData.code} ${starterData.position} is already occupied by another player; the seed will not overwrite an existing save`,
+            );
+          }
+
+          continue;
+        }
+
+        let careerPlayer = await manager.findOne(CareerPlayer, {
+          where: { careerId, playerCardId: playerCard.id },
+          relations: { roster: true },
+        });
+
+        if (careerPlayer?.roster) {
+          throw new Error(
+            `${starterData.playerCardKey} is already registered in another roster`,
+          );
+        }
+
+        if (!careerPlayer) {
+          careerPlayer = await manager.save(
+            CareerPlayer,
+            manager.create(CareerPlayer, {
+              careerId,
+              playerCardId: playerCard.id,
+              playerCard,
+              currentTeamId: careerTeam.id,
+              currentTeam: careerTeam,
+              currentAge: playerCard.startingAge,
+              currentPosition: starterData.position,
+              currentMechanics: playerCard.mechanics,
+              currentGameSense: playerCard.gameSense,
+              currentLaning: playerCard.laning,
+              currentTeamFight: playerCard.teamFight,
+              currentMacro: playerCard.macro,
+              currentTeamPlay: playerCard.teamPlay,
+              currentMental: playerCard.mental,
+              currentChampionPool: playerCard.championPool,
+              form: CAREER_PLAYER_STATE_CONFIG.initial.form,
+              condition: CAREER_PLAYER_STATE_CONFIG.initial.condition,
+              personality: playerCard.personality,
+              coachTrust: CAREER_PLAYER_STATE_CONFIG.initial.coachTrust,
+            }),
+          );
+
+          await manager.save(
+            CareerPlayerPositionProficiency,
+            STARTER_POSITIONS.map((position) =>
+              manager.create(CareerPlayerPositionProficiency, {
+                careerPlayerId: careerPlayer!.id,
+                careerPlayer: careerPlayer!,
+                position,
+                proficiency:
+                  position === starterData.position
+                    ? POSITION_PROFICIENCY_CONFIG.initialPrimary
+                    : POSITION_PROFICIENCY_CONFIG.initialSecondary,
+              }),
+            ),
+          );
+          await manager.save(
+            CareerPlayerRoleProficiency,
+            PLAYER_INSTRUCTIONS_BY_POSITION[starterData.position].map(
+              (instruction) =>
+                manager.create(CareerPlayerRoleProficiency, {
+                  careerPlayerId: careerPlayer!.id,
+                  careerPlayer: careerPlayer!,
+                  position: starterData.position,
+                  instruction,
+                  proficiency: ROLE_PROFICIENCY_CONFIG.initial,
+                }),
+            ),
+          );
+        } else {
+          careerPlayer.currentTeamId = careerTeam.id;
+          careerPlayer.currentTeam = careerTeam;
+          careerPlayer.currentPosition = starterData.position;
+          careerPlayer = await manager.save(CareerPlayer, careerPlayer);
+        }
+
+        await manager.save(
+          Roster,
+          manager.create(Roster, {
+            careerTeamId: careerTeam.id,
+            careerTeam,
+            careerPlayerId: careerPlayer.id,
+            careerPlayer,
+            role: RosterRole.STARTER,
+            starterPosition: starterData.position,
+            playerInstruction: null,
+            championArchetype: null,
+          }),
+        );
+        createdStarterCount += 1;
+      }
+    }
+
+    return { createdTeamCount, createdStarterCount };
+  });
+}
+
 async function seedCareer(
   accountId: number,
   seedData: DevelopmentSeedData,
   playerCardsByKey: Map<string, PlayerCard>,
-): Promise<number> {
+): Promise<{
+  careerId: number;
+  created: boolean;
+  createdTeamCount: number;
+  createdStarterCount: number;
+}> {
   const careerTeamsRepository = dataSource.getRepository(CareerTeam);
-  const existingSeedTeam = await careerTeamsRepository.findOne({
-    where: { code: seedData.managedTeamCode },
-    relations: { career: true },
-  });
+  const existingSeedTeam = await careerTeamsRepository
+    .createQueryBuilder('careerTeam')
+    .innerJoinAndSelect('careerTeam.career', 'career')
+    .where('careerTeam.code = :code', { code: seedData.managedTeamCode })
+    .andWhere('career.accountId = :accountId', { accountId })
+    .getOne();
 
   if (existingSeedTeam) {
-    return existingSeedTeam.career.id;
+    const syncResult = await syncExistingCareerTeamsAndStarters(
+      existingSeedTeam.career.id,
+      seedData,
+      playerCardsByKey,
+    );
+
+    return {
+      careerId: existingSeedTeam.career.id,
+      created: false,
+      ...syncResult,
+    };
   }
 
   const dto: CreateCareerDto = {
@@ -252,6 +471,15 @@ async function seedCareer(
           position: starter.position,
         };
       }),
+      benches: (team.benches ?? []).map((bench) => {
+        const playerCard = playerCardsByKey.get(bench.playerCardKey);
+
+        if (!playerCard) {
+          throw new Error(`Unknown PlayerCard key: ${bench.playerCardKey}`);
+        }
+
+        return { playerCardId: playerCard.id };
+      }),
     })),
   };
   const careersService = new CareersService(
@@ -261,7 +489,154 @@ async function seedCareer(
   );
   const career = await careersService.create(accountId, dto);
 
-  return career.id;
+  return {
+    careerId: career.id,
+    created: true,
+    createdTeamCount: seedData.teams.length,
+    createdStarterCount: seedData.teams.reduce(
+      (count, team) => count + team.starters.length,
+      0,
+    ),
+  };
+}
+
+async function syncCareerBenches(
+  careerId: number,
+  initializeExistingBenches: boolean,
+  seedData: DevelopmentSeedData,
+  playerCardsByKey: Map<string, PlayerCard>,
+): Promise<number> {
+  return dataSource.transaction(async (manager) => {
+    let createdCount = 0;
+
+    for (const teamData of seedData.teams) {
+      const careerTeam = await manager.findOneBy(CareerTeam, {
+        careerId,
+        code: teamData.code,
+      });
+
+      if (!careerTeam) {
+        throw new Error(`CareerTeam ${teamData.code} was not found`);
+      }
+
+      for (const benchData of teamData.benches ?? []) {
+        if (
+          benchData.initialForm < CAREER_PLAYER_STATE_CONFIG.min ||
+          benchData.initialForm > CAREER_PLAYER_STATE_CONFIG.max
+        ) {
+          throw new Error(
+            `${benchData.playerCardKey} initialForm must be between ${CAREER_PLAYER_STATE_CONFIG.min} and ${CAREER_PLAYER_STATE_CONFIG.max}`,
+          );
+        }
+
+        const playerCard = playerCardsByKey.get(benchData.playerCardKey);
+
+        if (!playerCard) {
+          throw new Error(`Unknown PlayerCard key: ${benchData.playerCardKey}`);
+        }
+
+        let careerPlayer = await manager.findOne(CareerPlayer, {
+          where: { careerId, playerCardId: playerCard.id },
+          relations: { roster: true },
+        });
+
+        if (careerPlayer?.roster) {
+          if (careerPlayer.roster.careerTeamId !== careerTeam.id) {
+            throw new Error(
+              `${benchData.playerCardKey} is already registered outside ${teamData.code}`,
+            );
+          }
+
+          if (
+            initializeExistingBenches &&
+            careerPlayer.roster.role === RosterRole.BENCH
+          ) {
+            careerPlayer.form = benchData.initialForm;
+            await manager.save(CareerPlayer, careerPlayer);
+          }
+
+          continue;
+        }
+
+        if (!careerPlayer) {
+          careerPlayer = await manager.save(
+            CareerPlayer,
+            manager.create(CareerPlayer, {
+              careerId,
+              playerCardId: playerCard.id,
+              playerCard,
+              currentTeamId: careerTeam.id,
+              currentTeam: careerTeam,
+              currentAge: playerCard.startingAge,
+              currentPosition: playerCard.mainPosition,
+              currentMechanics: playerCard.mechanics,
+              currentGameSense: playerCard.gameSense,
+              currentLaning: playerCard.laning,
+              currentTeamFight: playerCard.teamFight,
+              currentMacro: playerCard.macro,
+              currentTeamPlay: playerCard.teamPlay,
+              currentMental: playerCard.mental,
+              currentChampionPool: playerCard.championPool,
+              form: benchData.initialForm,
+              condition: CAREER_PLAYER_STATE_CONFIG.initial.condition,
+              personality: playerCard.personality,
+              coachTrust: CAREER_PLAYER_STATE_CONFIG.initial.coachTrust,
+            }),
+          );
+
+          await manager.save(
+            CareerPlayerPositionProficiency,
+            STARTER_POSITIONS.map((position) =>
+              manager.create(CareerPlayerPositionProficiency, {
+                careerPlayerId: careerPlayer!.id,
+                careerPlayer: careerPlayer!,
+                position,
+                proficiency:
+                  position === playerCard.mainPosition
+                    ? POSITION_PROFICIENCY_CONFIG.initialPrimary
+                    : POSITION_PROFICIENCY_CONFIG.initialSecondary,
+              }),
+            ),
+          );
+          await manager.save(
+            CareerPlayerRoleProficiency,
+            PLAYER_INSTRUCTIONS_BY_POSITION[playerCard.mainPosition].map(
+              (instruction) =>
+                manager.create(CareerPlayerRoleProficiency, {
+                  careerPlayerId: careerPlayer!.id,
+                  careerPlayer: careerPlayer!,
+                  position: playerCard.mainPosition,
+                  instruction,
+                  proficiency: ROLE_PROFICIENCY_CONFIG.initial,
+                }),
+            ),
+          );
+        } else {
+          careerPlayer.currentTeamId = careerTeam.id;
+          careerPlayer.currentTeam = careerTeam;
+          careerPlayer.form = benchData.initialForm;
+          careerPlayer = await manager.save(CareerPlayer, careerPlayer);
+        }
+
+        await manager.save(
+          Roster,
+          manager.create(Roster, {
+            careerTeamId: careerTeam.id,
+            careerTeam,
+            careerPlayerId: careerPlayer.id,
+            careerPlayer,
+            role: RosterRole.BENCH,
+            starterPosition: null,
+            playerInstruction: null,
+            championArchetype: null,
+          }),
+        );
+        createdCount += 1;
+      }
+    }
+
+    return createdCount;
+  });
 }
 
 async function seedSetBonuses(
@@ -314,6 +689,21 @@ async function seedSetBonuses(
 
     return seedData.setBonuses.length;
   });
+}
+
+async function syncCareerPlayerPersonalities(careerId: number): Promise<void> {
+  const careerPlayersRepository = dataSource.getRepository(CareerPlayer);
+  const careerPlayers = await careerPlayersRepository.find({
+    where: { careerId },
+    relations: { playerCard: true },
+  });
+
+  await careerPlayersRepository.save(
+    careerPlayers.map((careerPlayer) => {
+      careerPlayer.personality = careerPlayer.playerCard.personality;
+      return careerPlayer;
+    }),
+  );
 }
 
 async function seedChampionArchetypes(
@@ -385,11 +775,23 @@ async function runSeed(): Promise<void> {
     const account = await seedDevelopmentAccount(accountConfig);
     const playerCardsByKey = await seedCatalog(seedData);
     const setBonusCount = await seedSetBonuses(seedData, playerCardsByKey);
-    const careerId = await seedCareer(account.id, seedData, playerCardsByKey);
+    const seededCareer = await seedCareer(
+      account.id,
+      seedData,
+      playerCardsByKey,
+    );
+    const benchCount = await syncCareerBenches(
+      seededCareer.careerId,
+      seededCareer.created,
+      seedData,
+      playerCardsByKey,
+    );
+    const careerId = seededCareer.careerId;
+    await syncCareerPlayerPersonalities(careerId);
     const archetypeCount = await seedChampionArchetypes(careerId, seedData);
 
     console.log(
-      `Development seed ready: Account ${account.email}, ${playerCardsByKey.size} PlayerCards, ${setBonusCount} SetBonuses, ${archetypeCount} ChampionArchetypes, Career ${careerId}`,
+      `Development seed ready: Account ${account.email}, ${playerCardsByKey.size} PlayerCards, ${setBonusCount} SetBonuses, ${seededCareer.createdTeamCount} new Teams, ${seededCareer.createdStarterCount} new Starter slots, ${archetypeCount} ChampionArchetypes, ${benchCount} new Bench slots, Career ${careerId}`,
     );
   } finally {
     await dataSource.destroy();

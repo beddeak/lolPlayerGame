@@ -4,7 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
 import { Position } from '../players/enums/position.enum';
 import { isChampionArchetypeAllowed } from './config/champion-archetype.config';
 import {
@@ -23,6 +23,11 @@ import {
   ChampionArchetypeResponseDto,
   UpdateChampionArchetypeDto,
 } from './dto/update-champion-archetype.dto';
+import {
+  SwapStarterDto,
+  SwapStarterResponseDto,
+  SwappedRosterSlotResponseDto,
+} from './dto/swap-starter.dto';
 import { CareerTeam } from './entities/career-team.entity';
 import { CareerPlayerRoleProficiency } from './entities/career-player-role-proficiency.entity';
 import { Roster } from './entities/roster.entity';
@@ -31,6 +36,7 @@ import { RosterRole } from './enums/roster-role.enum';
 @Injectable()
 export class CareerTeamsService {
   constructor(
+    private readonly dataSource: DataSource,
     @InjectRepository(CareerTeam)
     private readonly careerTeamsRepository: Repository<CareerTeam>,
     @InjectRepository(Roster)
@@ -178,6 +184,85 @@ export class CareerTeamsService {
       careerPlayerId: savedRoster.careerPlayerId,
       position,
       archetype: dto.archetype,
+    };
+  }
+
+  async swapStarter(
+    accountId: number,
+    careerId: number,
+    careerTeamId: number,
+    position: Position,
+    dto: SwapStarterDto,
+  ): Promise<SwapStarterResponseDto> {
+    return this.dataSource.transaction(async (manager) => {
+      const careerTeam = await manager.findOne(CareerTeam, {
+        where: {
+          id: careerTeamId,
+          careerId,
+          isUserControlled: true,
+          career: { accountId },
+        },
+        relations: { career: true, rosters: true },
+        lock: { mode: 'pessimistic_write' },
+      });
+
+      if (!careerTeam) {
+        throw new NotFoundException(
+          `Managed CareerTeam ${careerTeamId} was not found in Career ${careerId}`,
+        );
+      }
+
+      const currentStarter = careerTeam.rosters.find(
+        (roster) =>
+          roster.role === RosterRole.STARTER &&
+          roster.starterPosition === position,
+      );
+      const selectedBench = careerTeam.rosters.find(
+        (roster) =>
+          roster.role === RosterRole.BENCH &&
+          roster.careerPlayerId === dto.benchCareerPlayerId,
+      );
+
+      if (!currentStarter) {
+        throw new NotFoundException(
+          `${position} starter was not found in CareerTeam ${careerTeamId}`,
+        );
+      }
+
+      if (!selectedBench) {
+        throw new NotFoundException(
+          `Bench CareerPlayer ${dto.benchCareerPlayerId} was not found in CareerTeam ${careerTeamId}`,
+        );
+      }
+
+      currentStarter.role = RosterRole.BENCH;
+      currentStarter.starterPosition = null;
+      currentStarter.playerInstruction = null;
+      currentStarter.championArchetype = null;
+      const demotedBench = await manager.save(Roster, currentStarter);
+
+      selectedBench.role = RosterRole.STARTER;
+      selectedBench.starterPosition = position;
+      selectedBench.playerInstruction = null;
+      selectedBench.championArchetype = null;
+      const promotedStarter = await manager.save(Roster, selectedBench);
+
+      return {
+        careerId,
+        careerTeamId,
+        position,
+        promotedStarter: this.toSwappedRosterSlot(promotedStarter),
+        demotedBench: this.toSwappedRosterSlot(demotedBench),
+      };
+    });
+  }
+
+  private toSwappedRosterSlot(roster: Roster): SwappedRosterSlotResponseDto {
+    return {
+      rosterId: roster.id,
+      careerPlayerId: roster.careerPlayerId,
+      role: roster.role,
+      starterPosition: roster.starterPosition,
     };
   }
 }

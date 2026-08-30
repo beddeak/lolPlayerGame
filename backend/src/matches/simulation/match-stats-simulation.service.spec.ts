@@ -21,6 +21,7 @@ describe('MatchStatsSimulationService', () => {
       position,
       playerInstruction: null,
       roleProficiency: null,
+      positionProficiency: 100,
       championArchetype: null,
       form: 50,
       condition: 100,

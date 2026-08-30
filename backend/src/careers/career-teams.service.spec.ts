@@ -1,6 +1,7 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Test, TestingModule } from '@nestjs/testing';
+import { DataSource } from 'typeorm';
 import { Position } from '../players/enums/position.enum';
 import { CareerTeamsService } from './career-teams.service';
 import { CareerPlayerRoleProficiency } from './entities/career-player-role-proficiency.entity';
@@ -30,6 +31,16 @@ describe('CareerTeamsService', () => {
     findOneBy: jest.fn(),
     save: jest.fn(),
   };
+  const transactionManager = {
+    findOne: jest.fn(),
+    save: jest.fn(),
+  };
+  const dataSource = {
+    transaction: jest.fn(
+      (work: (manager: typeof transactionManager) => Promise<unknown>) =>
+        work(transactionManager),
+    ),
+  };
   const careerTeam = {
     id: 1,
     careerId: 1,
@@ -50,6 +61,16 @@ describe('CareerTeamsService', () => {
     playerInstruction: null,
     championArchetype: null,
   } as Roster;
+  const benchRoster = {
+    id: 11,
+    careerTeamId: careerTeam.id,
+    careerTeam,
+    careerPlayerId: 101,
+    role: RosterRole.BENCH,
+    starterPosition: null,
+    playerInstruction: null,
+    championArchetype: null,
+  } as Roster;
   const roleProficiency = {
     id: 20,
     careerPlayerId: roster.careerPlayerId,
@@ -66,6 +87,7 @@ describe('CareerTeamsService', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         CareerTeamsService,
+        { provide: DataSource, useValue: dataSource },
         {
           provide: getRepositoryToken(CareerTeam),
           useValue: careerTeamsRepository,
@@ -86,6 +108,12 @@ describe('CareerTeamsService', () => {
     roster.starterPosition = Position.ADC;
     roster.playerInstruction = null;
     roster.championArchetype = null;
+    roster.role = RosterRole.STARTER;
+    benchRoster.role = RosterRole.BENCH;
+    benchRoster.starterPosition = null;
+    benchRoster.playerInstruction = null;
+    benchRoster.championArchetype = null;
+    careerTeam.rosters = [roster, benchRoster];
     careerTeamsRepository.findOne.mockResolvedValue(careerTeam);
     careerTeamsRepository.save.mockImplementation((value) =>
       Promise.resolve(value),
@@ -93,6 +121,10 @@ describe('CareerTeamsService', () => {
     rostersRepository.findOne.mockResolvedValue(roster);
     rostersRepository.save.mockImplementation((value) =>
       Promise.resolve(value),
+    );
+    transactionManager.findOne.mockResolvedValue(careerTeam);
+    transactionManager.save.mockImplementation(
+      (_entity: unknown, value: Roster) => Promise.resolve(value),
     );
     roleProficienciesRepository.findOneBy.mockResolvedValue(roleProficiency);
     roleProficienciesRepository.save.mockImplementation((value) =>
@@ -208,5 +240,51 @@ describe('CareerTeamsService', () => {
       }),
     ).rejects.toBeInstanceOf(BadRequestException);
     expect(rostersRepository.findOne).not.toHaveBeenCalled();
+  });
+
+  it('swaps a bench player into a starter position atomically', async () => {
+    const result = await service.swapStarter(
+      7,
+      1,
+      careerTeam.id,
+      Position.ADC,
+      { benchCareerPlayerId: benchRoster.careerPlayerId },
+    );
+
+    expect(result.promotedStarter).toEqual({
+      rosterId: benchRoster.id,
+      careerPlayerId: benchRoster.careerPlayerId,
+      role: RosterRole.STARTER,
+      starterPosition: Position.ADC,
+    });
+    expect(result.demotedBench).toEqual({
+      rosterId: roster.id,
+      careerPlayerId: roster.careerPlayerId,
+      role: RosterRole.BENCH,
+      starterPosition: null,
+    });
+    expect(transactionManager.save).toHaveBeenCalledTimes(2);
+  });
+
+  it('rejects a swap when the selected player is not on the bench', async () => {
+    careerTeam.rosters = [roster];
+
+    await expect(
+      service.swapStarter(7, 1, careerTeam.id, Position.ADC, {
+        benchCareerPlayerId: 999,
+      }),
+    ).rejects.toBeInstanceOf(NotFoundException);
+    expect(transactionManager.save).not.toHaveBeenCalled();
+  });
+
+  it('rejects a swap for an unmanaged or foreign team', async () => {
+    transactionManager.findOne.mockResolvedValue(null);
+
+    await expect(
+      service.swapStarter(7, 1, careerTeam.id, Position.ADC, {
+        benchCareerPlayerId: benchRoster.careerPlayerId,
+      }),
+    ).rejects.toBeInstanceOf(NotFoundException);
+    expect(transactionManager.save).not.toHaveBeenCalled();
   });
 });

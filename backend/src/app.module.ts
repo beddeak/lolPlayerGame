@@ -10,6 +10,7 @@ import { MatchesModule } from './matches/matches.module';
 import { MatchSeriesModule } from './match-series/match-series.module';
 import { PlayersModule } from './players/players.module';
 import { SetBonusesModule } from './set-bonuses/set-bonuses.module';
+import { LeaguesModule } from './leagues/leagues.module';
 
 @Module({
   imports: [
@@ -44,6 +45,7 @@ import { SetBonusesModule } from './set-bonuses/set-bonuses.module';
     CareersModule,
     MatchesModule,
     MatchSeriesModule,
+    LeaguesModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -1,4 +1,5 @@
 import { Position } from '../enums/position.enum';
+import { PlayerPersonality } from '../enums/player-personality.enum';
 import { PlayerResponseDto } from './player-response.dto';
 import { ThemeResponseDto } from './theme-response.dto';
 
@@ -18,6 +19,7 @@ export class PlayerCardResponseDto {
   teamPlay!: number;
   mental!: number;
   championPool!: number;
+  personality!: PlayerPersonality;
   player!: PlayerResponseDto;
   theme!: ThemeResponseDto;
 }

@@ -41,6 +41,7 @@ describe('MatchSeriesService', () => {
     teamBId: teamB.id,
     teamB,
     seed: 100,
+    bestOf: 3,
     games: [],
   } as unknown as MatchSeries;
   const matchSeriesRepository = {
@@ -66,6 +67,7 @@ describe('MatchSeriesService', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     series.games = [];
+    series.bestOf = 3;
     winners = [teamA.id, teamB.id, teamA.id];
     simulatedSeeds = [];
     careerTeamsRepository.find.mockResolvedValue([teamA, teamB]);
@@ -140,6 +142,34 @@ describe('MatchSeriesService', () => {
     await expect(service.simulateNextGame(7, series.id)).rejects.toBeInstanceOf(
       ConflictException,
     );
+  });
+
+  it('plays a BO5 until one team reaches three wins', async () => {
+    series.bestOf = 5;
+    winners = [teamA.id, teamB.id, teamA.id, teamB.id, teamA.id];
+
+    let result = await service.simulateNextGame(7, series.id);
+    result = await service.simulateNextGame(7, series.id);
+    result = await service.simulateNextGame(7, series.id);
+    result = await service.simulateNextGame(7, series.id);
+    result = await service.simulateNextGame(7, series.id);
+
+    expect(result.bestOf).toBe(5);
+    expect(result.winsRequired).toBe(3);
+    expect(result.status).toBe(MatchSeriesStatus.COMPLETED);
+    expect(result.winnerTeamId).toBe(teamA.id);
+    expect(result.games).toHaveLength(5);
+  });
+
+  it('completes a BO1 after one game', async () => {
+    series.bestOf = 1;
+
+    const result = await service.simulateNextGame(7, series.id);
+
+    expect(result.bestOf).toBe(1);
+    expect(result.winsRequired).toBe(1);
+    expect(result.status).toBe(MatchSeriesStatus.COMPLETED);
+    expect(result.games).toHaveLength(1);
   });
 
   it('returns a structured analysis of the latest game', async () => {
@@ -219,6 +249,7 @@ function createMatchResponse(
       position,
       playerInstruction: null,
       roleProficiency: null,
+      positionProficiency: 100,
       championArchetype: null,
       form: 50,
       condition: 100,

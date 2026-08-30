@@ -9,6 +9,7 @@ export class MatchPlayerStatResponseDto {
   position!: Position;
   playerInstruction!: PlayerInstruction | null;
   roleProficiency!: number | null;
+  positionProficiency!: number;
   championArchetype!: ChampionArchetype | null;
   form!: number;
   condition!: number;

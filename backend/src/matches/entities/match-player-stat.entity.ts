@@ -66,6 +66,9 @@ export class MatchPlayerStat {
   @Column({ type: 'tinyint', unsigned: true, nullable: true })
   roleProficiency!: number | null;
 
+  @Column({ type: 'tinyint', unsigned: true, default: 100 })
+  positionProficiency!: number;
+
   @Column({ type: 'enum', enum: ChampionArchetype, nullable: true })
   championArchetype!: ChampionArchetype | null;
 

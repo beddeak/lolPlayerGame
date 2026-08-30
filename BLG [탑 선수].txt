@@ -16,8 +16,8 @@ Mental: 76
 ChampionPool: 95 
 
 [현재 상태]
-Form: 90 
-Condition: 92 
+Form: 100
+Condition: 100 
 
 [포지션 숙련도]
 TOP: 100 
@@ -909,7 +909,7 @@ SupportChemistry: 97    # 현재 서포터와의 바텀 듀오 호흡.
 CoachTrust:       100    # 감독에 대한 신뢰.
 
 FeedbackAcceptance:  잘따름 # 감독 피드백 수용 정도.
-
+대표챔:애쉬 이즈 유나라
 
 [서포터 선수]
 
@@ -1011,7 +1011,8 @@ ADC_Chemistry:    97    # 현재 ADC와의 바텀 듀오 호흡.
 
 CoachTrust:      100     # 감독에 대한 신뢰.
 
-FeedbackAcceptance: (일단 듣고 해낼려함)  # 감독 피드백을 얼마나 잘 받아들이는지.
+FeedbackAcceptance: 100  # 감독 피드백을 얼마나 잘 받아들이는지.
+바드 / 룰루 / 노틸러스
 
 [탑 선수]
 
@@ -1021,14 +1022,14 @@ FeedbackAcceptance: (일단 듣고 해낼려함)  # 감독 피드백을 얼마�
 OVR: 93
 
 [기본 능력치]
-Mechanics: 98
-GameSense: 96
-Laning: 98
-TeamFight: 97
-Macro: 96
-TeamPlay: 95
-Mental: 96
-ChampionPool: 97
+Mechanics: 98 #피지컬
+GameSense: 96 #뇌지컬
+Laning: 98 #라인전
+TeamFight: 97 #한타력
+Macro: 96 #운영능력
+TeamPlay: 95 #팀플레이능략
+Mental: 96 #멘탈
+ChampionPool: 97 #챔피언폭
 
 [현재 상태]
 Form: 96
@@ -1336,12 +1337,7 @@ FeedbackAcceptance: 99
 세라핀
 라칸
 
-[특징]
-게임을 읽는 능력이 강한 이니시형 서포터
-탱커/이니시 숙련도 최고급
-결정적인 이니시가 트레이드마크
-유틸 서포터는 최근 확장 중이지만 아직 전문 분야는 아님
-피드백 수용도 높음
+
 [탑 선수]
 
 이름: Kiin
@@ -1397,14 +1393,7 @@ FeedbackAcceptance: 100
 크산테
 제이스
 
-[특징]
-완성형 육각형 탑라이너
-모든 역할에서 최소 상위권 이상의 수행력을 보임
-저자원, 캐리, 탱커, 사이드, 한타 모두 가능
-경기력이 무너지는 경우가 극히 적음
-저점에서도 최소 1인분 이상을 보장
-사이드 운영 능력이 매우 뛰어남
-팀 전술과 피드백 수용도가 매우 높음
+
 [미드 선수]
 
 이름: Chovy
@@ -1464,16 +1453,7 @@ FeedbackAcceptance: 99
 애니비아
 애니
 
-[특징]
-2026 GEN의 핵심 전력
-현시점 LCK 미드 최상위권
-Knight와 세계 최고 미드 평가를 양분
-라인전과 성장 능력이 특히 압도적
-폼이 조금 떨어져도 리그 최상급 퍼포먼스를 유지
-챔피언 폭이 매우 넓어 대표 챔피언 선정 자체가 어려운 선수
-정규시즌 MVP/POM 경쟁에서 항상 최상위권
-사이드 운영과 자원 성장 능력이 세계 최고 수준
-현재까지 월즈 우승이 없다는 점이 커리어의 가장 큰 미완성 요소
+
 [원딜 선수]
 
 이름: Ruler
@@ -1534,13 +1514,7 @@ FeedbackAcceptance: 99
 이즈리얼
 유나라
 
-[특징]
-과거 하이퍼캐리의 대명사였던 베테랑 원딜
-현재는 전성기처럼 모든 자원을 몰아받는 스타일보다 팀 시스템에 맞춘 플레이 비중이 높음
-한타 포지셔닝과 후반 딜링은 여전히 최상급
-시즌 초반에는 부진했지만 이후 폼을 회복하며 상위권 퍼포먼스로 복귀
-2026 시즌 내 폼 기복이 비교적 컸음
-경험과 클러치 능력이 매우 뛰어남
+
 [서포터 선수]
 
 이름: Duro
@@ -1600,14 +1574,7 @@ FeedbackAcceptance: 99
 카르마
 세라핀
 
-[특징]
-GEN의 안정장치 역할을 하는 서포터
-팀이 흔들릴 때 운영과 시야를 정리해 게임 구조를 유지하는 능력이 뛰어남
-현재는 압도적인 개인 퍼포먼스가 자주 나오지는 않음
-2025 시즌에는 리그 최고 서포터급 고점을 보여준 경험이 있음
-이니시와 유틸 모두 가능한 균형형
-위험한 플레이를 억지로 만들기보다 확률 높은 선택을 선호
-GEN의 강한 라이너들이 편하게 플레이할 수 있도록 판을 정리하는 타입
+
 [탑 선수]
 
 이름: Doran
@@ -1663,15 +1630,6 @@ FeedbackAcceptance: 98
 암베사
 사이온
 
-[특징]
-2026 시즌 극심한 저폼 상태
-과거에는 높은 고점을 여러 차례 보여줬지만 최근에는 그 고점 자체가 거의 나오지 않음
-공격적인 플레이를 선호하지만 현재는 캐리 역할 수행력이 부족함
-그렇다고 완전한 저자원 버티기형 탑도 아니라 역할 정체성이 애매해진 상태
-현재 가장 안정적인 활용법은 탱커와 한타 중심 역할
-챔피언 폭 자체는 넓어 밴픽이 심하게 막히는 선수는 아님
-멘탈과 피드백 수용 능력은 좋은 편이지만 경기력 자체가 내려가 있음
-폼 변동성이 매우 큰 선수
 [정글 선수]
 
 이름: Oner
@@ -1730,14 +1688,7 @@ FeedbackAcceptance: 99
 바이
 신 짜오
 
-[특징]
-T1 상체 교전의 핵심 전력
-강한 피지컬과 소규모 교전 능력이 가장 큰 장점
-특히 싸움이 발생했을 때 순간적인 스킬 활용과 진입 능력이 뛰어남
-중요 경기에서 고점을 만들어낼 수 있는 클러치형 정글러
-2026 시즌 1~2라운드에는 팀을 상위권으로 버티게 하는 핵심 중 하나였음
-3~4라운드 들어 현재 폼이 크게 하락하면서 영향력이 감소
-기본 실력 자체가 떨어진 선수라기보다 현재 경기력이 본래 체급을 못 따라가는 상태
+
 [미드 선수]
 
 이름: Faker
@@ -1797,14 +1748,7 @@ FeedbackAcceptance: 100
 라이즈
 아지르
 
-[특징]
-30세의 최고참 베테랑 미드
-현재 순수 라인전과 피지컬은 전성기에 비해 크게 하락
-정규시즌에서는 라인전 단계부터 크게 밀리는 경기가 자주 발생
-개인 캐리보다는 운영, 로밍, 한타 설계, 팀플레이에서 높은 영향력을 가짐
-어떤 메타가 와도 넓은 챔피언 폭과 경험을 통해 적응 가능
-중요도가 높은 국제대회와 탈락전에서 경기력이 크게 상승하는 특수한 선수
-Champions/월즈에서 정규시즌과 전혀 다른 수준의 퍼포먼스를 보여줄 수 있음
+
 [원딜 선수]
 
 이름: Peyz
@@ -1865,14 +1809,7 @@ FeedbackAcceptance: 99
 루시안
 애쉬
 
-[특징]
-2026 T1의 가장 확실한 상수 중 하나
-Keria와 함께 팀의 경기력을 떠받치는 핵심 바텀 전력
-라인전을 이기면서 동시에 후반 하이퍼캐리 역할까지 수행 가능
-젊은 선수임에도 중요 경기에서 크게 흔들리지 않음
-공격적인 딜각을 적극적으로 찾지만 무모하게 들이박는 스타일은 아님
-자원을 많이 받을수록 캐리력이 크게 상승
-현재 Form이 매우 높아 Base OVR 90 이상으로 체감되는 경기가 많음
+
 [서포터 선수]
 
 이름: Keria
@@ -1932,15 +1869,7 @@ FeedbackAcceptance: 100
 니코
 카밀
 
-[특징]
-2026 T1의 핵심 전력
-Peyz와 함께 현재 T1 경기력을 떠받치는 가장 확실한 상수
-강력한 바텀 라인전과 빠른 로밍으로 초반 게임을 직접 터뜨릴 수 있음
-원딜 보좌, 이니시, 포킹, 유틸, 조커픽까지 대부분의 서포터 역할을 최고 수준으로 수행
-Faker 다음으로 팀 내 전술적 영향력이 큰 선수
-Tom과 함께 밴픽 방향과 팀 게임 플랜 설계에 크게 관여
-일반적인 서포터 챔피언뿐 아니라 비정상적인 조커픽까지 실제 전략으로 활용 가능
-중요 경기에서의 클러치 능력도 매우 높음
+
 [탑 선수]
 
 이름: Siwoo
@@ -2525,7 +2454,7 @@ FeedbackAcceptance: 100
 
 [대표 챔피언]
 
-미입력
+아칼리 라이즈 애니
 
 ## Taeyoon — ADC
 
@@ -3013,6 +2942,1087 @@ FeedbackAcceptance: 95
 노틸러스
 세라핀
 카르마
+# Nongshim RedForce — 5인 완성본
+
+## Kingen — TOP
+
+[탑 선수]
+
+이름: Kingen
+팀: Nongshim RedForce
+나이: 26세
+OVR: 83
+
+[기본 능력치]
+
+Mechanics: 89
+GameSense: 88
+Laning: 89
+TeamFight: 90
+Macro: 89
+TeamPlay: 89
+Mental: 91
+ChampionPool: 90
+
+[현재 상태]
+
+Form: 100
+Condition: 100
+
+[포지션 숙련도]
+
+TOP: 100
+
+[역할 숙련도]
+
+TOP_CARRY: 89
+WEAK_SIDE: 90
+SPLIT_PUSH: 89
+TEAMFIGHT_TOP: 90
+TANK_TOP: 89
+
+[챔피언 유형 숙련도]
+
+Tank: 95
+Bruiser: 95
+Carry: 95
+Ranged_TOP: 95
+AP_TOP: 95
+
+[플레이 성향]
+
+Aggression: 88
+RiskTaking: 80
+Consistency: 89
+Clutch: 96
+ResourceDemand: 86
+
+[팀 적응]
+
+TeamChemistry: 100
+CoachTrust: 100
+FeedbackAcceptance: 100
+
+[대표 챔피언]
+
+나르
+아트록스
+사이온
+
+## Sponge — JUNGLE
+
+[정글 선수]
+
+이름: Sponge
+팀: Nongshim RedForce
+나이: 22세
+OVR: 83
+
+[기본 능력치]
+
+Mechanics: 85
+GameSense: 86
+Laning: 86
+TeamFight: 87
+Macro: 87
+TeamPlay: 86
+Mental: 87
+ChampionPool: 86
+
+[현재 상태]
+
+Form: 100
+Condition: 100
+
+[포지션 숙련도]
+
+JUNGLE: 100
+
+[역할 숙련도]
+
+TEMPO_JUNGLE: 86
+CARRY_JUNGLE: 85
+FACILITATOR: 86
+OBJECTIVE_CONTROL: 86
+INVADE_JUNGLE: 86
+TEAMFIGHT_JUNGLE: 87
+
+[챔피언 유형 숙련도]
+
+Carry: 86
+Tank: 86
+Bruiser: 87
+AP_Jungle: 86
+Utility: 87
+EarlyGame: 87
+
+[플레이 성향]
+
+Aggression: 86
+RiskTaking: 86
+Consistency: 84
+Clutch: 87
+PathingCreativity: 84
+ObjectiveSense: 86
+
+[팀 적응]
+
+TeamChemistry: 100
+CoachTrust: 100
+FeedbackAcceptance: 100
+
+[대표 챔피언]
+
+자르반 4세
+판테온
+녹턴
+
+## Scout — MID
+
+[미드 선수]
+
+이름: Scout
+팀: Nongshim RedForce
+나이: 28세
+OVR: 84
+
+[기본 능력치]
+
+Mechanics: 92
+GameSense: 93
+Laning: 90
+TeamFight: 94
+Macro: 91
+TeamPlay: 94
+Mental: 95
+ChampionPool: 92
+
+[현재 상태]
+
+Form: 100
+Condition: 100
+
+[포지션 숙련도]
+
+MID: 100
+
+[역할 숙련도]
+
+MID_CARRY: 94
+ROAM_MID: 92
+CONTROL_MID: 93
+TEAMFIGHT_MID: 94
+UTILITY_MID: 92
+SIDE_LANE_MID: 93
+
+[챔피언 유형 숙련도]
+
+ControlMage: 98
+StandingMage: 100
+Assassin: 96
+MeleeMID: 94
+AD_MID: 91
+Utility: 92
+ScalingMage: 100
+
+[플레이 성향]
+
+Aggression: 91
+RiskTaking: 93
+Consistency: 95
+Clutch: 91
+LanePressure: 90
+RoamTendency: 91
+
+[팀 적응]
+
+TeamChemistry: 100
+CoachTrust: 100
+FeedbackAcceptance: 100
+
+[대표 챔피언]
+
+라이즈
+신드라
+아지르
+
+## Diable — ADC
+
+[원딜 선수]
+
+이름: Diable
+팀: Nongshim RedForce
+나이: 18세
+OVR: 85
+
+[기본 능력치]
+
+Mechanics: 92
+GameSense: 87
+Laning: 91
+TeamFight: 92
+Macro: 90
+TeamPlay: 89
+Mental: 86
+ChampionPool: 90
+
+[현재 상태]
+
+Form: 100
+Condition: 100
+
+[포지션 숙련도]
+
+ADC: 100
+
+[역할 숙련도]
+
+HYPER_CARRY: 100
+WEAK_SIDE: 84
+BOT_LANE_PRESSURE: 88
+TEAMFIGHT_CARRY: 92
+UTILITY_ADC: 87
+EARLY_GAME_ADC: 88
+
+[챔피언 유형 숙련도]
+
+CritMarksman: 100
+HyperCarry: 100
+LaneBully: 91
+UtilityADC: 89
+AP_Bot: 91
+ShortRangeADC: 98
+LongRangeADC: 92
+
+[플레이 성향]
+
+Aggression: 94
+RiskTaking: 90
+Consistency: 90
+Clutch: 89
+Positioning: 89
+ResourceDemand: 94
+
+[팀 적응]
+
+TeamChemistry: 94
+SupportChemistry: 91
+CoachTrust: 90
+FeedbackAcceptance: 87
+
+[대표 챔피언]
+
+이즈리얼
+루시안
+진
+
+## Lehends — SUPPORT
+
+[서포터 선수]
+
+이름: Lehends
+팀: Nongshim RedForce
+나이: 27세
+OVR: 83
+
+[기본 능력치]
+
+Mechanics: 90
+GameSense: 91
+Laning: 89
+TeamFight: 92
+Macro: 91
+TeamPlay: 90
+Mental: 94
+ChampionPool: 95
+
+[현재 상태]
+
+Form: 100
+Condition: 100
+
+[포지션 숙련도]
+
+SUPPORT: 100
+
+[역할 숙련도]
+
+ROAM_SUPPORT: 92
+ENGAGE_SUPPORT: 94
+ENCHANTER_SUPPORT: 95
+LANE_SUPPORT: 93
+SHOTCALL_SUPPORT: 94
+VISION_CONTROL: 92
+
+[챔피언 유형 숙련도]
+
+Engage: 98
+Enchanter: 97
+Tank: 98
+Poke: 97
+MageSupport: 90
+Unorthodox: 94
+
+[플레이 성향]
+
+Aggression: 95
+RiskTaking: 94
+Consistency: 92
+Clutch: 95
+RoamTendency: 94
+Shotcalling: 93
+
+[팀 적응]
+
+TeamChemistry: 100
+ADC_Chemistry: 89
+CoachTrust: 100
+FeedbackAcceptance: 100
+
+[대표 챔피언]
+
+엘리스
+노틸러스
+레오나
+# HANJIN BRION — 5인 완성본
+
+## Casting — TOP
+
+[탑 선수]
+
+이름: Casting
+팀: HANJIN BRION
+나이: 22세
+OVR: 84
+
+[기본 능력치]
+
+Mechanics: 86
+GameSense: 86
+Laning: 87
+TeamFight: 87
+Macro: 85
+TeamPlay: 86
+Mental: 92
+ChampionPool: 91
+
+[현재 상태]
+
+Form: 95
+Condition: 95
+
+[포지션 숙련도]
+
+TOP: 100
+
+[역할 숙련도]
+
+TOP_CARRY: 86
+WEAK_SIDE: 86
+SPLIT_PUSH: 86
+TEAMFIGHT_TOP: 86
+TANK_TOP: 87
+
+[챔피언 유형 숙련도]
+
+Tank: 95
+Bruiser: 95
+Carry: 94
+Ranged_TOP: 94
+AP_TOP: 94
+
+[플레이 성향]
+
+Aggression: 87
+RiskTaking: 82
+Consistency: 86
+Clutch: 87
+ResourceDemand: 80
+
+[팀 적응]
+
+TeamChemistry: 100
+CoachTrust: 100
+FeedbackAcceptance: 100
+
+[대표 챔피언]
+
+제이스
+럼블
+나르
+
+## GIDEON — JUNGLE
+
+[정글 선수]
+
+이름: GIDEON
+팀: HANJIN BRION
+나이: 23세
+OVR: 82
+
+[기본 능력치]
+
+Mechanics: 86
+GameSense: 86
+Laning: 85
+TeamFight: 88
+Macro: 87
+TeamPlay: 88
+Mental: 92
+ChampionPool: 90
+
+[현재 상태]
+
+Form: 95
+Condition: 95
+
+[포지션 숙련도]
+
+JUNGLE: 100
+
+[역할 숙련도]
+
+TEMPO_JUNGLE: 86
+CARRY_JUNGLE: 84
+FACILITATOR: 85
+OBJECTIVE_CONTROL: 86
+INVADE_JUNGLE: 86
+TEAMFIGHT_JUNGLE: 87
+
+[챔피언 유형 숙련도]
+
+Carry: 84
+Tank: 90
+Bruiser: 94
+AP_Jungle: 92
+Utility: 91
+EarlyGame: 89
+
+[플레이 성향]
+
+Aggression: 90
+RiskTaking: 88
+Consistency: 90
+Clutch: 87
+PathingCreativity: 86
+ObjectiveSense: 87
+
+[팀 적응]
+
+TeamChemistry: 100
+CoachTrust: 100
+FeedbackAcceptance: 100
+
+[대표 챔피언]
+
+신 짜오
+리 신
+자르반 4세
+
+## Roamer — MID
+
+[미드 선수]
+
+이름: Roamer
+팀: HANJIN BRION
+나이: 23세
+OVR: 84
+
+[기본 능력치]
+
+Mechanics: 89
+GameSense: 87
+Laning: 88
+TeamFight: 87
+Macro: 86
+TeamPlay: 87
+Mental: 92
+ChampionPool: 91
+
+[현재 상태]
+
+Form: 95
+Condition: 95
+
+[포지션 숙련도]
+
+MID: 100
+
+[역할 숙련도]
+
+MID_CARRY: 86
+ROAM_MID: 85
+CONTROL_MID: 85
+TEAMFIGHT_MID: 84
+UTILITY_MID: 85
+SIDE_LANE_MID: 86
+
+[챔피언 유형 숙련도]
+
+ControlMage: 97
+StandingMage: 96
+Assassin: 92
+MeleeMID: 90
+AD_MID: 86
+Utility: 88
+ScalingMage: 87
+
+[플레이 성향]
+
+Aggression: 86
+RiskTaking: 88
+Consistency: 90
+Clutch: 86
+LanePressure: 84
+RoamTendency: 86
+
+[팀 적응]
+
+TeamChemistry: 100
+CoachTrust: 100
+FeedbackAcceptance: 100
+
+[대표 챔피언]
+
+카시오페아
+애니
+오로라
+
+## Teddy — ADC
+
+[원딜 선수]
+
+이름: Teddy
+팀: HANJIN BRION
+나이: 28세
+OVR: 85
+
+[기본 능력치]
+
+Mechanics: 91
+GameSense: 90
+Laning: 88
+TeamFight: 92
+Macro: 92
+TeamPlay: 91
+Mental: 95
+ChampionPool: 94
+
+[현재 상태]
+
+Form: 95
+Condition: 95
+
+[포지션 숙련도]
+
+ADC: 100
+
+[역할 숙련도]
+
+HYPER_CARRY: 100
+WEAK_SIDE: 95
+BOT_LANE_PRESSURE: 90
+TEAMFIGHT_CARRY: 100
+UTILITY_ADC: 94
+EARLY_GAME_ADC: 91
+
+[챔피언 유형 숙련도]
+
+CritMarksman: 100
+HyperCarry: 97
+LaneBully: 94
+UtilityADC: 92
+AP_Bot: 89
+ShortRangeADC: 100
+LongRangeADC: 100
+
+[플레이 성향]
+
+Aggression: 90
+RiskTaking: 75
+Consistency: 95
+Clutch: 94
+Positioning: 96
+ResourceDemand: 88
+
+[팀 적응]
+
+TeamChemistry: 100
+SupportChemistry: 100
+CoachTrust: 100
+FeedbackAcceptance: 100
+
+[대표 챔피언]
+
+이즈리얼
+루시안
+케이틀린
+
+## Namgung — SUPPORT
+
+[서포터 선수]
+
+이름: Namgung
+팀: HANJIN BRION
+나이: 22세
+OVR: 82
+
+[기본 능력치]
+
+Mechanics: 85
+GameSense: 87
+Laning: 84
+TeamFight: 87
+Macro: 87
+TeamPlay: 89
+Mental: 90
+ChampionPool: 94
+
+[현재 상태]
+
+Form: 92
+Condition: 95
+
+[포지션 숙련도]
+
+SUPPORT: 100
+
+[역할 숙련도]
+
+ROAM_SUPPORT: 89
+ENGAGE_SUPPORT: 88
+ENCHANTER_SUPPORT: 88
+LANE_SUPPORT: 85
+SHOTCALL_SUPPORT: 86
+VISION_CONTROL: 90
+
+[챔피언 유형 숙련도]
+
+Engage: 89
+Enchanter: 89
+Tank: 88
+Poke: 87
+MageSupport: 88
+Unorthodox: 96
+
+[플레이 성향]
+
+Aggression: 88
+RiskTaking: 90
+Consistency: 85
+Clutch: 84
+RoamTendency: 90
+Shotcalling: 86
+
+[팀 적응]
+
+TeamChemistry: 100
+ADC_Chemistry: 100
+CoachTrust: 100
+FeedbackAcceptance: 100
+
+[대표 챔피언]
+
+니코
+엘리스
+카르마
+
+# KIWOOM DRX — 6인 완성본
+
+## Rich — TOP
+
+이름: Rich
+팀: KIWOOM DRX
+나이: 28세
+OVR: 82
+
+[기본 능력치]
+
+Mechanics: 84
+GameSense: 87
+Laning: 83
+TeamFight: 87
+Macro: 85
+TeamPlay: 89
+Mental: 95
+ChampionPool: 91
+
+[현재 상태]
+
+Form: 100
+Condition: 100
+
+[포지션 숙련도]
+
+TOP: 100
+
+[역할 숙련도]
+
+TOP_CARRY: 75
+WEAK_SIDE: 91
+SPLIT_PUSH: 87
+TEAMFIGHT_TOP: 89
+TANK_TOP: 90
+
+[챔피언 유형 숙련도]
+
+Tank: 95
+Bruiser: 89
+Carry: 86
+Ranged_TOP: 80
+AP_TOP: 88
+
+[플레이 성향]
+
+Aggression: 83
+RiskTaking: 84
+Consistency: 90
+Clutch: 85
+ResourceDemand: 75
+
+[팀 적응]
+
+TeamChemistry: 100
+CoachTrust: 100
+FeedbackAcceptance: 100
+
+[대표 챔피언]
+
+나르
+크산테
+요릭
+
+## Frog — TOP / 주전 경쟁
+
+이름: Frog
+팀: KIWOOM DRX
+나이: 21세
+OVR: 79
+
+[기본 능력치]
+
+Mechanics: 86
+GameSense: 84
+Laning: 81
+TeamFight: 80
+Macro: 82
+TeamPlay: 83
+Mental: 95
+ChampionPool: 91
+
+[현재 상태]
+
+Form: 100
+Condition: 100
+
+[포지션 숙련도]
+
+TOP: 100
+
+[역할 숙련도]
+
+TOP_CARRY: 85
+WEAK_SIDE: 85
+SPLIT_PUSH: 85
+TEAMFIGHT_TOP: 85
+TANK_TOP: 85
+
+[챔피언 유형 숙련도]
+
+Tank: 92
+Bruiser: 92
+Carry: 92
+Ranged_TOP: 92
+AP_TOP: 92
+
+[플레이 성향]
+
+Aggression: 84
+RiskTaking: 84
+Consistency: 85
+Clutch: 85
+ResourceDemand: 81
+
+[팀 적응]
+
+TeamChemistry: 98
+CoachTrust: 100
+FeedbackAcceptance: 100
+
+[대표 챔피언]
+
+크산테
+나르
+제이스
+
+## Willer — JUNGLE
+
+이름: Willer
+팀: KIWOOM DRX
+나이: 23세
+OVR: 82
+
+[기본 능력치]
+
+Mechanics: 90
+GameSense: 86
+Laning: 86
+TeamFight: 85
+Macro: 86
+TeamPlay: 87
+Mental: 90
+ChampionPool: 95
+
+[현재 상태]
+
+Form: 100
+Condition: 100
+
+[포지션 숙련도]
+
+JUNGLE: 100
+
+[역할 숙련도]
+
+TEMPO_JUNGLE: 91
+CARRY_JUNGLE: 90
+FACILITATOR: 88
+OBJECTIVE_CONTROL: 86
+INVADE_JUNGLE: 88
+TEAMFIGHT_JUNGLE: 89
+
+[챔피언 유형 숙련도]
+
+Carry: 90
+Tank: 88
+Bruiser: 89
+AP_Jungle: 88
+Utility: 90
+EarlyGame: 90
+
+[플레이 성향]
+
+Aggression: 91
+RiskTaking: 87
+Consistency: 90
+Clutch: 86
+PathingCreativity: 84
+ObjectiveSense: 86
+
+[팀 적응]
+
+TeamChemistry: 100
+CoachTrust: 100
+FeedbackAcceptance: 100
+
+[대표 챔피언]
+
+리 신
+신 짜오
+바이
+
+## Ucal — MID
+
+이름: Ucal
+팀: KIWOOM DRX
+나이: 25세
+OVR: 82
+
+[기본 능력치]
+
+Mechanics: 86
+GameSense: 84
+Laning: 86
+TeamFight: 86
+Macro: 87
+TeamPlay: 89
+Mental: 95
+ChampionPool: 93
+
+[현재 상태]
+
+Form: 100
+Condition: 100
+
+[포지션 숙련도]
+
+MID: 100
+
+[역할 숙련도]
+
+MID_CARRY: 86
+ROAM_MID: 85
+CONTROL_MID: 83
+TEAMFIGHT_MID: 85
+UTILITY_MID: 86
+SIDE_LANE_MID: 87
+
+[챔피언 유형 숙련도]
+
+ControlMage: 94
+StandingMage: 94
+Assassin: 87
+MeleeMID: 89
+AD_MID: 90
+Utility: 87
+ScalingMage: 88
+
+[플레이 성향]
+
+Aggression: 85
+RiskTaking: 85
+Consistency: 90
+Clutch: 87
+LanePressure: 85
+RoamTendency: 85
+
+[팀 적응]
+
+TeamChemistry: 100
+CoachTrust: 100
+FeedbackAcceptance: 100
+
+[대표 챔피언]
+
+라이즈
+애니
+오로라
+
+## Aiming — ADC
+
+이름: Aiming
+팀: KIWOOM DRX
+나이: 26세
+OVR: 85
+
+[기본 능력치]
+
+Mechanics: 91
+GameSense: 88
+Laning: 88
+TeamFight: 90
+Macro: 88
+TeamPlay: 89
+Mental: 95
+ChampionPool: 93
+
+[현재 상태]
+
+Form: 100
+Condition: 100
+
+[포지션 숙련도]
+
+ADC: 100
+
+[역할 숙련도]
+
+HYPER_CARRY: 100
+WEAK_SIDE: 90
+BOT_LANE_PRESSURE: 87
+TEAMFIGHT_CARRY: 100
+UTILITY_ADC: 87
+EARLY_GAME_ADC: 86
+
+[챔피언 유형 숙련도]
+
+CritMarksman: 100
+HyperCarry: 100
+LaneBully: 87
+UtilityADC: 87
+AP_Bot: 87
+ShortRangeADC: 100
+LongRangeADC: 90
+
+[플레이 성향]
+
+Aggression: 87
+RiskTaking: 80
+Consistency: 88
+Clutch: 89
+Positioning: 91
+ResourceDemand: 89
+
+[팀 적응]
+
+TeamChemistry: 100
+SupportChemistry: 87
+CoachTrust: 100
+FeedbackAcceptance: 100
+
+[대표 챔피언]
+
+유나라
+시비르
+이즈리얼
+
+## Andil — SUPPORT
+
+이름: Andil
+팀: KIWOOM DRX
+나이: 23세
+OVR: 82
+
+[기본 능력치]
+
+Mechanics: 86
+GameSense: 89
+Laning: 86
+TeamFight: 85
+Macro: 89
+TeamPlay: 90
+Mental: 95
+ChampionPool: 95
+
+[현재 상태]
+
+Form: 100
+Condition: 100
+
+[포지션 숙련도]
+
+SUPPORT: 100
+
+[역할 숙련도]
+
+ROAM_SUPPORT: 88
+ENGAGE_SUPPORT: 87
+ENCHANTER_SUPPORT: 86
+LANE_SUPPORT: 87
+SHOTCALL_SUPPORT: 92
+VISION_CONTROL: 92
+
+[챔피언 유형 숙련도]
+
+Engage: 95
+Enchanter: 92
+Tank: 92
+Poke: 90
+MageSupport: 87
+Unorthodox: 75
+
+[플레이 성향]
+
+Aggression: 86
+RiskTaking: 87
+Consistency: 95
+Clutch: 86
+RoamTendency: 85
+Shotcalling: 90
+
+[팀 적응]
+
+TeamChemistry: 100
+ADC_Chemistry: 85
+CoachTrust: 100
+FeedbackAcceptance: 100
+
+[대표 챔피언]
+
+노틸러스
+바드
+카르마
+
 
 _______
 [선수]

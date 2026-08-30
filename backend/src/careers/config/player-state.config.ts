@@ -4,6 +4,7 @@ export const CAREER_PLAYER_STATE_CONFIG = {
   initial: {
     form: 50,
     condition: 100,
+    coachTrust: 50,
   },
   matchModifier: {
     form: {

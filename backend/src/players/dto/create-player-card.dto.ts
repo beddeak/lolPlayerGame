@@ -17,6 +17,7 @@ import {
   PLAYER_CARD_YEAR_MIN,
 } from '../constants/player-card.constants';
 import { Position } from '../enums/position.enum';
+import { PlayerPersonality } from '../enums/player-personality.enum';
 
 export class CreatePlayerCardDto {
   @IsInt()
@@ -86,6 +87,10 @@ export class CreatePlayerCardDto {
   @Min(PLAYER_CARD_STAT_MIN)
   @Max(PLAYER_CARD_STAT_MAX)
   championPool!: number;
+
+  @IsOptional()
+  @IsEnum(PlayerPersonality)
+  personality?: PlayerPersonality;
 
   @IsInt()
   @Min(PLAYER_CARD_STAT_MIN)

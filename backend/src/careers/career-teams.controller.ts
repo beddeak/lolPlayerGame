@@ -24,6 +24,7 @@ import {
   ChampionArchetypeResponseDto,
   UpdateChampionArchetypeDto,
 } from './dto/update-champion-archetype.dto';
+import { SwapStarterDto, SwapStarterResponseDto } from './dto/swap-starter.dto';
 
 @Controller('careers/:careerId/teams')
 @UseGuards(JwtAuthGuard)
@@ -71,6 +72,23 @@ export class CareerTeamsController {
     @Body() dto: UpdateChampionArchetypeDto,
   ): Promise<ChampionArchetypeResponseDto> {
     return this.careerTeamsService.updateChampionArchetype(
+      account.id,
+      careerId,
+      teamId,
+      position,
+      dto,
+    );
+  }
+
+  @Patch(':teamId/starters/:position/swap')
+  swapStarter(
+    @CurrentAccount() account: AuthenticatedAccount,
+    @Param('careerId', ParseIntPipe) careerId: number,
+    @Param('teamId', ParseIntPipe) teamId: number,
+    @Param('position', new ParseEnumPipe(Position)) position: Position,
+    @Body() dto: SwapStarterDto,
+  ): Promise<SwapStarterResponseDto> {
+    return this.careerTeamsService.swapStarter(
       account.id,
       careerId,
       teamId,

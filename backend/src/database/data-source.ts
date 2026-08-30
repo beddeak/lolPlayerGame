@@ -3,15 +3,24 @@ import { loadEnvFile } from 'node:process';
 import { DataSource } from 'typeorm';
 import { Account } from '../auth/entities/account.entity';
 import { CareerPlayer } from '../careers/entities/career-player.entity';
+import { CareerPlayerPositionProficiency } from '../careers/entities/career-player-position-proficiency.entity';
 import { CareerPlayerRoleProficiency } from '../careers/entities/career-player-role-proficiency.entity';
 import { CareerTeam } from '../careers/entities/career-team.entity';
 import { CareerTeamStrategyProficiency } from '../careers/entities/career-team-strategy-proficiency.entity';
 import { Career } from '../careers/entities/career.entity';
 import { Roster } from '../careers/entities/roster.entity';
+import { TrainingPeriod } from '../careers/entities/training-period.entity';
+import { TrainingSession } from '../careers/entities/training-session.entity';
 import { validateEnvironment } from '../config/environment.validation';
 import { MatchPlayerStat } from '../matches/entities/match-player-stat.entity';
 import { Match } from '../matches/entities/match.entity';
 import { MatchSeries } from '../match-series/entities/match-series.entity';
+import { MatchFeedback } from '../match-series/entities/match-feedback.entity';
+import { MatchFeedbackPlayerEffect } from '../match-series/entities/match-feedback-player-effect.entity';
+import { LeagueFixture } from '../leagues/entities/league-fixture.entity';
+import { LeagueSplit } from '../leagues/entities/league-split.entity';
+import { LeagueStageParticipant } from '../leagues/entities/league-stage-participant.entity';
+import { LeagueStage } from '../leagues/entities/league-stage.entity';
 import { PlayerCard } from '../players/entities/player-card.entity';
 import { Player } from '../players/entities/player.entity';
 import { Theme } from '../players/entities/theme.entity';
@@ -30,6 +39,10 @@ import { AddChampionArchetypes1787608800000 } from './migrations/1787608800000-a
 import { ExpandChampionArchetypes1787695200000 } from './migrations/1787695200000-expand-champion-archetypes';
 import { CreateBo3MatchSeries1787781600000 } from './migrations/1787781600000-create-bo3-match-series';
 import { AddPlayerMatchState1787868000000 } from './migrations/1787868000000-add-player-match-state';
+import { AddMatchFeedback1787954400000 } from './migrations/1787954400000-add-match-feedback';
+import { AddTraining1788040800000 } from './migrations/1788040800000-add-training';
+import { CreateLeague1788127200000 } from './migrations/1788127200000-create-league';
+import { AddRegionalLeagueStages1788213600000 } from './migrations/1788213600000-add-regional-league-stages';
 import { CreatePlayerCatalog1787237754573 } from './migrations/1787237754573-create-player-catalog';
 
 if (existsSync('.env')) {
@@ -57,11 +70,20 @@ const dataSource = new DataSource({
     CareerTeam,
     CareerTeamStrategyProficiency,
     CareerPlayer,
+    CareerPlayerPositionProficiency,
     CareerPlayerRoleProficiency,
     Roster,
+    TrainingPeriod,
+    TrainingSession,
     Match,
     MatchPlayerStat,
     MatchSeries,
+    MatchFeedback,
+    MatchFeedbackPlayerEffect,
+    LeagueSplit,
+    LeagueStage,
+    LeagueStageParticipant,
+    LeagueFixture,
   ],
   migrations: [
     CreatePlayerCatalog1787237754573,
@@ -78,6 +100,10 @@ const dataSource = new DataSource({
     ExpandChampionArchetypes1787695200000,
     CreateBo3MatchSeries1787781600000,
     AddPlayerMatchState1787868000000,
+    AddMatchFeedback1787954400000,
+    AddTraining1788040800000,
+    CreateLeague1788127200000,
+    AddRegionalLeagueStages1788213600000,
   ],
   migrationsTableName: 'migrations',
   ssl: useSsl ? { rejectUnauthorized: true } : undefined,
