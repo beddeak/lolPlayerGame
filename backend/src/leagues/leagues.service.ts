@@ -13,6 +13,8 @@ import {
 import { Career } from '../careers/entities/career.entity';
 import { CareerTeam } from '../careers/entities/career-team.entity';
 import { Region } from '../careers/enums/region.enum';
+import { getLeagueFixtureDate } from '../calendars/config/season-calendar.config';
+import { EventQueueService } from '../event-queue/event-queue.service';
 import { getSeriesWinsRequired } from '../match-series/config/bo3-series.config';
 import { MatchSeries } from '../match-series/entities/match-series.entity';
 import { MatchSeriesStatus } from '../match-series/enums/match-series-status.enum';
@@ -79,6 +81,7 @@ export class LeaguesService {
     @InjectRepository(LeagueSplit)
     private readonly leagueSplitsRepository: Repository<LeagueSplit>,
     private readonly matchSeriesService: MatchSeriesService,
+    private readonly eventQueueService: EventQueueService,
   ) {}
 
   async createSplit(
@@ -232,6 +235,8 @@ export class LeaguesService {
     splitId: number,
     fixtureId: number,
   ): Promise<LeagueFixtureGameResponseDto> {
+    await this.assertNoBlockingEvents(accountId, careerId);
+
     const seriesId = await this.dataSource.transaction(async (manager) => {
       const fixture = await manager.findOne(LeagueFixture, {
         where: {
@@ -261,6 +266,12 @@ export class LeaguesService {
       ) {
         throw new ConflictException(
           `LeagueFixture ${fixtureId} is not in the active stage round`,
+        );
+      }
+
+      if (fixture.scheduledDate > fixture.leagueSplit.career.currentDate) {
+        throw new ConflictException(
+          `LeagueFixture ${fixtureId} is scheduled for ${fixture.scheduledDate}`,
         );
       }
 
@@ -304,6 +315,7 @@ export class LeaguesService {
   }
 
   private readonly splitRelations = {
+    career: true,
     stages: {
       participants: { team: true },
       fixtures: {
@@ -345,6 +357,44 @@ export class LeaguesService {
 
     if (!exists) {
       throw new NotFoundException(`Career ${careerId} was not found`);
+    }
+  }
+
+  private async assertNoBlockingEvents(
+    accountId: number,
+    careerId: number,
+  ): Promise<void> {
+    const career = await this.careersRepository.findOneBy({
+      id: careerId,
+      accountId,
+    });
+
+    if (!career) {
+      throw new NotFoundException(`Career ${careerId} was not found`);
+    }
+
+    const blockingEvents = await this.dataSource.transaction(
+      async (manager) => {
+        await this.eventQueueService.processThroughDate(
+          manager,
+          careerId,
+          career.currentDate,
+        );
+
+        return this.eventQueueService.findBlockingEvents(
+          manager,
+          careerId,
+          career.currentDate,
+        );
+      },
+    );
+
+    if (blockingEvents.length > 0) {
+      throw new ConflictException(
+        `Career ${careerId} has unresolved blocking events: ${blockingEvents
+          .map((event) => event.id)
+          .join(', ')}`,
+      );
     }
   }
 
@@ -946,8 +996,28 @@ export class LeaguesService {
         participant.team,
       ]),
     );
+    let previousScheduledDate = [...stage.fixtures]
+      .map((fixture) => fixture.scheduledDate)
+      .filter((date): date is string => Boolean(date))
+      .sort()
+      .at(-1);
+    const scheduledDatesByRound = new Map<number, string>();
     const fixtures = slots.map((slot, index) => {
       const fixtureNumber = globalStart + index + 1;
+      let scheduledDate = scheduledDatesByRound.get(slot.roundNumber);
+
+      if (!scheduledDate) {
+        scheduledDate = getLeagueFixtureDate(
+          split.year,
+          split.splitNumber,
+          stage.sequence,
+          slot.roundNumber,
+          split.career?.currentDate ?? `${split.year}-01-01`,
+          previousScheduledDate,
+        );
+        scheduledDatesByRound.set(slot.roundNumber, scheduledDate);
+        previousScheduledDate = scheduledDate;
+      }
 
       return manager.create(LeagueFixture, {
         leagueSplitId: split.id,
@@ -957,6 +1027,7 @@ export class LeaguesService {
         fixtureNumber,
         stageFixtureNumber: stageStart + index + 1,
         roundNumber: slot.roundNumber,
+        scheduledDate,
         teamAId: slot.teamAId,
         teamA: teamsById.get(slot.teamAId)!,
         teamBId: slot.teamBId,
@@ -1063,6 +1134,7 @@ export class LeaguesService {
       fixtureNumber: fixture.fixtureNumber,
       stageFixtureNumber: fixture.stageFixtureNumber,
       roundNumber: fixture.roundNumber,
+      scheduledDate: fixture.scheduledDate,
       bestOf: fixture.bestOf,
       seed: fixture.seed,
       status: state.status,

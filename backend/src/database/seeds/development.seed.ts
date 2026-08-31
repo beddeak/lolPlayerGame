@@ -58,10 +58,12 @@ interface DevelopmentSeedData {
     code: string;
     name: string;
     region: Region;
+    initialChemistry?: number;
     starters: Array<{
       position: Position;
       playerCardKey: string;
       championArchetype?: ChampionArchetype;
+      initialCoachTrust?: number;
     }>;
     benches?: Array<{
       playerCardKey: string;
@@ -73,12 +75,12 @@ interface DevelopmentSeedData {
 interface DevelopmentPlayerCardData {
   key: string;
   nickname: string;
-  nationality: string;
+  nationality?: string;
   themeCode: string;
   cardYear: number;
-  startingAge: number;
+  startingAge?: number;
   mainPosition: Position;
-  imageUrl: string;
+  imageUrl?: string;
   mechanics: number;
   gameSense: number;
   laning: number;
@@ -87,8 +89,27 @@ interface DevelopmentPlayerCardData {
   teamPlay: number;
   mental: number;
   championPool: number;
-  personality: PlayerPersonality;
-  potential: number;
+  personality?: PlayerPersonality;
+  potential?: number;
+}
+
+const DEVELOPMENT_PLAYER_DEFAULTS = {
+  nationality: 'UNKNOWN',
+  startingAge: 20,
+  personality: PlayerPersonality.PROFESSIONAL,
+} as const;
+
+function getFallbackPotential(cardData: DevelopmentPlayerCardData): number {
+  return Math.max(
+    cardData.mechanics,
+    cardData.gameSense,
+    cardData.laning,
+    cardData.teamFight,
+    cardData.macro,
+    cardData.teamPlay,
+    cardData.mental,
+    cardData.championPool,
+  );
 }
 
 interface DevelopmentAccountConfig {
@@ -184,22 +205,42 @@ async function seedCatalog(
 
     for (const cardData of seedData.playerCards) {
       const theme = themesByCode.get(cardData.themeCode);
+      const nationality =
+        cardData.nationality ?? DEVELOPMENT_PLAYER_DEFAULTS.nationality;
 
       if (!theme) {
         throw new Error(`Unknown theme code: ${cardData.themeCode}`);
       }
 
-      const player =
-        (await playersRepository.findOneBy({
+      let player = await playersRepository.findOneBy({
+        nickname: cardData.nickname,
+        nationality,
+      });
+
+      if (!player && nationality !== DEVELOPMENT_PLAYER_DEFAULTS.nationality) {
+        const unknownPlayers = await playersRepository.findBy({
           nickname: cardData.nickname,
-          nationality: cardData.nationality,
-        })) ??
-        (await playersRepository.save(
-          playersRepository.create({
-            nickname: cardData.nickname,
-            nationality: cardData.nationality,
-          }),
-        ));
+          nationality: DEVELOPMENT_PLAYER_DEFAULTS.nationality,
+        });
+
+        if (unknownPlayers.length > 1) {
+          throw new Error(
+            `Multiple UNKNOWN players found for ${cardData.nickname}; nationality cannot be migrated safely`,
+          );
+        }
+
+        if (unknownPlayers.length === 1) {
+          unknownPlayers[0].nationality = nationality;
+          player = await playersRepository.save(unknownPlayers[0]);
+        }
+      }
+
+      player ??= await playersRepository.save(
+        playersRepository.create({
+          nickname: cardData.nickname,
+          nationality,
+        }),
+      );
       const playerCard =
         (await playerCardsRepository.findOneBy({
           playerId: player.id,
@@ -215,8 +256,9 @@ async function seedCatalog(
         });
 
       Object.assign(playerCard, {
-        startingAge: cardData.startingAge,
-        imageUrl: cardData.imageUrl,
+        startingAge:
+          cardData.startingAge ?? DEVELOPMENT_PLAYER_DEFAULTS.startingAge,
+        imageUrl: cardData.imageUrl ?? null,
         mainPosition: cardData.mainPosition,
         mechanics: cardData.mechanics,
         gameSense: cardData.gameSense,
@@ -226,8 +268,9 @@ async function seedCatalog(
         teamPlay: cardData.teamPlay,
         mental: cardData.mental,
         championPool: cardData.championPool,
-        personality: cardData.personality,
-        potential: cardData.potential,
+        personality:
+          cardData.personality ?? DEVELOPMENT_PLAYER_DEFAULTS.personality,
+        potential: cardData.potential ?? getFallbackPotential(cardData),
       });
       playerCardsByKey.set(
         cardData.key,
@@ -269,7 +312,8 @@ async function syncExistingCareerTeamsAndStarters(
             region: teamData.region,
             isUserControlled: teamData.code === seedData.managedTeamCode,
             teamStrategy: TeamStrategy.BALANCED,
-            chemistry: TEAM_CHEMISTRY_CONFIG.initial,
+            chemistry:
+              teamData.initialChemistry ?? TEAM_CHEMISTRY_CONFIG.initial,
           }),
         );
         createdTeamCount += 1;
@@ -361,7 +405,9 @@ async function syncExistingCareerTeamsAndStarters(
               form: CAREER_PLAYER_STATE_CONFIG.initial.form,
               condition: CAREER_PLAYER_STATE_CONFIG.initial.condition,
               personality: playerCard.personality,
-              coachTrust: CAREER_PLAYER_STATE_CONFIG.initial.coachTrust,
+              coachTrust:
+                starterData.initialCoachTrust ??
+                CAREER_PLAYER_STATE_CONFIG.initial.coachTrust,
             }),
           );
 
@@ -417,6 +463,58 @@ async function syncExistingCareerTeamsAndStarters(
     }
 
     return { createdTeamCount, createdStarterCount };
+  });
+}
+
+async function initializeNewCareerSeedValues(
+  careerId: number,
+  seedData: DevelopmentSeedData,
+  playerCardsByKey: Map<string, PlayerCard>,
+): Promise<void> {
+  await dataSource.transaction(async (manager) => {
+    for (const teamData of seedData.teams) {
+      const careerTeam = await manager.findOneBy(CareerTeam, {
+        careerId,
+        code: teamData.code,
+      });
+
+      if (!careerTeam) {
+        throw new Error(`CareerTeam ${teamData.code} was not found`);
+      }
+
+      if (teamData.initialChemistry !== undefined) {
+        careerTeam.chemistry = teamData.initialChemistry;
+        await manager.save(CareerTeam, careerTeam);
+      }
+
+      for (const starterData of teamData.starters) {
+        if (starterData.initialCoachTrust === undefined) {
+          continue;
+        }
+
+        const playerCard = playerCardsByKey.get(starterData.playerCardKey);
+
+        if (!playerCard) {
+          throw new Error(
+            `Unknown PlayerCard key: ${starterData.playerCardKey}`,
+          );
+        }
+
+        const careerPlayer = await manager.findOneBy(CareerPlayer, {
+          careerId,
+          playerCardId: playerCard.id,
+        });
+
+        if (!careerPlayer) {
+          throw new Error(
+            `CareerPlayer ${starterData.playerCardKey} was not found`,
+          );
+        }
+
+        careerPlayer.coachTrust = starterData.initialCoachTrust;
+        await manager.save(CareerPlayer, careerPlayer);
+      }
+    }
   });
 }
 
@@ -488,6 +586,7 @@ async function seedCareer(
     dataSource.getRepository(SetBonus),
   );
   const career = await careersService.create(accountId, dto);
+  await initializeNewCareerSeedValues(career.id, seedData, playerCardsByKey);
 
   return {
     careerId: career.id,

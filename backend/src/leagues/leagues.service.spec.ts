@@ -3,6 +3,7 @@ import { DataSource, Repository } from 'typeorm';
 import { Career } from '../careers/entities/career.entity';
 import { CareerTeam } from '../careers/entities/career-team.entity';
 import { Region } from '../careers/enums/region.enum';
+import { EventQueueService } from '../event-queue/event-queue.service';
 import { MatchSeriesResponseDto } from '../match-series/dto/match-series-response.dto';
 import { MatchSeries } from '../match-series/entities/match-series.entity';
 import { MatchSeriesStatus } from '../match-series/enums/match-series-status.enum';
@@ -23,6 +24,7 @@ describe('LeaguesService', () => {
     id: 1,
     accountId: 7,
     currentYear: 2026,
+    currentDate: '2026-01-01',
     careerTeams: [...lckTeams, ...lplTeams],
   } as Career;
   const entityManager = {
@@ -38,6 +40,7 @@ describe('LeaguesService', () => {
   };
   const careersRepository = {
     findOne: jest.fn(),
+    findOneBy: jest.fn(),
     existsBy: jest.fn(),
   };
   const leagueSplitsRepository = {
@@ -48,16 +51,27 @@ describe('LeaguesService', () => {
   const matchSeriesService = {
     simulateNextGame: jest.fn(),
   };
+  const eventQueueService = {
+    processThroughDate: jest.fn(),
+    findBlockingEvents: jest.fn(),
+  };
 
   let service: LeaguesService;
   let savedSplit: LeagueSplit | null;
 
   beforeEach(() => {
     jest.clearAllMocks();
+    career.currentDate = '2026-01-01';
     career.careerTeams = [...lckTeams, ...lplTeams];
     savedSplit = null;
     careersRepository.findOne.mockResolvedValue(career);
+    careersRepository.findOneBy.mockResolvedValue(career);
     careersRepository.existsBy.mockResolvedValue(true);
+    eventQueueService.processThroughDate.mockResolvedValue({
+      processedEvents: [],
+      blockingEvents: [],
+    });
+    eventQueueService.findBlockingEvents.mockResolvedValue([]);
     leagueSplitsRepository.findOneBy.mockResolvedValue(null);
     leagueSplitsRepository.findOne.mockImplementation(() => savedSplit);
     leagueSplitsRepository.find.mockImplementation(() =>
@@ -70,19 +84,19 @@ describe('LeaguesService', () => {
       }
 
       if (entity === LeagueStage && Array.isArray(value)) {
-        value.forEach((stage, index) => {
+        (value as LeagueStage[]).forEach((stage, index) => {
           stage.id = 20 + index;
         });
       }
 
       if (entity === LeagueStageParticipant && Array.isArray(value)) {
-        value.forEach((participant, index) => {
+        (value as LeagueStageParticipant[]).forEach((participant, index) => {
           participant.id = 200 + index;
         });
       }
 
       if (entity === LeagueFixture && Array.isArray(value)) {
-        value.forEach((fixture, index) => {
+        (value as LeagueFixture[]).forEach((fixture, index) => {
           fixture.id = 1000 + index;
         });
       }
@@ -101,6 +115,7 @@ describe('LeaguesService', () => {
       careersRepository as unknown as Repository<Career>,
       leagueSplitsRepository as unknown as Repository<LeagueSplit>,
       matchSeriesService as unknown as MatchSeriesService,
+      eventQueueService as unknown as EventQueueService,
     );
   });
 
@@ -231,6 +246,7 @@ describe('LeaguesService', () => {
     });
     const fixture = savedSplit!.stages[0].fixtures[0];
 
+    career.currentDate = fixture.scheduledDate;
     entityManager.findOne.mockResolvedValue(fixture);
     const result = await service.simulateNextFixtureGame(
       7,
@@ -242,6 +258,38 @@ describe('LeaguesService', () => {
     expect(result.fixtureId).toBe(fixture.id);
     expect(fixture.series?.bestOf).toBe(3);
     expect(matchSeriesService.simulateNextGame).toHaveBeenCalledWith(7, 50);
+  });
+
+  it('blocks the active fixture before its scheduled date', async () => {
+    await service.createSplit(7, career.id, {
+      region: Region.LCK,
+      splitNumber: 1,
+    });
+    const fixture = savedSplit!.stages[0].fixtures[0];
+
+    expect(fixture.scheduledDate).toBe('2026-01-12');
+    entityManager.findOne.mockResolvedValue(fixture);
+
+    await expect(
+      service.simulateNextFixtureGame(7, career.id, savedSplit!.id, fixture.id),
+    ).rejects.toBeInstanceOf(ConflictException);
+  });
+
+  it('blocks direct set simulation while a user-action event is unresolved', async () => {
+    await service.createSplit(7, career.id, {
+      region: Region.LCK,
+      splitNumber: 1,
+    });
+    const fixture = savedSplit!.stages[0].fixtures[0];
+
+    career.currentDate = fixture.scheduledDate;
+    entityManager.findOne.mockResolvedValue(fixture);
+    eventQueueService.findBlockingEvents.mockResolvedValue([{ id: 99 }]);
+
+    await expect(
+      service.simulateNextFixtureGame(7, career.id, savedSplit!.id, fixture.id),
+    ).rejects.toBeInstanceOf(ConflictException);
+    expect(matchSeriesService.simulateNextGame).not.toHaveBeenCalled();
   });
 
   it('blocks a future round fixture and hides foreign fixtures', async () => {

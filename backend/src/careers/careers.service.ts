@@ -93,6 +93,7 @@ export class CareersService {
         accountId,
         startYear: dto.startYear,
         currentYear: dto.startYear,
+        currentDate: `${dto.startYear}-01-01`,
         currentMeta: TeamStrategy.BALANCED,
       });
       const savedCareer = await manager.save(Career, newCareer);
@@ -291,6 +292,7 @@ export class CareersService {
         id: career.id,
         startYear: career.startYear,
         currentYear: career.currentYear,
+        currentDate: career.currentDate,
         currentMeta: career.currentMeta,
         managedTeamId: managedTeam.id,
         managedTeamCode: managedTeam.code,
@@ -458,6 +460,7 @@ export class CareersService {
       id: career.id,
       startYear: career.startYear,
       currentYear: career.currentYear,
+      currentDate: career.currentDate,
       currentMeta: career.currentMeta,
       teams,
     };

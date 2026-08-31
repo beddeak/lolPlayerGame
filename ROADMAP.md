@@ -2327,7 +2327,7 @@ MSI
 
 --------------------------------
 
-7월 ~ 10월
+7월 29일 전후 ~ 10월 초
 
 REGIONAL SPLIT
 
@@ -3047,6 +3047,12 @@ Event Queue
 PHASE 18
 
 Quick Sim / Fast Sim
+
+
+- Quick Sim: BO1 / BO3 / BO5 전체 진행 + 상세 경기 기록
+- Fast Sim: AI 경기 자동 처리 + 여러 날짜 진행
+- 사용자 구단 경기 / Blocking Event 앞에서 정지
+- 사전 설정 Strategy / Instruction 유지
 
 
 --------------------------------

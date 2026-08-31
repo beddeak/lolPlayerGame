@@ -60,6 +60,10 @@ export class LeagueFixture {
   @Column({ type: 'smallint', unsigned: true })
   roundNumber!: number;
 
+  @Index('IDX_league_fixtures_scheduled_date')
+  @Column({ type: 'date' })
+  scheduledDate!: string;
+
   @Index('IDX_league_fixtures_team_a_id')
   @Column({ type: 'int', unsigned: true })
   teamAId!: number;

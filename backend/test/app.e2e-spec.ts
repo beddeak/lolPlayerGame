@@ -31,6 +31,12 @@ import { Theme } from '../src/players/entities/theme.entity';
 import { Position } from '../src/players/enums/position.enum';
 import { PlayerPersonality } from '../src/players/enums/player-personality.enum';
 import { SetBonus } from '../src/set-bonuses/entities/set-bonus.entity';
+import { CalendarAdvanceMode } from '../src/calendars/enums/calendar-advance-mode.enum';
+import { CalendarStopReason } from '../src/calendars/enums/calendar-stop-reason.enum';
+import { CalendarEvent } from '../src/event-queue/entities/calendar-event.entity';
+import { CalendarEventStatus } from '../src/event-queue/enums/calendar-event-status.enum';
+import { CalendarEventType } from '../src/event-queue/enums/calendar-event-type.enum';
+import { FastSimStopReason } from '../src/simulations/enums/fast-sim-stop-reason.enum';
 
 interface IdResponse {
   id: number;
@@ -69,6 +75,7 @@ interface CareerRosterResponse {
 
 interface CareerResponse {
   id: number;
+  currentDate: string;
   currentMeta: TeamStrategy;
   teams: Array<{
     id: number;
@@ -245,6 +252,7 @@ interface LeagueFixtureResponse {
   fixtureNumber: number;
   stageFixtureNumber: number;
   roundNumber: number;
+  scheduledDate: string;
   bestOf: number;
   status: LeagueFixtureStatus;
   seriesId: number | null;
@@ -255,10 +263,50 @@ interface LeagueFixtureResponse {
   winnerTeamId: number | null;
 }
 
+interface CalendarAdvanceResponse {
+  careerId: number;
+  currentDate: string;
+  currentYear: number;
+  advancedDays: number;
+  stopReason: CalendarStopReason;
+  nextMatch: { id: number; scheduledDate: string } | null;
+  dueMatches: Array<{ id: number; scheduledDate: string }>;
+  blockingEvents: CalendarEventApiResponse[];
+  processedEvents: CalendarEventApiResponse[];
+}
+
+interface CalendarEventApiResponse {
+  id: number;
+  careerId: number;
+  scheduledDate: string;
+  type: CalendarEventType;
+  status: CalendarEventStatus;
+  requiresUserAction: boolean;
+}
+
 interface LeagueFixtureGameResponse {
   fixtureId: number;
   series: MatchSeriesResponse;
   split: LeagueSplitResponse;
+}
+
+interface QuickSimResponse extends LeagueFixtureGameResponse {
+  mode: 'QUICK';
+  gamesSimulated: number;
+}
+
+interface FastSimResponse {
+  mode: 'FAST';
+  careerId: number;
+  previousDate: string;
+  currentDate: string;
+  targetDate: string;
+  advancedDays: number;
+  stopReason: FastSimStopReason;
+  simulatedFixtures: Array<{ fixtureId: number }>;
+  calendar: {
+    dueMatches: Array<{ id: number }>;
+  };
 }
 
 describe('Application authentication and career ownership (e2e)', () => {
@@ -379,7 +427,7 @@ describe('Application authentication and career ownership (e2e)', () => {
       .expect(201);
     themeId = (themeResponse.body as unknown as IdResponse).id;
 
-    for (let index = 0; index < 12; index += 1) {
+    for (let index = 0; index < 22; index += 1) {
       const position = positions[index % positions.length];
       const playerResponse = await api
         .post('/players')
@@ -486,15 +534,33 @@ describe('Application authentication and career ownership (e2e)', () => {
             })),
             benches: [{ playerCardId: playerCardIds[11] }],
           },
+          {
+            code: 'E2E_AI_ONE',
+            name: 'E2E AI One',
+            region: Region.LCS,
+            starters: [15, 16, 12, 13, 14].map((cardIndex, index) => ({
+              playerCardId: playerCardIds[cardIndex],
+              position: positions[index],
+            })),
+          },
+          {
+            code: 'E2E_AI_TWO',
+            name: 'E2E AI Two',
+            region: Region.LCS,
+            starters: [20, 21, 17, 18, 19].map((cardIndex, index) => ({
+              playerCardId: playerCardIds[cardIndex],
+              position: positions[index],
+            })),
+          },
         ],
       })
       .expect(201);
     const career = careerResponse.body as unknown as CareerResponse;
-    const [teamA, teamB] = career.teams;
+    const [teamA, teamB, aiTeamA, aiTeamB] = career.teams;
 
     careerId = career.id;
     expect(career.currentMeta).toBe(TeamStrategy.BALANCED);
-    expect(career.teams).toHaveLength(2);
+    expect(career.teams).toHaveLength(4);
     expect(teamA.strategyProficiencies).toHaveLength(8);
     expect(teamB.strategyProficiencies).toHaveLength(8);
     expect(teamA.chemistry).toBe(50);
@@ -507,6 +573,96 @@ describe('Application authentication and career ownership (e2e)', () => {
     expect(teamB.starters).toHaveLength(5);
     expect(teamA.benches).toHaveLength(1);
     expect(teamB.benches).toHaveLength(1);
+    expect(aiTeamA.starters).toHaveLength(5);
+    expect(aiTeamB.starters).toHaveLength(5);
+
+    const calendarEventsRepository = dataSource.getRepository(CalendarEvent);
+    const [newsEvent, meetingEvent] = await calendarEventsRepository.save([
+      calendarEventsRepository.create({
+        careerId: career.id,
+        scheduledDate: '2026-01-02',
+        type: CalendarEventType.TRANSFER_WINDOW_OPEN,
+        status: CalendarEventStatus.SCHEDULED,
+        requiresUserAction: false,
+        payload: { source: 'e2e' },
+        completedAt: null,
+      }),
+      calendarEventsRepository.create({
+        careerId: career.id,
+        scheduledDate: '2026-01-03',
+        type: CalendarEventType.PLAYER_MEETING,
+        status: CalendarEventStatus.SCHEDULED,
+        requiresUserAction: true,
+        payload: { source: 'e2e' },
+        completedAt: null,
+      }),
+    ]);
+
+    await api
+      .get(`/careers/${career.id}/events`)
+      .set('Authorization', `Bearer ${tokenB}`)
+      .expect(404);
+    await api
+      .get(`/careers/${career.id}/events?status=INVALID`)
+      .set('Authorization', `Bearer ${tokenA}`)
+      .expect(400);
+
+    const blockingAdvanceResponse = await api
+      .post(`/careers/${career.id}/calendar/advance`)
+      .set('Authorization', `Bearer ${tokenA}`)
+      .send({ mode: CalendarAdvanceMode.THREE_DAYS })
+      .expect(201);
+    const blockingAdvance =
+      blockingAdvanceResponse.body as unknown as CalendarAdvanceResponse;
+
+    expect(blockingAdvance.currentDate).toBe('2026-01-03');
+    expect(blockingAdvance.advancedDays).toBe(2);
+    expect(blockingAdvance.stopReason).toBe(CalendarStopReason.BLOCKING_EVENT);
+    expect(blockingAdvance.processedEvents).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: newsEvent.id,
+          status: CalendarEventStatus.COMPLETED,
+        }),
+        expect.objectContaining({
+          id: meetingEvent.id,
+          status: CalendarEventStatus.READY,
+        }),
+      ]),
+    );
+    expect(blockingAdvance.blockingEvents.map((event) => event.id)).toEqual([
+      meetingEvent.id,
+    ]);
+
+    const readyEventsResponse = await api
+      .get(`/careers/${career.id}/events?status=${CalendarEventStatus.READY}`)
+      .set('Authorization', `Bearer ${tokenA}`)
+      .expect(200);
+    const readyEvents =
+      readyEventsResponse.body as unknown as CalendarEventApiResponse[];
+
+    expect(readyEvents.map((event) => event.id)).toEqual([meetingEvent.id]);
+    await api
+      .post(`/careers/${career.id}/events/${meetingEvent.id}/resolve`)
+      .set('Authorization', `Bearer ${tokenB}`)
+      .expect(404);
+    await api
+      .post(`/careers/${career.id}/events/${meetingEvent.id}/resolve`)
+      .set('Authorization', `Bearer ${tokenA}`)
+      .expect(201)
+      .expect(({ body }: { body: CalendarEventApiResponse }) => {
+        expect(body.status).toBe(CalendarEventStatus.COMPLETED);
+      });
+    await api
+      .post(`/careers/${career.id}/calendar/advance`)
+      .set('Authorization', `Bearer ${tokenA}`)
+      .send({ mode: CalendarAdvanceMode.ONE_DAY })
+      .expect(201)
+      .expect(({ body }: { body: CalendarAdvanceResponse }) => {
+        expect(body.currentDate).toBe('2026-01-04');
+        expect(body.stopReason).toBe(CalendarStopReason.TARGET_REACHED);
+      });
+
     expect(
       [...teamA.starters, ...teamB.starters].every(
         (starter) =>
@@ -606,23 +762,31 @@ describe('Application authentication and career ownership (e2e)', () => {
       .send({ benchCareerPlayerId: promotedTopStarterId })
       .expect(200)
       .expect(({ body }: { body: unknown }) => {
-        expect(body).toEqual(
-          expect.objectContaining({
-            careerId: career.id,
-            careerTeamId: teamA.id,
-            position: Position.TOP,
-            promotedStarter: expect.objectContaining({
-              careerPlayerId: promotedTopStarterId,
-              role: 'STARTER',
-              starterPosition: Position.TOP,
-            }),
-            demotedBench: expect.objectContaining({
-              careerPlayerId: originalTopStarterId,
-              role: 'BENCH',
-              starterPosition: null,
-            }),
-          }),
-        );
+        const swap = body as {
+          careerId: number;
+          careerTeamId: number;
+          position: Position;
+          promotedStarter: {
+            careerPlayerId: number;
+            role: string;
+            starterPosition: Position;
+          };
+          demotedBench: {
+            careerPlayerId: number;
+            role: string;
+            starterPosition: Position | null;
+          };
+        };
+
+        expect(swap.careerId).toBe(career.id);
+        expect(swap.careerTeamId).toBe(teamA.id);
+        expect(swap.position).toBe(Position.TOP);
+        expect(swap.promotedStarter.careerPlayerId).toBe(promotedTopStarterId);
+        expect(swap.promotedStarter.role).toBe('STARTER');
+        expect(swap.promotedStarter.starterPosition).toBe(Position.TOP);
+        expect(swap.demotedBench.careerPlayerId).toBe(originalTopStarterId);
+        expect(swap.demotedBench.role).toBe('BENCH');
+        expect(swap.demotedBench.starterPosition).toBeNull();
       });
 
     await api
@@ -1346,6 +1510,18 @@ describe('Application authentication and career ownership (e2e)', () => {
       .send({ region: Region.LEC, splitNumber: 4 })
       .expect(400);
 
+    const aiLeagueSplitResponse = await api
+      .post(`/careers/${career.id}/league-splits`)
+      .set('Authorization', `Bearer ${tokenA}`)
+      .send({ region: Region.LCS, splitNumber: 2 })
+      .expect(201);
+    const aiLeagueSplit =
+      aiLeagueSplitResponse.body as unknown as LeagueSplitResponse;
+
+    expect(aiLeagueSplit.fixtures).toHaveLength(1);
+    expect(aiLeagueSplit.fixtures[0].teamA.id).toBe(aiTeamA.id);
+    expect(aiLeagueSplit.fixtures[0].teamB.id).toBe(aiTeamB.id);
+
     const leagueSplitResponse = await api
       .post(`/careers/${career.id}/league-splits`)
       .set('Authorization', `Bearer ${tokenA}`)
@@ -1371,14 +1547,11 @@ describe('Application authentication and career ownership (e2e)', () => {
     ]);
     expect(leagueSplit.fixtures).toHaveLength(1);
     expect(leagueSplit.fixtures[0].roundNumber).toBe(1);
-    expect(leagueSplit.fixtures[0]).toEqual(
-      expect.objectContaining({
-        status: LeagueFixtureStatus.SCHEDULED,
-        seriesId: null,
-        teamA: expect.objectContaining({ id: teamA.id }),
-        teamB: expect.objectContaining({ id: teamB.id }),
-      }),
-    );
+    expect(leagueSplit.fixtures[0].scheduledDate).toBe('2026-03-30');
+    expect(leagueSplit.fixtures[0].status).toBe(LeagueFixtureStatus.SCHEDULED);
+    expect(leagueSplit.fixtures[0].seriesId).toBeNull();
+    expect(leagueSplit.fixtures[0].teamA.id).toBe(teamA.id);
+    expect(leagueSplit.fixtures[0].teamB.id).toBe(teamB.id);
     expect(
       leagueSplit.standings.every(
         (standing) =>
@@ -1403,10 +1576,77 @@ describe('Application authentication and career ownership (e2e)', () => {
       )
       .set('Authorization', `Bearer ${tokenB}`)
       .expect(404);
+    await api
+      .post(
+        `/careers/${career.id}/league-splits/${leagueSplit.id}/fixtures/${leagueSplit.fixtures[0].id}/games/simulate`,
+      )
+      .set('Authorization', `Bearer ${tokenA}`)
+      .expect(409);
+    await api
+      .get(`/careers/${career.id}/calendar`)
+      .set('Authorization', `Bearer ${tokenB}`)
+      .expect(404);
+    await api
+      .post(`/careers/${career.id}/calendar/advance`)
+      .set('Authorization', `Bearer ${tokenA}`)
+      .send({ mode: 'INVALID' })
+      .expect(400);
+    await api
+      .post(`/careers/${career.id}/simulations/fast`)
+      .set('Authorization', `Bearer ${tokenA}`)
+      .send({ days: 0 })
+      .expect(400);
+    await api
+      .post(`/careers/${career.id}/simulations/quick`)
+      .set('Authorization', `Bearer ${tokenB}`)
+      .send({
+        leagueSplitId: leagueSplit.id,
+        fixtureId: leagueSplit.fixtures[0].id,
+      })
+      .expect(404);
+    await api
+      .post(`/careers/${career.id}/simulations/quick`)
+      .set('Authorization', `Bearer ${tokenA}`)
+      .send({
+        leagueSplitId: leagueSplit.id,
+        fixtureId: leagueSplit.fixtures[0].id,
+      })
+      .expect(409);
+
+    const fastSimResponse = await api
+      .post(`/careers/${career.id}/simulations/fast`)
+      .set('Authorization', `Bearer ${tokenA}`)
+      .send({ days: 90 })
+      .expect(201);
+    const fastSim = fastSimResponse.body as unknown as FastSimResponse;
+
+    expect(fastSim.stopReason).toBe(FastSimStopReason.MANAGED_MATCH);
+    expect(fastSim.previousDate).toBe('2026-01-04');
+    expect(fastSim.currentDate).toBe('2026-03-30');
+    expect(fastSim.advancedDays).toBe(85);
+    expect(
+      fastSim.simulatedFixtures.map((fixture) => fixture.fixtureId),
+    ).toEqual([aiLeagueSplit.fixtures[0].id]);
+    expect(fastSim.calendar.dueMatches.map((fixture) => fixture.id)).toContain(
+      leagueSplit.fixtures[0].id,
+    );
 
     const playLeagueFixture = async (
       fixtureId: number,
     ): Promise<LeagueFixtureGameResponse> => {
+      const fastForwardResponse = await api
+        .post(`/careers/${career.id}/simulations/fast`)
+        .set('Authorization', `Bearer ${tokenA}`)
+        .send({ days: 90 })
+        .expect(201);
+      const fastForward =
+        fastForwardResponse.body as unknown as FastSimResponse;
+
+      expect(fastForward.stopReason).toBe(FastSimStopReason.MANAGED_MATCH);
+      expect(
+        fastForward.calendar.dueMatches.some((match) => match.id === fixtureId),
+      ).toBe(true);
+
       let advance: LeagueFixtureGameResponse;
 
       do {
@@ -1417,14 +1657,31 @@ describe('Application authentication and career ownership (e2e)', () => {
           .set('Authorization', `Bearer ${tokenA}`)
           .expect(201);
 
-        advance = response.body as unknown as LeagueFixtureGameResponse;
+        const responseBody: unknown = response.body;
+        advance = responseBody as LeagueFixtureGameResponse;
       } while (advance.series.status !== MatchSeriesStatus.COMPLETED);
 
       return advance;
     };
 
-    const firstLeagueSeries = await playLeagueFixture(
-      leagueSplit.fixtures[0].id,
+    const quickSimResponse = await api
+      .post(`/careers/${career.id}/simulations/quick`)
+      .set('Authorization', `Bearer ${tokenA}`)
+      .send({
+        leagueSplitId: leagueSplit.id,
+        fixtureId: leagueSplit.fixtures[0].id,
+      })
+      .expect(201);
+    const firstLeagueSeries =
+      quickSimResponse.body as unknown as QuickSimResponse;
+
+    expect(firstLeagueSeries.mode).toBe('QUICK');
+    expect(firstLeagueSeries.gamesSimulated).toBe(
+      firstLeagueSeries.series.games.length,
+    );
+    expect(firstLeagueSeries.gamesSimulated).toBeGreaterThanOrEqual(1);
+    expect(firstLeagueSeries.gamesSimulated).toBeLessThanOrEqual(
+      leagueSplit.fixtures[0].bestOf,
     );
     const firstCompletedSplit = firstLeagueSeries.split;
     const firstWinnerStanding = firstCompletedSplit.standings.find(
@@ -1502,7 +1759,13 @@ describe('Application authentication and career ownership (e2e)', () => {
       .set('Authorization', `Bearer ${tokenA}`)
       .expect(200);
 
-    expect(leagueSplitListResponse.body).toEqual([completedLeagueSplit]);
+    expect(leagueSplitListResponse.body).toHaveLength(2);
+    expect(leagueSplitListResponse.body).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: aiLeagueSplit.id }),
+        completedLeagueSplit,
+      ]),
+    );
 
     const storedAccount = await dataSource
       .getRepository(Account)

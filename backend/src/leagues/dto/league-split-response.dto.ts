@@ -18,6 +18,7 @@ export class LeagueFixtureResponseDto {
   fixtureNumber!: number;
   stageFixtureNumber!: number;
   roundNumber!: number;
+  scheduledDate!: string;
   bestOf!: number;
   seed!: number;
   status!: LeagueFixtureStatus;

@@ -1,0 +1,5 @@
+export enum CalendarStopReason {
+  TARGET_REACHED = 'TARGET_REACHED',
+  MATCH_DAY = 'MATCH_DAY',
+  BLOCKING_EVENT = 'BLOCKING_EVENT',
+}

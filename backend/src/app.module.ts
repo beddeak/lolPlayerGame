@@ -11,6 +11,9 @@ import { MatchSeriesModule } from './match-series/match-series.module';
 import { PlayersModule } from './players/players.module';
 import { SetBonusesModule } from './set-bonuses/set-bonuses.module';
 import { LeaguesModule } from './leagues/leagues.module';
+import { CalendarsModule } from './calendars/calendars.module';
+import { EventQueueModule } from './event-queue/event-queue.module';
+import { SimulationsModule } from './simulations/simulations.module';
 
 @Module({
   imports: [
@@ -46,6 +49,9 @@ import { LeaguesModule } from './leagues/leagues.module';
     MatchesModule,
     MatchSeriesModule,
     LeaguesModule,
+    CalendarsModule,
+    EventQueueModule,
+    SimulationsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

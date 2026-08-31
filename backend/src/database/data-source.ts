@@ -43,7 +43,11 @@ import { AddMatchFeedback1787954400000 } from './migrations/1787954400000-add-ma
 import { AddTraining1788040800000 } from './migrations/1788040800000-add-training';
 import { CreateLeague1788127200000 } from './migrations/1788127200000-create-league';
 import { AddRegionalLeagueStages1788213600000 } from './migrations/1788213600000-add-regional-league-stages';
+import { AddGameCalendar1788300000000 } from './migrations/1788300000000-add-game-calendar';
+import { AdjustSplitThreeStart1788303600000 } from './migrations/1788303600000-adjust-split-three-start';
+import { CreateCalendarEvents1788386400000 } from './migrations/1788386400000-create-calendar-events';
 import { CreatePlayerCatalog1787237754573 } from './migrations/1787237754573-create-player-catalog';
+import { CalendarEvent } from '../event-queue/entities/calendar-event.entity';
 
 if (existsSync('.env')) {
   loadEnvFile('.env');
@@ -84,6 +88,7 @@ const dataSource = new DataSource({
     LeagueStage,
     LeagueStageParticipant,
     LeagueFixture,
+    CalendarEvent,
   ],
   migrations: [
     CreatePlayerCatalog1787237754573,
@@ -104,6 +109,9 @@ const dataSource = new DataSource({
     AddTraining1788040800000,
     CreateLeague1788127200000,
     AddRegionalLeagueStages1788213600000,
+    AddGameCalendar1788300000000,
+    AdjustSplitThreeStart1788303600000,
+    CreateCalendarEvents1788386400000,
   ],
   migrationsTableName: 'migrations',
   ssl: useSsl ? { rejectUnauthorized: true } : undefined,

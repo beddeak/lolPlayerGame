@@ -74,6 +74,7 @@ export class CareerResponseDto {
   id!: number;
   startYear!: number;
   currentYear!: number;
+  currentDate!: string;
   currentMeta!: TeamStrategy;
   teams!: CareerTeamResponseDto[];
 }
@@ -82,6 +83,7 @@ export class CareerSummaryResponseDto {
   id!: number;
   startYear!: number;
   currentYear!: number;
+  currentDate!: string;
   currentMeta!: TeamStrategy;
   managedTeamId!: number;
   managedTeamCode!: string;

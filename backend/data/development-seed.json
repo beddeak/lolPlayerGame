@@ -288,6 +288,676 @@
       "championPool": 64,
       "personality": "PROFESSIONAL",
       "potential": 83
+    },
+    {
+      "key": "hle_zeus_2026",
+      "nickname": "Zeus",
+      "nationality": "KR",
+      "themeCode": "DEV_2026",
+      "cardYear": 2026,
+      "startingAge": 22,
+      "mainPosition": "TOP",
+      "mechanics": 98,
+      "gameSense": 96,
+      "laning": 98,
+      "teamFight": 97,
+      "macro": 96,
+      "teamPlay": 95,
+      "mental": 96,
+      "championPool": 97
+    },
+    {
+      "key": "hle_kanavi_2026",
+      "nickname": "Kanavi",
+      "nationality": "KR",
+      "themeCode": "DEV_2026",
+      "cardYear": 2026,
+      "startingAge": 25,
+      "mainPosition": "JUNGLE",
+      "mechanics": 96,
+      "gameSense": 95,
+      "laning": 97,
+      "teamFight": 95,
+      "macro": 94,
+      "teamPlay": 96,
+      "mental": 96,
+      "championPool": 94
+    },
+    {
+      "key": "hle_zeka_2026",
+      "nickname": "Zeka",
+      "nationality": "KR",
+      "themeCode": "DEV_2026",
+      "cardYear": 2026,
+      "startingAge": 23,
+      "mainPosition": "MID",
+      "mechanics": 97,
+      "gameSense": 94,
+      "laning": 97,
+      "teamFight": 96,
+      "macro": 95,
+      "teamPlay": 95,
+      "mental": 96,
+      "championPool": 86
+    },
+    {
+      "key": "hle_gumayusi_2026",
+      "nickname": "Gumayusi",
+      "nationality": "KR",
+      "themeCode": "DEV_2026",
+      "cardYear": 2026,
+      "startingAge": 24,
+      "mainPosition": "ADC",
+      "mechanics": 96,
+      "gameSense": 97,
+      "laning": 99,
+      "teamFight": 96,
+      "macro": 95,
+      "teamPlay": 96,
+      "mental": 97,
+      "championPool": 95
+    },
+    {
+      "key": "hle_delight_2026",
+      "nickname": "Delight",
+      "nationality": "KR",
+      "themeCode": "DEV_2026",
+      "cardYear": 2026,
+      "startingAge": 23,
+      "mainPosition": "SUPPORT",
+      "mechanics": 88,
+      "gameSense": 96,
+      "laning": 94,
+      "teamFight": 97,
+      "macro": 95,
+      "teamPlay": 96,
+      "mental": 94,
+      "championPool": 94
+    },
+    {
+      "key": "gen_kiin_2026",
+      "nickname": "Kiin",
+      "nationality": "KR",
+      "themeCode": "DEV_2026",
+      "cardYear": 2026,
+      "startingAge": 27,
+      "mainPosition": "TOP",
+      "mechanics": 96,
+      "gameSense": 96,
+      "laning": 96,
+      "teamFight": 96,
+      "macro": 95,
+      "teamPlay": 95,
+      "mental": 95,
+      "championPool": 95
+    },
+    {
+      "key": "gen_canyon_2026",
+      "nickname": "Canyon",
+      "nationality": "KR",
+      "themeCode": "DEV_2026",
+      "cardYear": 2026,
+      "startingAge": 25,
+      "mainPosition": "JUNGLE",
+      "mechanics": 94,
+      "gameSense": 94,
+      "laning": 93,
+      "teamFight": 95,
+      "macro": 94,
+      "teamPlay": 95,
+      "mental": 94,
+      "championPool": 94
+    },
+    {
+      "key": "gen_chovy_2026",
+      "nickname": "Chovy",
+      "nationality": "KR",
+      "themeCode": "DEV_2026",
+      "cardYear": 2026,
+      "startingAge": 25,
+      "mainPosition": "MID",
+      "mechanics": 98,
+      "gameSense": 97,
+      "laning": 98,
+      "teamFight": 96,
+      "macro": 96,
+      "teamPlay": 95,
+      "mental": 94,
+      "championPool": 95
+    },
+    {
+      "key": "gen_ruler_2026",
+      "nickname": "Ruler",
+      "nationality": "KR",
+      "themeCode": "DEV_2026",
+      "cardYear": 2026,
+      "startingAge": 27,
+      "mainPosition": "ADC",
+      "mechanics": 95,
+      "gameSense": 95,
+      "laning": 95,
+      "teamFight": 96,
+      "macro": 94,
+      "teamPlay": 95,
+      "mental": 95,
+      "championPool": 95
+    },
+    {
+      "key": "gen_duro_2026",
+      "nickname": "Duro",
+      "nationality": "KR",
+      "themeCode": "DEV_2026",
+      "cardYear": 2026,
+      "startingAge": 24,
+      "mainPosition": "SUPPORT",
+      "mechanics": 94,
+      "gameSense": 94,
+      "laning": 91,
+      "teamFight": 95,
+      "macro": 94,
+      "teamPlay": 94,
+      "mental": 91,
+      "championPool": 92
+    },
+    {
+      "key": "blg_bin_2026",
+      "nickname": "Bin",
+      "nationality": "CN",
+      "themeCode": "DEV_2026",
+      "cardYear": 2026,
+      "mainPosition": "TOP",
+      "mechanics": 97,
+      "gameSense": 86,
+      "laning": 97,
+      "teamFight": 94,
+      "macro": 86,
+      "teamPlay": 85,
+      "mental": 76,
+      "championPool": 95
+    },
+    {
+      "key": "blg_xun_2026",
+      "nickname": "XUN",
+      "nationality": "CN",
+      "themeCode": "DEV_2026",
+      "cardYear": 2026,
+      "mainPosition": "JUNGLE",
+      "mechanics": 94,
+      "gameSense": 98,
+      "laning": 98,
+      "teamFight": 97,
+      "macro": 98,
+      "teamPlay": 97,
+      "mental": 98,
+      "championPool": 97
+    },
+    {
+      "key": "blg_knight_2026",
+      "nickname": "Knight",
+      "nationality": "CN",
+      "themeCode": "DEV_2026",
+      "cardYear": 2026,
+      "mainPosition": "MID",
+      "mechanics": 97,
+      "gameSense": 96,
+      "laning": 98,
+      "teamFight": 97,
+      "macro": 97,
+      "teamPlay": 97,
+      "mental": 97,
+      "championPool": 96
+    },
+    {
+      "key": "blg_viper_2026",
+      "nickname": "Viper",
+      "nationality": "KR",
+      "themeCode": "DEV_2026",
+      "cardYear": 2026,
+      "mainPosition": "ADC",
+      "mechanics": 96,
+      "gameSense": 98,
+      "laning": 95,
+      "teamFight": 97,
+      "macro": 97,
+      "teamPlay": 98,
+      "mental": 97,
+      "championPool": 100
+    },
+    {
+      "key": "blg_on_2026",
+      "nickname": "ON",
+      "nationality": "CN",
+      "themeCode": "DEV_2026",
+      "cardYear": 2026,
+      "mainPosition": "SUPPORT",
+      "mechanics": 98,
+      "gameSense": 97,
+      "laning": 98,
+      "teamFight": 98,
+      "macro": 96,
+      "teamPlay": 97,
+      "mental": 94,
+      "championPool": 98
+    },
+    {
+      "key": "al_breathe_2026",
+      "nickname": "Breathe",
+      "nationality": "CN",
+      "themeCode": "DEV_2026",
+      "cardYear": 2026,
+      "mainPosition": "TOP",
+      "mechanics": 94,
+      "gameSense": 92,
+      "laning": 94,
+      "teamFight": 96,
+      "macro": 93,
+      "teamPlay": 94,
+      "mental": 94,
+      "championPool": 95
+    },
+    {
+      "key": "al_tarzan_2026",
+      "nickname": "Tarzan",
+      "nationality": "KR",
+      "themeCode": "DEV_2026",
+      "cardYear": 2026,
+      "mainPosition": "JUNGLE",
+      "mechanics": 94,
+      "gameSense": 97,
+      "laning": 95,
+      "teamFight": 95,
+      "macro": 97,
+      "teamPlay": 97,
+      "mental": 94,
+      "championPool": 97
+    },
+    {
+      "key": "al_shanks_2026",
+      "nickname": "Shanks",
+      "nationality": "CN",
+      "themeCode": "DEV_2026",
+      "cardYear": 2026,
+      "mainPosition": "MID",
+      "mechanics": 93,
+      "gameSense": 94,
+      "laning": 92,
+      "teamFight": 95,
+      "macro": 94,
+      "teamPlay": 95,
+      "mental": 93,
+      "championPool": 97
+    },
+    {
+      "key": "al_hope_2026",
+      "nickname": "Hope",
+      "nationality": "CN",
+      "themeCode": "DEV_2026",
+      "cardYear": 2026,
+      "mainPosition": "ADC",
+      "mechanics": 88,
+      "gameSense": 88,
+      "laning": 86,
+      "teamFight": 90,
+      "macro": 88,
+      "teamPlay": 89,
+      "mental": 89,
+      "championPool": 92
+    },
+    {
+      "key": "al_kael_2026",
+      "nickname": "Kael",
+      "nationality": "KR",
+      "themeCode": "DEV_2026",
+      "cardYear": 2026,
+      "mainPosition": "SUPPORT",
+      "mechanics": 92,
+      "gameSense": 95,
+      "laning": 93,
+      "teamFight": 95,
+      "macro": 96,
+      "teamPlay": 97,
+      "mental": 94,
+      "championPool": 96
+    },
+    {
+      "key": "g2_brokenblade_2026",
+      "nickname": "BrokenBlade",
+      "nationality": "TR",
+      "themeCode": "DEV_2026",
+      "cardYear": 2026,
+      "startingAge": 26,
+      "mainPosition": "TOP",
+      "mechanics": 90,
+      "gameSense": 91,
+      "laning": 87,
+      "teamFight": 91,
+      "macro": 91,
+      "teamPlay": 92,
+      "mental": 94,
+      "championPool": 98
+    },
+    {
+      "key": "g2_skewmond_2026",
+      "nickname": "SkewMond",
+      "nationality": "FR",
+      "themeCode": "DEV_2026",
+      "cardYear": 2026,
+      "startingAge": 22,
+      "mainPosition": "JUNGLE",
+      "mechanics": 94,
+      "gameSense": 93,
+      "laning": 93,
+      "teamFight": 94,
+      "macro": 93,
+      "teamPlay": 94,
+      "mental": 92,
+      "championPool": 96
+    },
+    {
+      "key": "g2_caps_2026",
+      "nickname": "Caps",
+      "nationality": "DK",
+      "themeCode": "DEV_2026",
+      "cardYear": 2026,
+      "startingAge": 26,
+      "mainPosition": "MID",
+      "mechanics": 96,
+      "gameSense": 96,
+      "laning": 95,
+      "teamFight": 96,
+      "macro": 96,
+      "teamPlay": 95,
+      "mental": 96,
+      "championPool": 99
+    },
+    {
+      "key": "g2_hans_sama_2026",
+      "nickname": "Hans Sama",
+      "nationality": "FR",
+      "themeCode": "DEV_2026",
+      "cardYear": 2026,
+      "startingAge": 26,
+      "mainPosition": "ADC",
+      "mechanics": 92,
+      "gameSense": 88,
+      "laning": 94,
+      "teamFight": 89,
+      "macro": 87,
+      "teamPlay": 89,
+      "mental": 89,
+      "championPool": 93
+    },
+    {
+      "key": "g2_labrov_2026",
+      "nickname": "Labrov",
+      "nationality": "GR",
+      "themeCode": "DEV_2026",
+      "cardYear": 2026,
+      "startingAge": 24,
+      "mainPosition": "SUPPORT",
+      "mechanics": 90,
+      "gameSense": 91,
+      "laning": 91,
+      "teamFight": 92,
+      "macro": 92,
+      "teamPlay": 94,
+      "mental": 92,
+      "championPool": 95
+    },
+    {
+      "key": "fnc_soboro_2026",
+      "nickname": "Soboro",
+      "nationality": "KR",
+      "themeCode": "DEV_2026",
+      "cardYear": 2026,
+      "startingAge": 22,
+      "mainPosition": "TOP",
+      "mechanics": 90,
+      "gameSense": 87,
+      "laning": 88,
+      "teamFight": 90,
+      "macro": 86,
+      "teamPlay": 89,
+      "mental": 91,
+      "championPool": 91
+    },
+    {
+      "key": "fnc_razork_2026",
+      "nickname": "Razork",
+      "nationality": "ES",
+      "themeCode": "DEV_2026",
+      "cardYear": 2026,
+      "startingAge": 25,
+      "mainPosition": "JUNGLE",
+      "mechanics": 91,
+      "gameSense": 89,
+      "laning": 91,
+      "teamFight": 88,
+      "macro": 87,
+      "teamPlay": 88,
+      "mental": 88,
+      "championPool": 93
+    },
+    {
+      "key": "fnc_vladi_2026",
+      "nickname": "Vladi",
+      "nationality": "GR",
+      "themeCode": "DEV_2026",
+      "cardYear": 2026,
+      "startingAge": 21,
+      "mainPosition": "MID",
+      "mechanics": 90,
+      "gameSense": 86,
+      "laning": 88,
+      "teamFight": 87,
+      "macro": 84,
+      "teamPlay": 86,
+      "mental": 88,
+      "championPool": 92
+    },
+    {
+      "key": "fnc_upset_2026",
+      "nickname": "Upset",
+      "nationality": "DE",
+      "themeCode": "DEV_2026",
+      "cardYear": 2026,
+      "startingAge": 26,
+      "mainPosition": "ADC",
+      "mechanics": 91,
+      "gameSense": 91,
+      "laning": 94,
+      "teamFight": 92,
+      "macro": 89,
+      "teamPlay": 90,
+      "mental": 91,
+      "championPool": 94
+    },
+    {
+      "key": "fnc_lospa_2026",
+      "nickname": "Lospa",
+      "nationality": "KR",
+      "themeCode": "DEV_2026",
+      "cardYear": 2026,
+      "startingAge": 23,
+      "mainPosition": "SUPPORT",
+      "mechanics": 84,
+      "gameSense": 87,
+      "laning": 86,
+      "teamFight": 88,
+      "macro": 87,
+      "teamPlay": 89,
+      "mental": 90,
+      "championPool": 90
+    },
+    {
+      "key": "lyon_dhokla_2026",
+      "nickname": "Dhokla",
+      "nationality": "IN/US",
+      "themeCode": "DEV_2026",
+      "cardYear": 2026,
+      "startingAge": 29,
+      "mainPosition": "TOP",
+      "mechanics": 88,
+      "gameSense": 88,
+      "laning": 86,
+      "teamFight": 90,
+      "macro": 89,
+      "teamPlay": 90,
+      "mental": 93,
+      "championPool": 94
+    },
+    {
+      "key": "lyon_inspired_2026",
+      "nickname": "Inspired",
+      "nationality": "PL",
+      "themeCode": "DEV_2026",
+      "cardYear": 2026,
+      "startingAge": 24,
+      "mainPosition": "JUNGLE",
+      "mechanics": 93,
+      "gameSense": 96,
+      "laning": 94,
+      "teamFight": 94,
+      "macro": 97,
+      "teamPlay": 95,
+      "mental": 95,
+      "championPool": 97
+    },
+    {
+      "key": "lyon_saint_2026",
+      "nickname": "Saint",
+      "nationality": "KR",
+      "themeCode": "DEV_2026",
+      "cardYear": 2026,
+      "startingAge": 21,
+      "mainPosition": "MID",
+      "mechanics": 95,
+      "gameSense": 90,
+      "laning": 93,
+      "teamFight": 94,
+      "macro": 89,
+      "teamPlay": 91,
+      "mental": 91,
+      "championPool": 94
+    },
+    {
+      "key": "lyon_berserker_2026",
+      "nickname": "Berserker",
+      "nationality": "KR",
+      "themeCode": "DEV_2026",
+      "cardYear": 2026,
+      "startingAge": 23,
+      "mainPosition": "ADC",
+      "mechanics": 95,
+      "gameSense": 91,
+      "laning": 94,
+      "teamFight": 95,
+      "macro": 90,
+      "teamPlay": 92,
+      "mental": 92,
+      "championPool": 96
+    },
+    {
+      "key": "lyon_isles_2026",
+      "nickname": "Isles",
+      "nationality": "AU",
+      "themeCode": "DEV_2026",
+      "cardYear": 2026,
+      "startingAge": 25,
+      "mainPosition": "SUPPORT",
+      "mechanics": 89,
+      "gameSense": 92,
+      "laning": 91,
+      "teamFight": 93,
+      "macro": 94,
+      "teamPlay": 95,
+      "mental": 93,
+      "championPool": 96
+    },
+    {
+      "key": "fly_gakgos_2026",
+      "nickname": "GaKGoS",
+      "nationality": "TR",
+      "themeCode": "DEV_2026",
+      "cardYear": 2026,
+      "startingAge": 18,
+      "mainPosition": "TOP",
+      "mechanics": 88,
+      "gameSense": 83,
+      "laning": 84,
+      "teamFight": 85,
+      "macro": 82,
+      "teamPlay": 83,
+      "mental": 86,
+      "championPool": 88
+    },
+    {
+      "key": "fly_gryffinn_2026",
+      "nickname": "Gryffinn",
+      "nationality": "US/VN",
+      "themeCode": "DEV_2026",
+      "cardYear": 2026,
+      "startingAge": 19,
+      "mainPosition": "JUNGLE",
+      "mechanics": 89,
+      "gameSense": 86,
+      "laning": 87,
+      "teamFight": 86,
+      "macro": 85,
+      "teamPlay": 87,
+      "mental": 89,
+      "championPool": 91
+    },
+    {
+      "key": "fly_quad_2026",
+      "nickname": "Quad",
+      "nationality": "KR",
+      "themeCode": "DEV_2026",
+      "cardYear": 2026,
+      "startingAge": 24,
+      "mainPosition": "MID",
+      "mechanics": 89,
+      "gameSense": 91,
+      "laning": 89,
+      "teamFight": 90,
+      "macro": 90,
+      "teamPlay": 91,
+      "mental": 91,
+      "championPool": 94
+    },
+    {
+      "key": "fly_massu_2026",
+      "nickname": "Massu",
+      "nationality": "CA/US",
+      "themeCode": "DEV_2026",
+      "cardYear": 2026,
+      "startingAge": 21,
+      "mainPosition": "ADC",
+      "mechanics": 93,
+      "gameSense": 90,
+      "laning": 92,
+      "teamFight": 94,
+      "macro": 88,
+      "teamPlay": 90,
+      "mental": 91,
+      "championPool": 93
+    },
+    {
+      "key": "fly_cryogen_2026",
+      "nickname": "Cryogen",
+      "nationality": "VN/US",
+      "themeCode": "DEV_2026",
+      "cardYear": 2026,
+      "startingAge": 19,
+      "mainPosition": "SUPPORT",
+      "mechanics": 85,
+      "gameSense": 85,
+      "laning": 84,
+      "teamFight": 87,
+      "macro": 86,
+      "teamPlay": 88,
+      "mental": 89,
+      "championPool": 91
     }
   ],
   "setBonuses": [
@@ -387,6 +1057,318 @@
           "initialForm": 74
         }
       ]
+    },
+    {
+      "code": "HLE",
+      "name": "Hanwha Life Esports",
+      "region": "LCK",
+      "initialChemistry": 98,
+      "starters": [
+        {
+          "position": "TOP",
+          "playerCardKey": "hle_zeus_2026",
+          "championArchetype": "TOP_AD_BRUISER",
+          "initialCoachTrust": 100
+        },
+        {
+          "position": "JUNGLE",
+          "playerCardKey": "hle_kanavi_2026",
+          "championArchetype": "JUNGLE_EARLY_SNOWBALL",
+          "initialCoachTrust": 100
+        },
+        {
+          "position": "MID",
+          "playerCardKey": "hle_zeka_2026",
+          "championArchetype": "MID_ASSASSIN",
+          "initialCoachTrust": 100
+        },
+        {
+          "position": "ADC",
+          "playerCardKey": "hle_gumayusi_2026",
+          "championArchetype": "LANE_BULLY",
+          "initialCoachTrust": 100
+        },
+        {
+          "position": "SUPPORT",
+          "playerCardKey": "hle_delight_2026",
+          "championArchetype": "TANK_ENGAGE",
+          "initialCoachTrust": 100
+        }
+      ],
+      "benches": []
+    },
+    {
+      "code": "GEN",
+      "name": "Gen.G",
+      "region": "LCK",
+      "initialChemistry": 100,
+      "starters": [
+        {
+          "position": "TOP",
+          "playerCardKey": "gen_kiin_2026",
+          "championArchetype": "TOP_TANK",
+          "initialCoachTrust": 100
+        },
+        {
+          "position": "JUNGLE",
+          "playerCardKey": "gen_canyon_2026",
+          "championArchetype": "JUNGLE_SCALING",
+          "initialCoachTrust": 100
+        },
+        {
+          "position": "MID",
+          "playerCardKey": "gen_chovy_2026",
+          "championArchetype": "MID_STANDING_MAGE",
+          "initialCoachTrust": 100
+        },
+        {
+          "position": "ADC",
+          "playerCardKey": "gen_ruler_2026",
+          "championArchetype": "HYPER_CARRY",
+          "initialCoachTrust": 100
+        },
+        {
+          "position": "SUPPORT",
+          "playerCardKey": "gen_duro_2026",
+          "championArchetype": "UTILITY",
+          "initialCoachTrust": 100
+        }
+      ],
+      "benches": []
+    },
+    {
+      "code": "BLG",
+      "name": "Bilibili Gaming",
+      "region": "LPL",
+      "initialChemistry": 99,
+      "starters": [
+        {
+          "position": "TOP",
+          "playerCardKey": "blg_bin_2026",
+          "championArchetype": "TOP_AD_BRUISER",
+          "initialCoachTrust": 100
+        },
+        {
+          "position": "JUNGLE",
+          "playerCardKey": "blg_xun_2026",
+          "championArchetype": "JUNGLE_EARLY_SNOWBALL",
+          "initialCoachTrust": 100
+        },
+        {
+          "position": "MID",
+          "playerCardKey": "blg_knight_2026",
+          "championArchetype": "MID_STANDING_MAGE",
+          "initialCoachTrust": 100
+        },
+        {
+          "position": "ADC",
+          "playerCardKey": "blg_viper_2026",
+          "championArchetype": "HYPER_CARRY",
+          "initialCoachTrust": 100
+        },
+        {
+          "position": "SUPPORT",
+          "playerCardKey": "blg_on_2026",
+          "championArchetype": "UTILITY",
+          "initialCoachTrust": 100
+        }
+      ],
+      "benches": []
+    },
+    {
+      "code": "AL",
+      "name": "Anyone's Legend",
+      "region": "LPL",
+      "initialChemistry": 100,
+      "starters": [
+        {
+          "position": "TOP",
+          "playerCardKey": "al_breathe_2026",
+          "championArchetype": "TOP_TANK",
+          "initialCoachTrust": 100
+        },
+        {
+          "position": "JUNGLE",
+          "playerCardKey": "al_tarzan_2026",
+          "championArchetype": "JUNGLE_ENGAGE",
+          "initialCoachTrust": 100
+        },
+        {
+          "position": "MID",
+          "playerCardKey": "al_shanks_2026",
+          "championArchetype": "MID_STANDING_MAGE",
+          "initialCoachTrust": 100
+        },
+        {
+          "position": "ADC",
+          "playerCardKey": "al_hope_2026",
+          "championArchetype": "HYPER_CARRY",
+          "initialCoachTrust": 100
+        },
+        {
+          "position": "SUPPORT",
+          "playerCardKey": "al_kael_2026",
+          "championArchetype": "TANK_ENGAGE",
+          "initialCoachTrust": 100
+        }
+      ],
+      "benches": []
+    },
+    {
+      "code": "G2",
+      "name": "G2 Esports",
+      "region": "LEC",
+      "initialChemistry": 100,
+      "starters": [
+        {
+          "position": "TOP",
+          "playerCardKey": "g2_brokenblade_2026",
+          "championArchetype": "TOP_TANK",
+          "initialCoachTrust": 100
+        },
+        {
+          "position": "JUNGLE",
+          "playerCardKey": "g2_skewmond_2026",
+          "championArchetype": "JUNGLE_EARLY_SNOWBALL",
+          "initialCoachTrust": 100
+        },
+        {
+          "position": "MID",
+          "playerCardKey": "g2_caps_2026",
+          "championArchetype": "MID_STANDING_MAGE",
+          "initialCoachTrust": 100
+        },
+        {
+          "position": "ADC",
+          "playerCardKey": "g2_hans_sama_2026",
+          "championArchetype": "LANE_BULLY",
+          "initialCoachTrust": 100
+        },
+        {
+          "position": "SUPPORT",
+          "playerCardKey": "g2_labrov_2026",
+          "championArchetype": "UTILITY",
+          "initialCoachTrust": 100
+        }
+      ],
+      "benches": []
+    },
+    {
+      "code": "FNC",
+      "name": "Fnatic",
+      "region": "LEC",
+      "initialChemistry": 95,
+      "starters": [
+        {
+          "position": "TOP",
+          "playerCardKey": "fnc_soboro_2026",
+          "championArchetype": "TOP_TANK",
+          "initialCoachTrust": 100
+        },
+        {
+          "position": "JUNGLE",
+          "playerCardKey": "fnc_razork_2026",
+          "championArchetype": "JUNGLE_EARLY_SNOWBALL",
+          "initialCoachTrust": 94
+        },
+        {
+          "position": "MID",
+          "playerCardKey": "fnc_vladi_2026",
+          "championArchetype": "MID_STANDING_MAGE",
+          "initialCoachTrust": 97
+        },
+        {
+          "position": "ADC",
+          "playerCardKey": "fnc_upset_2026",
+          "championArchetype": "LANE_BULLY",
+          "initialCoachTrust": 100
+        },
+        {
+          "position": "SUPPORT",
+          "playerCardKey": "fnc_lospa_2026",
+          "championArchetype": "UTILITY",
+          "initialCoachTrust": 100
+        }
+      ],
+      "benches": []
+    },
+    {
+      "code": "LYON",
+      "name": "LYON",
+      "region": "LCS",
+      "initialChemistry": 100,
+      "starters": [
+        {
+          "position": "TOP",
+          "playerCardKey": "lyon_dhokla_2026",
+          "championArchetype": "TOP_TANK",
+          "initialCoachTrust": 100
+        },
+        {
+          "position": "JUNGLE",
+          "playerCardKey": "lyon_inspired_2026",
+          "championArchetype": "JUNGLE_ENGAGE",
+          "initialCoachTrust": 100
+        },
+        {
+          "position": "MID",
+          "playerCardKey": "lyon_saint_2026",
+          "championArchetype": "MID_ASSASSIN",
+          "initialCoachTrust": 100
+        },
+        {
+          "position": "ADC",
+          "playerCardKey": "lyon_berserker_2026",
+          "championArchetype": "HYPER_CARRY",
+          "initialCoachTrust": 100
+        },
+        {
+          "position": "SUPPORT",
+          "playerCardKey": "lyon_isles_2026",
+          "championArchetype": "UTILITY",
+          "initialCoachTrust": 100
+        }
+      ],
+      "benches": []
+    },
+    {
+      "code": "FLY",
+      "name": "FlyQuest",
+      "region": "LCS",
+      "initialChemistry": 98,
+      "starters": [
+        {
+          "position": "TOP",
+          "playerCardKey": "fly_gakgos_2026",
+          "championArchetype": "TOP_AD_BRUISER",
+          "initialCoachTrust": 100
+        },
+        {
+          "position": "JUNGLE",
+          "playerCardKey": "fly_gryffinn_2026",
+          "championArchetype": "JUNGLE_EARLY_SNOWBALL",
+          "initialCoachTrust": 100
+        },
+        {
+          "position": "MID",
+          "playerCardKey": "fly_quad_2026",
+          "championArchetype": "MID_STANDING_MAGE",
+          "initialCoachTrust": 100
+        },
+        {
+          "position": "ADC",
+          "playerCardKey": "fly_massu_2026",
+          "championArchetype": "HYPER_CARRY",
+          "initialCoachTrust": 100
+        },
+        {
+          "position": "SUPPORT",
+          "playerCardKey": "fly_cryogen_2026",
+          "championArchetype": "UTILITY",
+          "initialCoachTrust": 100
+        }
+      ],
+      "benches": []
     }
   ]
 }

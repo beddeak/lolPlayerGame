@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthModule } from '../auth/auth.module';
 import { Career } from '../careers/entities/career.entity';
+import { EventQueueModule } from '../event-queue/event-queue.module';
 import { MatchSeriesModule } from '../match-series/match-series.module';
 import { LeagueFixture } from './entities/league-fixture.entity';
 import { LeagueSplit } from './entities/league-split.entity';
@@ -13,6 +14,7 @@ import { LeaguesService } from './leagues.service';
 @Module({
   imports: [
     AuthModule,
+    EventQueueModule,
     MatchSeriesModule,
     TypeOrmModule.forFeature([
       Career,
