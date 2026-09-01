@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import "./App.css";
+import SeasonHubView from "./SeasonHubView";
 import SquadView from "./SquadView";
 import {
   ApiError,
@@ -22,7 +23,7 @@ import {
   type SwapStarterResponse,
 } from "./types";
 
-type AppView = "saves" | "create" | "career" | "squad";
+type AppView = "saves" | "create" | "career" | "squad" | "season";
 type AuthMode = "login" | "register";
 
 interface TeamDraft {
@@ -209,6 +210,17 @@ function App() {
     }
   }
 
+  async function refreshActiveCareer() {
+    if (!token || !activeCareer) return;
+
+    const [refreshedCareer, savedCareers] = await Promise.all([
+      apiRequest<Career>(`/careers/${activeCareer.id}`, { token }),
+      apiRequest<CareerSummary[]>("/careers", { token }),
+    ]);
+    setActiveCareer(refreshedCareer);
+    setCareers(savedCareers);
+  }
+
   function handleAuthenticatedError(error: unknown) {
     if (error instanceof ApiError && error.status === 401) {
       void logout();
@@ -228,6 +240,7 @@ function App() {
         view={view}
         onHome={() => setView("saves")}
         onCreate={() => void openCreateCareer()}
+        onSeason={() => setView("season")}
         onSquad={() => setView("squad")}
         hasActiveCareer={activeCareer !== null}
         onLogout={() => void logout()}
@@ -258,7 +271,17 @@ function App() {
           <CareerDashboard
             career={activeCareer}
             onBack={() => setView("saves")}
+            onOpenSeason={() => setView("season")}
             onOpenSquad={() => setView("squad")}
+          />
+        )}
+
+        {view === "season" && activeCareer && (
+          <SeasonHubView
+            career={activeCareer}
+            token={token}
+            onBack={() => setView("career")}
+            onCareerRefresh={refreshActiveCareer}
           />
         )}
 
@@ -445,6 +468,7 @@ function AppHeader({
   view,
   onHome,
   onCreate,
+  onSeason,
   onSquad,
   hasActiveCareer,
   onLogout,
@@ -453,6 +477,7 @@ function AppHeader({
   view: AppView;
   onHome: () => void;
   onCreate: () => void;
+  onSeason: () => void;
   onSquad: () => void;
   hasActiveCareer: boolean;
   onLogout: () => void;
@@ -467,12 +492,20 @@ function AppHeader({
           커리어
         </button>
         {hasActiveCareer && (
-          <button
-            className={view === "squad" ? "active" : ""}
-            onClick={onSquad}
-          >
-            선수단
-          </button>
+          <>
+            <button
+              className={view === "season" ? "active" : ""}
+              onClick={onSeason}
+            >
+              시즌
+            </button>
+            <button
+              className={view === "squad" ? "active" : ""}
+              onClick={onSquad}
+            >
+              선수단
+            </button>
+          </>
         )}
         <button
           className={view === "create" ? "active" : ""}
@@ -891,10 +924,12 @@ function TeamBuilder({
 function CareerDashboard({
   career,
   onBack,
+  onOpenSeason,
   onOpenSquad,
 }: {
   career: Career;
   onBack: () => void;
+  onOpenSeason: () => void;
   onOpenSquad: () => void;
 }) {
   const managedTeam =
@@ -922,7 +957,9 @@ function CareerDashboard({
           ← 세이브 목록
         </button>
         <div className="season-info">
-          <span>{career.currentYear} SEASON</span>
+          <span>
+            {career.currentYear} SEASON · {career.currentDate}
+          </span>
           <strong>
             {STRATEGY_LABELS[career.currentMeta] ?? career.currentMeta} META
           </strong>
@@ -932,6 +969,13 @@ function CareerDashboard({
             <span className="save-dot" />
             ALL CHANGES SAVED
           </div>
+          <button
+            className="season-link-button"
+            type="button"
+            onClick={onOpenSeason}
+          >
+            시즌 진행하기 →
+          </button>
           <button
             className="squad-link-button"
             type="button"
@@ -1052,12 +1096,15 @@ function CareerDashboard({
             </div>
           </section>
           <section className="phase-note">
-            <span>FRONTEND 01</span>
-            <strong>저장 데이터 연결 완료</strong>
+            <span>FRONTEND 02</span>
+            <strong>시즌 진행 준비 완료</strong>
             <p>
-              다음 화면부터 일정 진행, 훈련, 경기 운영을 이 커리어에 이어 붙일
-              수 있습니다.
+              일정 생성부터 날짜 진행, 이벤트 처리, Quick Sim까지 시즌 허브에서
+              이어집니다.
             </p>
+            <button type="button" onClick={onOpenSeason}>
+              시즌 허브 열기
+            </button>
           </section>
         </aside>
       </div>

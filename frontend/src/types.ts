@@ -61,6 +61,7 @@ export interface CareerSummary {
   id: number;
   startYear: number;
   currentYear: number;
+  currentDate: string;
   currentMeta: TeamStrategy;
   managedTeamId: number;
   managedTeamCode: string;
@@ -150,8 +151,242 @@ export interface Career {
   id: number;
   startYear: number;
   currentYear: number;
+  currentDate: string;
   currentMeta: TeamStrategy;
   teams: CareerTeam[];
+}
+
+export type CalendarAdvanceMode =
+  | "ONE_DAY"
+  | "THREE_DAYS"
+  | "NEXT_MATCH"
+  | "NEXT_EVENT";
+
+export type CalendarStopReason =
+  | "TARGET_REACHED"
+  | "MATCH_DAY"
+  | "BLOCKING_EVENT";
+
+export type CalendarEventStatus = "SCHEDULED" | "READY" | "COMPLETED";
+
+export type CalendarEventType =
+  | "SCHEDULED_GAME"
+  | "CONTRACT_RESPONSE"
+  | "LEGEND_REVEAL"
+  | "PLAYER_MEETING"
+  | "INTERNATIONAL_ROSTER_REGISTRATION"
+  | "SEASON_REVIEW"
+  | "TRANSFER_WINDOW_OPEN";
+
+export interface CalendarEvent {
+  id: number;
+  careerId: number;
+  scheduledDate: string;
+  type: CalendarEventType;
+  status: CalendarEventStatus;
+  requiresUserAction: boolean;
+  payload: Record<string, unknown> | null;
+  createdAt: string;
+  completedAt: string | null;
+}
+
+export interface FixtureTeam {
+  id: number;
+  code: string;
+  name: string;
+}
+
+export interface CalendarFixture {
+  id: number;
+  scheduledDate: string;
+  leagueSplitId: number;
+  leagueStageId: number;
+  year: number;
+  region: Region;
+  splitNumber: number;
+  stageCode: string;
+  roundNumber: number;
+  bestOf: number;
+  teamA: FixtureTeam;
+  teamB: FixtureTeam;
+}
+
+export interface CalendarResponse {
+  careerId: number;
+  currentDate: string;
+  currentYear: number;
+  nextMatch: CalendarFixture | null;
+  dueMatches: CalendarFixture[];
+  blockingEvents: CalendarEvent[];
+}
+
+export interface CalendarAdvanceResponse extends CalendarResponse {
+  mode: CalendarAdvanceMode;
+  previousDate: string;
+  advancedDays: number;
+  stopReason: CalendarStopReason;
+  processedEvents: CalendarEvent[];
+}
+
+export type LeagueFixtureStatus = "SCHEDULED" | "IN_PROGRESS" | "COMPLETED";
+export type LeagueSplitStatus = "SCHEDULED" | "IN_PROGRESS" | "COMPLETED";
+export type LeagueStageStatus = "PLANNED" | "ACTIVE" | "COMPLETED";
+
+export interface LeagueFixture {
+  id: number;
+  leagueStageId: number;
+  fixtureNumber: number;
+  stageFixtureNumber: number;
+  roundNumber: number;
+  scheduledDate: string;
+  bestOf: number;
+  seed: number;
+  status: LeagueFixtureStatus;
+  seriesId: number | null;
+  teamA: FixtureTeam;
+  teamB: FixtureTeam;
+  teamAWins: number;
+  teamBWins: number;
+  winnerTeamId: number | null;
+}
+
+export interface LeagueStanding {
+  rank: number;
+  teamId: number;
+  teamCode: string;
+  teamName: string;
+  played: number;
+  seriesWins: number;
+  seriesLosses: number;
+  gameWins: number;
+  gameLosses: number;
+  gameDifference: number;
+}
+
+export interface LeagueStage {
+  id: number;
+  sequence: number;
+  code: string;
+  name: string;
+  format: string;
+  status: LeagueStageStatus;
+  bestOf: number;
+  currentRound: number;
+  settings: Record<string, unknown>;
+  participants: Array<{
+    teamId: number;
+    teamCode: string;
+    teamName: string;
+    initialSeed: number;
+    groupCode: string | null;
+  }>;
+  fixtures: LeagueFixture[];
+  standings: LeagueStanding[];
+}
+
+export interface LeagueSplit {
+  id: number;
+  careerId: number;
+  year: number;
+  region: Region;
+  splitNumber: number;
+  name: string;
+  expectedTeamCount: number;
+  status: LeagueSplitStatus;
+  activeStageCode: string | null;
+  stages: LeagueStage[];
+  fixtures: LeagueFixture[];
+  standings: LeagueStanding[];
+}
+
+export interface MatchPlayerStat {
+  careerPlayerId: number;
+  position: Position;
+  kills: number;
+  deaths: number;
+  assists: number;
+  kda: number;
+  dpm: number;
+  damageShare: number;
+  gold: number;
+  goldShare: number;
+  gdAt15: number;
+  csdAt15: number;
+  kp: number;
+  rating: number;
+}
+
+export interface MatchSimulation {
+  matchId: number;
+  seriesGameNumber: number | null;
+  durationMinutes: number;
+  winnerTeamId: number;
+  winnerTeamCode: string;
+  teams: Array<{
+    teamId: number;
+    teamCode: string;
+    teamStrategy: TeamStrategy;
+    performance: number;
+    teamKills: number;
+    playerStats: MatchPlayerStat[];
+  }>;
+}
+
+export interface MatchSeries {
+  seriesId: number;
+  careerId: number;
+  bestOf: number;
+  winsRequired: number;
+  status: "IN_PROGRESS" | "COMPLETED";
+  winnerTeamId: number | null;
+  nextGameNumber: number | null;
+  seed: number;
+  teams: Array<{
+    teamId: number;
+    teamCode: string;
+    wins: number;
+  }>;
+  games: MatchSimulation[];
+}
+
+export interface QuickSimResponse {
+  mode: "QUICK";
+  fixtureId: number;
+  gamesSimulated: number;
+  series: MatchSeries;
+  split: LeagueSplit;
+}
+
+export type FastSimStopReason =
+  | "TARGET_REACHED"
+  | "MANAGED_MATCH"
+  | "BLOCKING_EVENT"
+  | "FIXTURE_LIMIT";
+
+export interface FastSimResponse {
+  mode: "FAST";
+  careerId: number;
+  previousDate: string;
+  currentDate: string;
+  targetDate: string;
+  advancedDays: number;
+  stopReason: FastSimStopReason;
+  fixtureLimit: number;
+  simulatedFixtures: Array<{
+    fixtureId: number;
+    leagueSplitId: number;
+    scheduledDate: string;
+    seriesId: number;
+    bestOf: number;
+    gamesSimulated: number;
+    teamAId: number;
+    teamBId: number;
+    teamAWins: number;
+    teamBWins: number;
+    winnerTeamId: number;
+  }>;
+  blockingEvents: CalendarEvent[];
+  calendar: CalendarResponse;
 }
 
 export interface CreateCareerPayload {
