@@ -14,6 +14,7 @@ import { LeaguesModule } from './leagues/leagues.module';
 import { CalendarsModule } from './calendars/calendars.module';
 import { EventQueueModule } from './event-queue/event-queue.module';
 import { SimulationsModule } from './simulations/simulations.module';
+import { ContractsModule } from './contracts/contracts.module';
 
 @Module({
   imports: [
@@ -52,6 +53,7 @@ import { SimulationsModule } from './simulations/simulations.module';
     CalendarsModule,
     EventQueueModule,
     SimulationsModule,
+    ContractsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

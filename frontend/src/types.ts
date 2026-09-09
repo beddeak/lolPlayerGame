@@ -156,6 +156,76 @@ export interface Career {
   teams: CareerTeam[];
 }
 
+export type ContractRole = "CORE" | "STARTER" | "ROTATION" | "PROSPECT";
+export type ContractPromiseType =
+  | "STARTER_GUARANTEE"
+  | "CARRY_ROLE"
+  | "STRENGTHEN_TEAM"
+  | "SIGN_POSITION";
+
+export interface ContractPromise {
+  type: ContractPromiseType;
+  position?: Position;
+}
+
+export interface ContractTerms {
+  annualSalary: number;
+  years: number;
+  starterGuarantee: boolean;
+  expectedRole: ContractRole;
+  promises: ContractPromise[];
+}
+
+export type ContractOfferStatus =
+  | "WAITING_PLAYER_RESPONSE"
+  | "PLAYER_ACCEPTED"
+  | "COUNTER_OFFERED"
+  | "REJECTED"
+  | "WITHDRAWN"
+  | "SIGNED";
+
+export type ContractOfferAction =
+  | "ACCEPT"
+  | "COUNTER"
+  | "KEEP"
+  | "WITHDRAW"
+  | "REQUEST_TIME";
+
+export interface ContractOffer {
+  id: number;
+  careerId: number;
+  careerTeamId: number;
+  careerPlayerId: number;
+  status: ContractOfferStatus;
+  revision: number;
+  offeredDate: string;
+  responseDate: string;
+  responseEventId: number | null;
+  terms: ContractTerms;
+  counterTerms: ContractTerms | null;
+  response: {
+    kind: "ACCEPTED" | "COUNTER_OFFER" | "REJECTED";
+    reason: string;
+    evaluatedDate: string;
+  } | null;
+  extensionsUsed: number;
+  history: unknown[];
+  createdAt: string;
+}
+
+export interface PlayerContract {
+  id: number;
+  careerId: number;
+  careerTeamId: number;
+  careerPlayerId: number;
+  sourceOfferId: number;
+  signedDate: string;
+  startDate: string;
+  endDate: string;
+  terms: ContractTerms;
+  promises: Array<ContractPromise & { status: "PENDING" }>;
+}
+
 export type CalendarAdvanceMode =
   | "ONE_DAY"
   | "THREE_DAYS"

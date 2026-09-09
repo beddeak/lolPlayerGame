@@ -3069,6 +3069,8 @@ Contract
 - Starter Guarantee
 - Promise
 
+구현 범위 및 사용법: [PHASE 19 계약](docs/PHASE19-CONTRACTS.md)
+
 
 --------------------------------
 

@@ -1,0 +1,18 @@
+export enum TransferAgreementStatus {
+  ACCEPTED = 'ACCEPTED',
+  REJECTED = 'REJECTED',
+  COMPLETED = 'COMPLETED',
+  CANCELLED = 'CANCELLED',
+}
+
+export enum TransferRecordType {
+  TRANSFER = 'TRANSFER',
+  FREE_AGENT_SIGNING = 'FREE_AGENT_SIGNING',
+  RELEASE = 'RELEASE',
+  CONTRACT_EXPIRATION = 'CONTRACT_EXPIRATION',
+}
+
+export enum TransferMarketAvailability {
+  FREE_AGENT = 'FREE_AGENT',
+  CONTRACTED = 'CONTRACTED',
+}

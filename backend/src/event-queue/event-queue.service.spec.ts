@@ -5,6 +5,7 @@ import { CalendarEvent } from './entities/calendar-event.entity';
 import { CalendarEventStatus } from './enums/calendar-event-status.enum';
 import { CalendarEventType } from './enums/calendar-event-type.enum';
 import { EventQueueService } from './event-queue.service';
+import { ContractsService } from '../contracts/contracts.service';
 
 describe('EventQueueService', () => {
   const career = { id: 1, accountId: 7 } as Career;
@@ -44,6 +45,7 @@ describe('EventQueueService', () => {
       dataSource as unknown as DataSource,
       careersRepository as unknown as Repository<Career>,
       eventsRepository as unknown as Repository<CalendarEvent>,
+      { processResponseEvent: jest.fn() } as unknown as ContractsService,
     );
   });
 

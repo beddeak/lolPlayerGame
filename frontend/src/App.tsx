@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import "./App.css";
+import ContractsView from "./ContractsView";
 import SeasonHubView from "./SeasonHubView";
 import SquadView from "./SquadView";
 import {
@@ -23,7 +24,7 @@ import {
   type SwapStarterResponse,
 } from "./types";
 
-type AppView = "saves" | "create" | "career" | "squad" | "season";
+type AppView = "saves" | "create" | "career" | "squad" | "season" | "contracts";
 type AuthMode = "login" | "register";
 
 interface TeamDraft {
@@ -86,6 +87,7 @@ function App() {
   const [playerCards, setPlayerCards] = useState<PlayerCard[]>([]);
   const [activeCareer, setActiveCareer] = useState<Career | null>(null);
   const [view, setView] = useState<AppView>("saves");
+  const [selectedContractOfferId, setSelectedContractOfferId] = useState<number | null>(null);
   const [booting, setBooting] = useState(() => Boolean(getStoredAccessToken()));
   const [pageError, setPageError] = useState("");
 
@@ -229,6 +231,11 @@ function App() {
     setPageError(toMessage(error));
   }
 
+  function openContracts(offerId?: number) {
+    setSelectedContractOfferId(offerId ?? null);
+    setView("contracts");
+  }
+
   if (booting) return <LoadingScreen />;
   if (!account || !token)
     return <AuthScreen onAuthenticated={finishAuthentication} />;
@@ -242,6 +249,7 @@ function App() {
         onCreate={() => void openCreateCareer()}
         onSeason={() => setView("season")}
         onSquad={() => setView("squad")}
+        onContracts={() => openContracts()}
         hasActiveCareer={activeCareer !== null}
         onLogout={() => void logout()}
       />
@@ -273,6 +281,7 @@ function App() {
             onBack={() => setView("saves")}
             onOpenSeason={() => setView("season")}
             onOpenSquad={() => setView("squad")}
+            onOpenContracts={() => openContracts()}
           />
         )}
 
@@ -281,6 +290,19 @@ function App() {
             career={activeCareer}
             token={token}
             onBack={() => setView("career")}
+            onCareerRefresh={refreshActiveCareer}
+            onOpenContracts={openContracts}
+          />
+        )}
+
+        {view === "contracts" && activeCareer && (
+          <ContractsView
+            key={activeCareer.id}
+            career={activeCareer}
+            token={token}
+            initialOfferId={selectedContractOfferId}
+            onBack={() => setView("career")}
+            onOpenSeason={() => setView("season")}
             onCareerRefresh={refreshActiveCareer}
           />
         )}
@@ -470,6 +492,7 @@ function AppHeader({
   onCreate,
   onSeason,
   onSquad,
+  onContracts,
   hasActiveCareer,
   onLogout,
 }: {
@@ -479,6 +502,7 @@ function AppHeader({
   onCreate: () => void;
   onSeason: () => void;
   onSquad: () => void;
+  onContracts: () => void;
   hasActiveCareer: boolean;
   onLogout: () => void;
 }) {
@@ -504,6 +528,12 @@ function AppHeader({
               onClick={onSquad}
             >
               선수단
+            </button>
+            <button
+              className={view === "contracts" ? "active" : ""}
+              onClick={onContracts}
+            >
+              계약
             </button>
           </>
         )}
@@ -926,11 +956,13 @@ function CareerDashboard({
   onBack,
   onOpenSeason,
   onOpenSquad,
+  onOpenContracts,
 }: {
   career: Career;
   onBack: () => void;
   onOpenSeason: () => void;
   onOpenSquad: () => void;
+  onOpenContracts: () => void;
 }) {
   const managedTeam =
     career.teams.find((team) => team.isUserControlled) ?? career.teams[0];
@@ -982,6 +1014,13 @@ function CareerDashboard({
             onClick={onOpenSquad}
           >
             선수단 전체 보기 →
+          </button>
+          <button
+            className="squad-link-button"
+            type="button"
+            onClick={onOpenContracts}
+          >
+            계약 협상 →
           </button>
         </div>
       </div>

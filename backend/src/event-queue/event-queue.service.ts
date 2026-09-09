@@ -16,6 +16,7 @@ import { FindCalendarEventsQueryDto } from './dto/find-calendar-events-query.dto
 import { CalendarEvent } from './entities/calendar-event.entity';
 import { CalendarEventStatus } from './enums/calendar-event-status.enum';
 import { CalendarEventType } from './enums/calendar-event-type.enum';
+import { ContractsService } from '../contracts/contracts.service';
 
 export interface EnqueueCalendarEventInput {
   scheduledDate: string;
@@ -37,6 +38,7 @@ export class EventQueueService {
     private readonly careersRepository: Repository<Career>,
     @InjectRepository(CalendarEvent)
     private readonly eventsRepository: Repository<CalendarEvent>,
+    private readonly contractsService: ContractsService,
   ) {}
 
   async findAll(
@@ -76,6 +78,13 @@ export class EventQueueService {
         throw new NotFoundException(
           `CalendarEvent ${eventId} was not found in Career ${careerId}`,
         );
+      }
+
+      if (
+        event.type === CalendarEventType.CONTRACT_RESPONSE &&
+        event.payload?.contractOfferId !== undefined
+      ) {
+        throw new ConflictException('계약 응답은 계약 화면에서 결정해 주세요.');
       }
 
       if (!event.requiresUserAction) {
@@ -124,6 +133,11 @@ export class EventQueueService {
     careerId: number,
     date: string,
   ): Promise<ProcessedCalendarEvents> {
+    // Every response path locks career -> event/offer to serialize calendar and contract decisions.
+    await manager.findOne(Career, {
+      where: { id: careerId },
+      lock: { mode: 'pessimistic_write' },
+    });
     const events = await manager.find(CalendarEvent, {
       where: {
         careerId,
@@ -135,6 +149,12 @@ export class EventQueueService {
     });
 
     for (const event of events) {
+      if (
+        event.type === CalendarEventType.CONTRACT_RESPONSE &&
+        event.payload?.contractOfferId !== undefined
+      ) {
+        await this.contractsService.processResponseEvent(manager, event, date);
+      }
       if (event.requiresUserAction) {
         event.status = CalendarEventStatus.READY;
       } else {

@@ -43,6 +43,7 @@ interface SeasonHubViewProps {
   token: string;
   onBack: () => void;
   onCareerRefresh: () => Promise<void>;
+  onOpenContracts: (offerId?: number) => void;
 }
 
 export default function SeasonHubView({
@@ -50,6 +51,7 @@ export default function SeasonHubView({
   token,
   onBack,
   onCareerRefresh,
+  onOpenContracts,
 }: SeasonHubViewProps) {
   const managedTeam =
     career.teams.find((team) => team.isUserControlled) ?? career.teams[0];
@@ -192,6 +194,10 @@ export default function SeasonHubView({
   }
 
   function resolveEvent(event: CalendarEvent) {
+    if (event.type === "CONTRACT_RESPONSE" && typeof event.payload?.contractOfferId === "number") {
+      onOpenContracts(event.payload.contractOfferId);
+      return;
+    }
     void performAction(`event-${event.id}`, async () => {
       await apiRequest<CalendarEvent>(
         `/careers/${career.id}/events/${event.id}/resolve`,
@@ -220,12 +226,25 @@ export default function SeasonHubView({
 
   if (!managedTeam) return null;
 
-  if (loading || !calendar) {
+  if (loading) {
     return (
       <section className="season-loading">
         <span className="season-loading-ball" />
         <strong>시즌 데이터를 불러오는 중</strong>
         <small>일정, 이벤트, 순위를 동기화하고 있습니다.</small>
+      </section>
+    );
+  }
+
+  if (!calendar) {
+    return (
+      <section className="season-loading">
+        <strong>시즌 정보를 불러오지 못했습니다.</strong>
+        <p role="alert">{error}</p>
+        <button disabled={Boolean(busyAction)} onClick={() => void performAction("retry", fetchSeasonData)}>
+          다시 시도
+        </button>
+        <button onClick={onBack}>구단으로 돌아가기</button>
       </section>
     );
   }
