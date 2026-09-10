@@ -3079,6 +3079,8 @@ PHASE 20
 
 Transfer / FA
 
+구현 범위 및 사용법: [PHASE 20 이적과 FA](docs/PHASE20-TRANSFERS.md)
+
 
 --------------------------------
 

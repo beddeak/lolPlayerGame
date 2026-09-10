@@ -8,7 +8,6 @@ import { AppModule } from '../src/app.module';
 import { Account } from '../src/auth/entities/account.entity';
 import { addCalendarDays } from '../src/calendars/calendar-date';
 import { CareerPlayer } from '../src/careers/entities/career-player.entity';
-import { Career } from '../src/careers/entities/career.entity';
 import { Roster } from '../src/careers/entities/roster.entity';
 import { Region } from '../src/careers/enums/region.enum';
 import { RosterRole } from '../src/careers/enums/roster-role.enum';
@@ -146,10 +145,8 @@ describe('Transfer, free agency and contract expiration (e2e)', () => {
 
   const api = () => request(app.getHttpServer());
   const auth = (token = ownerToken) => ({ Authorization: `Bearer ${token}` });
-  const transferBase = (careerId: number) =>
-    `/careers/${careerId}/transfers`;
-  const contractsBase = (careerId: number) =>
-    `/careers/${careerId}/contracts`;
+  const transferBase = (careerId: number) => `/careers/${careerId}/transfers`;
+  const contractsBase = (careerId: number) => `/careers/${careerId}/contracts`;
 
   function team(career: CareerResponse, code: string): CareerTeamResponse {
     const result = career.teams.find((candidate) => candidate.code === code);
@@ -362,7 +359,9 @@ describe('Transfer, free agency and contract expiration (e2e)', () => {
     expect(calendar.stopReason).toBe('BLOCKING_EVENT');
     expect(calendar.advancedDays).toBeGreaterThanOrEqual(1);
     expect(calendar.advancedDays).toBeLessThanOrEqual(3);
-    expect(Date.parse(calendar.currentDate)).toBeGreaterThan(Date.parse(before));
+    expect(Date.parse(calendar.currentDate)).toBeGreaterThan(
+      Date.parse(before),
+    );
     expect(calendar.blockingEvents).toContainEqual(
       expect.objectContaining({
         id: offer.responseEventId,
@@ -517,6 +516,77 @@ describe('Transfer, free agency and contract expiration (e2e)', () => {
         requiredFee: 0,
       }),
     );
+    expect(JSON.stringify(await listMarket(career.id))).not.toContain(
+      'potential',
+    );
+    expect(JSON.stringify(await listHistory(career.id))).not.toContain(
+      'potential',
+    );
+  });
+
+  it('validates market requests and refuses roster-breaking starter moves', async () => {
+    const career = await createCareer();
+    const home = team(career, 'TRANSFER_HOME');
+    const seller = team(career, 'TRANSFER_SELLER');
+
+    await api()
+      .get(`${transferBase(career.id)}/market?availability=UNKNOWN`)
+      .set(auth())
+      .expect(400);
+    await api()
+      .get(`${transferBase(career.id)}/market?position=COACH`)
+      .set(auth())
+      .expect(400);
+
+    const sellerTop = starter(seller, Position.TOP).careerPlayer;
+    for (const offeredFee of [-1, 1.5, 500_001, '10000']) {
+      await api()
+        .post(`${transferBase(career.id)}/agreements`)
+        .set(auth())
+        .send({ careerPlayerId: sellerTop.id, offeredFee })
+        .expect(400);
+    }
+
+    await api()
+      .post(`${transferBase(career.id)}/agreements`)
+      .set(auth())
+      .send({
+        careerPlayerId: starter(home, Position.TOP).careerPlayer.id,
+        offeredFee: 0,
+      })
+      .expect(400);
+    await api()
+      .post(`${transferBase(career.id)}/agreements`)
+      .set(auth())
+      .send({
+        careerPlayerId: starter(seller, Position.JUNGLE).careerPlayer.id,
+        offeredFee: 500_000,
+      })
+      .expect(409);
+
+    const homeSupport = starter(home, Position.SUPPORT).careerPlayer;
+    await api()
+      .post(`${transferBase(career.id)}/players/${homeSupport.id}/release`)
+      .set(auth())
+      .expect(409);
+
+    const homeTop = starter(home, Position.TOP).careerPlayer;
+    const topReplacement = home.benches.find(
+      (slot) => slot.careerPlayer.currentPosition === Position.TOP,
+    )!.careerPlayer;
+    await api()
+      .post(`${transferBase(career.id)}/players/${homeTop.id}/release`)
+      .set(auth())
+      .expect(201);
+    const afterRelease = team(await getCareer(career.id), 'TRANSFER_HOME');
+    expect(starter(afterRelease, Position.TOP).careerPlayer.id).toBe(
+      topReplacement.id,
+    );
+    expect(
+      [...afterRelease.starters, ...afterRelease.benches].some(
+        (slot) => slot.careerPlayer.id === homeTop.id,
+      ),
+    ).toBe(false);
   });
 
   it('rejects a low club fee and completes an accepted transfer through the delayed player contract response', async () => {
@@ -546,11 +616,7 @@ describe('Transfer, free agency and contract expiration (e2e)', () => {
       ]),
     );
 
-    const offer = await createContractOffer(
-      career.id,
-      target.id,
-      accepted.id,
-    );
+    const offer = await createContractOffer(career.id, target.id, accepted.id);
     await advanceToContractResponse(career.id, offer);
     expect((await findContractOffer(career.id, offer.id)).status).toBe(
       ContractOfferStatus.PLAYER_ACCEPTED,
@@ -672,7 +738,6 @@ describe('Transfer, free agency and contract expiration (e2e)', () => {
 
   it('rolls a signing back when the managed bench already has five players', async () => {
     const career = await createCareer(5);
-    const home = team(career, 'TRANSFER_HOME');
     const seller = team(career, 'TRANSFER_SELLER');
     const target = starter(seller, Position.TOP).careerPlayer;
     const replacement = seller.benches[0].careerPlayer;
@@ -682,11 +747,7 @@ describe('Transfer, free agency and contract expiration (e2e)', () => {
       target.id,
     );
     const { accepted } = await createAcceptedAgreement(career.id, target.id);
-    const offer = await createContractOffer(
-      career.id,
-      target.id,
-      accepted.id,
-    );
+    const offer = await createContractOffer(career.id, target.id, accepted.id);
     await advanceToContractResponse(career.id, offer);
 
     await acceptContract(career.id, offer.id, 409);
@@ -733,6 +794,59 @@ describe('Transfer, free agency and contract expiration (e2e)', () => {
     ).toEqual([]);
   });
 
+  it('cancels an accepted transfer agreement when the source contract expires', async () => {
+    const career = await createCareer();
+    const seller = team(career, 'TRANSFER_SELLER');
+    const target = starter(seller, Position.TOP).careerPlayer;
+    const contract = await seedActiveContract(
+      career,
+      seller.id,
+      target.id,
+      career.currentDate,
+    );
+    const { accepted } = await createAcceptedAgreement(career.id, target.id);
+    const expirationDate = addCalendarDays(career.currentDate, 1);
+    await dataSource.getRepository(CalendarEvent).save(
+      dataSource.getRepository(CalendarEvent).create({
+        careerId: career.id,
+        scheduledDate: expirationDate,
+        type: CalendarEventType.CONTRACT_EXPIRATION,
+        status: CalendarEventStatus.SCHEDULED,
+        requiresUserAction: false,
+        payload: {
+          playerContractId: contract.id,
+          careerPlayerId: target.id,
+          sourceOfferId: contract.sourceOfferId,
+        },
+        completedAt: null,
+      }),
+    );
+
+    const advanceResponse = await api()
+      .post(`/careers/${career.id}/calendar/advance`)
+      .set(auth())
+      .send({ mode: 'ONE_DAY' })
+      .expect(201);
+    expect((advanceResponse.body as CalendarAdvanceResponse).currentDate).toBe(
+      expirationDate,
+    );
+
+    expect(await listAgreements(career.id)).toContainEqual(
+      expect.objectContaining({
+        id: accepted.id,
+        status: TransferAgreementStatus.CANCELLED,
+      }),
+    );
+    expect(await listHistory(career.id)).toContainEqual(
+      expect.objectContaining({
+        careerPlayerId: target.id,
+        type: TransferRecordType.CONTRACT_EXPIRATION,
+        fromTeamId: seller.id,
+        toTeamId: null,
+      }),
+    );
+  });
+
   it('keeps a contract through its inclusive end date and expires it as a non-blocking event the next day', async () => {
     const career = await createCareer();
     const home = team(career, 'TRANSFER_HOME');
@@ -776,7 +890,9 @@ describe('Transfer, free agency and contract expiration (e2e)', () => {
 
     // endDate is inclusive: the player remains registered on that date.
     expect(
-      (await contractRepository.findOneByOrFail({ id: contract.id })) as unknown,
+      (await contractRepository.findOneByOrFail({
+        id: contract.id,
+      })) as unknown,
     ).toEqual(expect.objectContaining({ status: 'ACTIVE' }));
     expect(
       await dataSource
@@ -803,7 +919,9 @@ describe('Transfer, free agency and contract expiration (e2e)', () => {
     );
 
     expect(
-      (await contractRepository.findOneByOrFail({ id: contract.id })) as unknown,
+      (await contractRepository.findOneByOrFail({
+        id: contract.id,
+      })) as unknown,
     ).toEqual(expect.objectContaining({ status: 'EXPIRED' }));
     expect(
       await dataSource

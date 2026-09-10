@@ -51,6 +51,9 @@ import { CalendarEvent } from '../event-queue/entities/calendar-event.entity';
 import { ContractOffer } from '../contracts/entities/contract-offer.entity';
 import { PlayerContract } from '../contracts/entities/player-contract.entity';
 import { CreateContracts1788472800000 } from './migrations/1788472800000-create-contracts';
+import { TransferAgreement } from '../transfers/entities/transfer-agreement.entity';
+import { TransferRecord } from '../transfers/entities/transfer-record.entity';
+import { CreateTransfers1788559200000 } from './migrations/1788559200000-create-transfers';
 
 if (existsSync('.env')) {
   loadEnvFile('.env');
@@ -94,6 +97,8 @@ const dataSource = new DataSource({
     CalendarEvent,
     ContractOffer,
     PlayerContract,
+    TransferAgreement,
+    TransferRecord,
   ],
   migrations: [
     CreatePlayerCatalog1787237754573,
@@ -118,6 +123,7 @@ const dataSource = new DataSource({
     AdjustSplitThreeStart1788303600000,
     CreateCalendarEvents1788386400000,
     CreateContracts1788472800000,
+    CreateTransfers1788559200000,
   ],
   migrationsTableName: 'migrations',
   ssl: useSsl ? { rejectUnauthorized: true } : undefined,

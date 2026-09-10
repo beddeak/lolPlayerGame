@@ -15,6 +15,7 @@ import { CalendarsModule } from './calendars/calendars.module';
 import { EventQueueModule } from './event-queue/event-queue.module';
 import { SimulationsModule } from './simulations/simulations.module';
 import { ContractsModule } from './contracts/contracts.module';
+import { TransfersModule } from './transfers/transfers.module';
 
 @Module({
   imports: [
@@ -53,6 +54,7 @@ import { ContractsModule } from './contracts/contracts.module';
     CalendarsModule,
     EventQueueModule,
     SimulationsModule,
+    TransfersModule,
     ContractsModule,
   ],
   controllers: [AppController],

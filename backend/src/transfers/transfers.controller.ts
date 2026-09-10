@@ -60,10 +60,6 @@ export class TransfersController {
     @Param('careerId', ParseIntPipe) careerId: number,
     @Param('careerPlayerId', ParseIntPipe) careerPlayerId: number,
   ) {
-    return this.transfers.releasePlayer(
-      account.id,
-      careerId,
-      careerPlayerId,
-    );
+    return this.transfers.releasePlayer(account.id, careerId, careerPlayerId);
   }
 }

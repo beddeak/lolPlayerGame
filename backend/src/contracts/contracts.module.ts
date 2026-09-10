@@ -9,10 +9,12 @@ import { ContractsController } from './contracts.controller';
 import { ContractsService } from './contracts.service';
 import { ContractOffer } from './entities/contract-offer.entity';
 import { PlayerContract } from './entities/player-contract.entity';
+import { TransfersModule } from '../transfers/transfers.module';
 
 @Module({
   imports: [
     AuthModule,
+    TransfersModule,
     TypeOrmModule.forFeature([
       Career,
       CareerPlayer,

@@ -56,16 +56,44 @@ export interface TransferMarketCandidate {
   position: Position;
   overall: number;
   availability: TransferMarketAvailability;
+  currentTeamId: number | null;
   currentTeam: { id: number; code: string; name: string } | null;
   rosterRole: RosterRole | null;
   currentContract: {
     annualSalary: number;
     endDate: string;
   } | null;
-  requiredTransferFee: number;
+  requiredFee: number;
   activeAgreementId: number | null;
   canNegotiate: boolean;
+  hasBenchSpace: boolean;
   blockedReason: string | null;
+}
+
+export type TransferAgreementResponse = TransferAgreement & {
+  buyerTeamId: number;
+  sellerTeamId: number;
+};
+
+export interface TransferRecordResponse {
+  id: number;
+  careerId: number;
+  careerPlayerId: number;
+  type: TransferRecordType;
+  fromTeamId: number | null;
+  toTeamId: number | null;
+  transferAgreementId: number | null;
+  contractOfferId: number | null;
+  transferFee: number;
+  completedDate: string;
+  createdAt: Date;
+  player: {
+    nickname: string;
+    nationality: string;
+    position: Position;
+  };
+  fromTeam: { id: number; code: string; name: string } | null;
+  toTeam: { id: number; code: string; name: string } | null;
 }
 
 @Injectable()
@@ -135,9 +163,8 @@ export class TransfersService {
           player,
           contract,
           players,
-          destinationBenchCount,
         );
-        const requiredTransferFee =
+        const requiredFee =
           availability === TransferMarketAvailability.CONTRACTED &&
           player.roster
             ? this.requiredTransferFee(
@@ -156,6 +183,7 @@ export class TransfersService {
           position: player.currentPosition,
           overall: this.playerAbility(player),
           availability,
+          currentTeamId: player.currentTeamId,
           currentTeam: player.currentTeam
             ? {
                 id: player.currentTeam.id,
@@ -170,9 +198,10 @@ export class TransfersService {
                 endDate: contract.endDate,
               }
             : null,
-          requiredTransferFee,
+          requiredFee,
           activeAgreementId: agreementsByPlayer.get(player.id)?.id ?? null,
           canNegotiate: blockedReason === null,
+          hasBenchSpace: destinationBenchCount < MAX_BENCH_PLAYERS,
           blockedReason,
         };
       })
@@ -192,32 +221,25 @@ export class TransfersService {
   async findAgreements(
     accountId: number,
     careerId: number,
-  ): Promise<TransferAgreement[]> {
-    await this.assertOwnedCareer(
-      this.dataSource.manager,
-      accountId,
-      careerId,
-    );
+  ): Promise<TransferAgreementResponse[]> {
+    await this.assertOwnedCareer(this.dataSource.manager, accountId, careerId);
     const managedTeam = await this.findManagedTeam(
       this.dataSource.manager,
       careerId,
     );
-    return this.dataSource.manager.find(TransferAgreement, {
+    const agreements = await this.dataSource.manager.find(TransferAgreement, {
       where: { careerId, buyerCareerTeamId: managedTeam.id },
       order: { id: 'DESC' },
     });
+    return agreements.map((agreement) => this.toAgreementResponse(agreement));
   }
 
   async findHistory(
     accountId: number,
     careerId: number,
-  ): Promise<TransferRecord[]> {
-    await this.assertOwnedCareer(
-      this.dataSource.manager,
-      accountId,
-      careerId,
-    );
-    return this.dataSource.manager.find(TransferRecord, {
+  ): Promise<TransferRecordResponse[]> {
+    await this.assertOwnedCareer(this.dataSource.manager, accountId, careerId);
+    const records = await this.dataSource.manager.find(TransferRecord, {
       where: { careerId },
       relations: {
         careerPlayer: { playerCard: { player: true } },
@@ -226,13 +248,14 @@ export class TransfersService {
       },
       order: { completedDate: 'DESC', id: 'DESC' },
     });
+    return records.map((record) => this.toRecordResponse(record));
   }
 
   async createAgreement(
     accountId: number,
     careerId: number,
     dto: CreateTransferAgreementDto,
-  ): Promise<TransferAgreement> {
+  ): Promise<TransferAgreementResponse> {
     validateTransferFee(dto.offeredFee);
     return this.dataSource.transaction(async (manager) => {
       const career = await this.assertOwnedCareer(
@@ -259,9 +282,10 @@ export class TransfersService {
       await this.lockTeams(manager, careerId, [buyer.id, player.currentTeamId]);
       const roster = await this.findPlayerRoster(manager, player.id, true);
       if (!roster || roster.careerTeamId !== player.currentTeamId)
-        throw new ConflictException('선수의 현재 로스터 정보가 일치하지 않습니다.');
+        throw new ConflictException(
+          '선수의 현재 로스터 정보가 일치하지 않습니다.',
+        );
       await this.assertSourceCanReleaseStarter(manager, roster, true);
-      await this.assertDestinationBenchSpace(manager, buyer.id);
 
       const existing = await manager.findOne(TransferAgreement, {
         where: {
@@ -305,7 +329,9 @@ export class TransfersService {
           ? '판매 구단이 이적료 제안을 수락했습니다.'
           : `판매 구단은 최소 ${requiredFee}만원을 요구합니다.`,
       });
-      return manager.save(TransferAgreement, agreement);
+      return this.toAgreementResponse(
+        await manager.save(TransferAgreement, agreement),
+      );
     });
   }
 
@@ -351,7 +377,9 @@ export class TransfersService {
 
       const roster = await this.findPlayerRoster(manager, player.id, true);
       if (!roster || roster.careerTeamId !== team.id)
-        throw new ConflictException('선수의 현재 로스터 정보가 일치하지 않습니다.');
+        throw new ConflictException(
+          '선수의 현재 로스터 정보가 일치하지 않습니다.',
+        );
       const replacement = await this.assertSourceCanReleaseStarter(
         manager,
         roster,
@@ -367,6 +395,13 @@ export class TransfersService {
         contract.endReason = '구단 방출';
         await manager.save(PlayerContract, contract);
       }
+      await this.cancelAcceptedAgreements(
+        manager,
+        careerId,
+        player.id,
+        career.currentDate,
+        '선수가 방출되어 기존 이적 합의가 무효화되었습니다.',
+      );
       await this.detachFromTeam(manager, player, roster, replacement);
       const record = await this.createRecord(manager, {
         careerId,
@@ -413,7 +448,6 @@ export class TransfersService {
         transferAgreementId: null,
       };
     }
-    await this.assertDestinationBenchSpace(manager, destinationTeam.id);
     if (player.currentTeamId === null) {
       if (transferAgreementId !== undefined)
         throw new BadRequestException(
@@ -426,7 +460,9 @@ export class TransfersService {
         status: PlayerContractStatus.ACTIVE,
       });
       if (roster || activeContract)
-        throw new ConflictException('FA 선수의 소속 또는 계약 상태가 일치하지 않습니다.');
+        throw new ConflictException(
+          'FA 선수의 소속 또는 계약 상태가 일치하지 않습니다.',
+        );
       return {
         player,
         offerType: ContractOfferType.FREE_AGENT,
@@ -435,7 +471,7 @@ export class TransfersService {
       };
     }
     if (transferAgreementId === undefined)
-      throw new BadRequestException(
+      throw new ConflictException(
         '타 구단 선수에게 제안하려면 승인된 이적 합의 ID가 필요합니다.',
       );
     const agreement = await manager.findOne(TransferAgreement, {
@@ -445,7 +481,9 @@ export class TransfersService {
     this.assertMatchingAgreement(agreement, destinationTeam, player);
     const roster = await this.findPlayerRoster(manager, player.id, true);
     if (!roster || roster.careerTeamId !== player.currentTeamId)
-      throw new ConflictException('선수의 현재 로스터 정보가 일치하지 않습니다.');
+      throw new ConflictException(
+        '선수의 현재 로스터 정보가 일치하지 않습니다.',
+      );
     await this.assertSourceCanReleaseStarter(manager, roster, true);
     return {
       player,
@@ -474,10 +512,11 @@ export class TransfersService {
         offer.sourceCareerTeamId !== destinationTeam.id ||
         offer.transferAgreementId !== null
       )
-        throw new ConflictException('재계약 대상 선수의 소속이 변경되었습니다.');
+        throw new ConflictException(
+          '재계약 대상 선수의 소속이 변경되었습니다.',
+        );
       return player;
     }
-    await this.assertDestinationBenchSpace(manager, destinationTeam.id);
     if (offer.offerType === ContractOfferType.FREE_AGENT) {
       const [roster, activeContract] = await Promise.all([
         this.findPlayerRoster(manager, player.id, true),
@@ -494,7 +533,9 @@ export class TransfersService {
         roster ||
         activeContract
       )
-        throw new ConflictException('FA 선수의 상태가 협상 시작 이후 변경되었습니다.');
+        throw new ConflictException(
+          'FA 선수의 상태가 협상 시작 이후 변경되었습니다.',
+        );
       return player;
     }
     if (offer.offerType !== ContractOfferType.TRANSFER)
@@ -512,7 +553,9 @@ export class TransfersService {
     this.assertMatchingAgreement(agreement, destinationTeam, player);
     const roster = await this.findPlayerRoster(manager, player.id, true);
     if (!roster || roster.careerTeamId !== player.currentTeamId)
-      throw new ConflictException('선수의 현재 로스터 정보가 일치하지 않습니다.');
+      throw new ConflictException(
+        '선수의 현재 로스터 정보가 일치하지 않습니다.',
+      );
     await this.assertSourceCanReleaseStarter(manager, roster, true);
     return player;
   }
@@ -548,6 +591,7 @@ export class TransfersService {
       offer,
       destinationTeam,
     );
+    await this.assertDestinationBenchSpace(manager, destinationTeam.id);
     const sourceTeamId = player.currentTeamId;
     let roster = await this.findPlayerRoster(manager, player.id, true);
 
@@ -560,12 +604,15 @@ export class TransfersService {
         true,
       );
       if (roster.role === RosterRole.STARTER) {
+        const vacatedPosition = roster.starterPosition;
+        if (vacatedPosition === null)
+          throw new ConflictException('주전 로스터 포지션이 비어 있습니다.');
         roster.role = RosterRole.BENCH;
         roster.starterPosition = null;
         roster.playerInstruction = null;
         roster.championArchetype = null;
         await manager.save(Roster, roster);
-        await this.promoteReplacement(manager, replacement!, player.currentPosition);
+        await this.promoteReplacement(manager, replacement!, vacatedPosition);
       }
       roster.careerTeamId = destinationTeam.id;
       roster.careerTeam = destinationTeam;
@@ -608,6 +655,14 @@ export class TransfersService {
       agreement.reason = '선수 계약이 확정되어 이적이 완료되었습니다.';
       await manager.save(TransferAgreement, agreement);
     }
+    await this.cancelAcceptedAgreements(
+      manager,
+      offer.careerId,
+      player.id,
+      completedDate,
+      '선수의 소속이 변경되어 기존 이적 합의가 무효화되었습니다.',
+      agreement?.id ?? null,
+    );
 
     return this.createRecord(manager, {
       careerId: offer.careerId,
@@ -641,6 +696,13 @@ export class TransfersService {
     contract.endedDate = effectiveDate;
     contract.endReason = '계약 기간 만료';
     await manager.save(PlayerContract, contract);
+    await this.cancelAcceptedAgreements(
+      manager,
+      contract.careerId,
+      player.id,
+      effectiveDate,
+      '선수 계약이 만료되어 기존 이적 합의가 무효화되었습니다.',
+    );
     if (player.currentTeamId !== contract.careerTeamId) return null;
 
     const roster = await this.findPlayerRoster(manager, player.id, true);
@@ -667,13 +729,11 @@ export class TransfersService {
     roster: Roster | null,
     replacement: Roster | null,
   ): Promise<void> {
+    const vacatedPosition =
+      roster?.role === RosterRole.STARTER ? roster.starterPosition : null;
     if (roster) await manager.delete(Roster, roster.id);
-    if (replacement)
-      await this.promoteReplacement(
-        manager,
-        replacement,
-        player.currentPosition,
-      );
+    if (replacement && vacatedPosition)
+      await this.promoteReplacement(manager, replacement, vacatedPosition);
     player.currentTeamId = null;
     player.currentTeam = null;
     player.coachTrust = CAREER_PLAYER_STATE_CONFIG.initial.coachTrust;
@@ -770,10 +830,7 @@ export class TransfersService {
     player: CareerPlayer,
     contract: PlayerContract | null,
     allPlayers: CareerPlayer[],
-    destinationBenchCount: number,
   ): string | null {
-    if (destinationBenchCount >= MAX_BENCH_PLAYERS)
-      return `감독 소속 구단 후보가 ${MAX_BENCH_PLAYERS}명으로 가득 찼습니다.`;
     if (player.currentTeamId === null) {
       if (player.roster || contract)
         return 'FA 선수의 소속 또는 계약 데이터가 일치하지 않습니다.';
@@ -786,7 +843,7 @@ export class TransfersService {
       (candidate) =>
         candidate.id !== player.id &&
         candidate.currentTeamId === player.currentTeamId &&
-        candidate.currentPosition === player.currentPosition &&
+        candidate.currentPosition === player.roster?.starterPosition &&
         candidate.roster?.role === RosterRole.BENCH,
     );
     return hasReplacement
@@ -865,6 +922,35 @@ export class TransfersService {
       throw new NotFoundException('커리어 구단 정보를 찾을 수 없습니다.');
   }
 
+  private async cancelAcceptedAgreements(
+    manager: EntityManager,
+    careerId: number,
+    careerPlayerId: number,
+    resolvedDate: string,
+    reason: string,
+    excludedAgreementId: number | null = null,
+  ): Promise<void> {
+    const agreements = await manager.find(TransferAgreement, {
+      where: {
+        careerId,
+        careerPlayerId,
+        status: TransferAgreementStatus.ACCEPTED,
+      },
+      order: { id: 'ASC' },
+      lock: { mode: 'pessimistic_write' },
+    });
+    const cancelled = agreements.filter(
+      (agreement) => agreement.id !== excludedAgreementId,
+    );
+    if (cancelled.length === 0) return;
+    for (const agreement of cancelled) {
+      agreement.status = TransferAgreementStatus.CANCELLED;
+      agreement.resolvedDate = resolvedDate;
+      agreement.reason = reason;
+    }
+    await manager.save(TransferAgreement, cancelled);
+  }
+
   private async createRecord(
     manager: EntityManager,
     data: Pick<
@@ -881,6 +967,50 @@ export class TransfersService {
     >,
   ): Promise<TransferRecord> {
     return manager.save(TransferRecord, manager.create(TransferRecord, data));
+  }
+
+  private toAgreementResponse(
+    agreement: TransferAgreement,
+  ): TransferAgreementResponse {
+    return Object.assign(agreement, {
+      buyerTeamId: agreement.buyerCareerTeamId,
+      sellerTeamId: agreement.sellerCareerTeamId,
+    });
+  }
+
+  private toRecordResponse(record: TransferRecord): TransferRecordResponse {
+    return {
+      id: record.id,
+      careerId: record.careerId,
+      careerPlayerId: record.careerPlayerId,
+      type: record.type,
+      fromTeamId: record.sourceCareerTeamId,
+      toTeamId: record.destinationCareerTeamId,
+      transferAgreementId: record.transferAgreementId,
+      contractOfferId: record.contractOfferId,
+      transferFee: record.transferFee,
+      completedDate: record.completedDate,
+      createdAt: record.createdAt,
+      player: {
+        nickname: record.careerPlayer.playerCard.player.nickname,
+        nationality: record.careerPlayer.playerCard.player.nationality,
+        position: record.careerPlayer.currentPosition,
+      },
+      fromTeam: record.sourceCareerTeam
+        ? {
+            id: record.sourceCareerTeam.id,
+            code: record.sourceCareerTeam.code,
+            name: record.sourceCareerTeam.name,
+          }
+        : null,
+      toTeam: record.destinationCareerTeam
+        ? {
+            id: record.destinationCareerTeam.id,
+            code: record.destinationCareerTeam.code,
+            name: record.destinationCareerTeam.name,
+          }
+        : null,
+    };
   }
 
   private async assertOwnedCareer(

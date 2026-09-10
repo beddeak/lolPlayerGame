@@ -45,7 +45,10 @@ describe('EventQueueService', () => {
       dataSource as unknown as DataSource,
       careersRepository as unknown as Repository<Career>,
       eventsRepository as unknown as Repository<CalendarEvent>,
-      { processResponseEvent: jest.fn() } as unknown as ContractsService,
+      {
+        processExpirationEvent: jest.fn(),
+        processResponseEvent: jest.fn(),
+      } as unknown as ContractsService,
     );
   });
 

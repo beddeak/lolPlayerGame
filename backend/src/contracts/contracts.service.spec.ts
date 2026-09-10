@@ -3,12 +3,22 @@ import { DataSource, EntityManager } from 'typeorm';
 import { CalendarEvent } from '../event-queue/entities/calendar-event.entity';
 import { CalendarEventStatus } from '../event-queue/enums/calendar-event-status.enum';
 import { CalendarEventType } from '../event-queue/enums/calendar-event-type.enum';
-import { ContractOfferStatus } from './contract.types';
+import { ContractOfferStatus, PlayerContractStatus } from './contract.types';
 import { ContractsService, contractEndDate } from './contracts.service';
 import { ContractOffer } from './entities/contract-offer.entity';
+import { TransfersService } from '../transfers/transfers.service';
+import { PlayerContract } from './entities/player-contract.entity';
+import { TransferRecord } from '../transfers/entities/transfer-record.entity';
 
 describe('Contract response processing invariants', () => {
-  const service = new ContractsService({} as DataSource);
+  const transfersService = {
+    expireContract: jest.fn(),
+  };
+  const service = new ContractsService(
+    {} as DataSource,
+    transfersService as unknown as TransfersService,
+  );
+  beforeEach(() => jest.clearAllMocks());
   const event = (): CalendarEvent =>
     ({
       id: 7,
@@ -96,5 +106,65 @@ describe('Contract response processing invariants', () => {
     expect(contractEndDate('2026-11-22', 3)).toBe('2029-11-21');
     expect(contractEndDate('2028-02-29', 1)).toBe('2029-02-27');
     expect(contractEndDate('2028-02-29', 4)).toBe('2032-02-28');
+  });
+
+  it('ignores stale expiration events after a contract has been renewed', async () => {
+    const expiration = {
+      ...event(),
+      type: CalendarEventType.CONTRACT_EXPIRATION,
+      requiresUserAction: false,
+      payload: { playerContractId: 11, sourceOfferId: 40 },
+    } as CalendarEvent;
+    const renewed = {
+      id: 11,
+      careerId: 1,
+      sourceOfferId: 41,
+      status: PlayerContractStatus.ACTIVE,
+      endDate: '2028-12-31',
+    } as PlayerContract;
+    const manager = { findOne: jest.fn().mockResolvedValue(renewed) };
+
+    await service.processExpirationEvent(
+      manager as unknown as EntityManager,
+      expiration,
+      '2027-01-01',
+    );
+
+    expect(transfersService.expireContract).not.toHaveBeenCalled();
+    expect(expiration.requiresUserAction).toBe(false);
+  });
+
+  it('expires the matching active contract on the day after its inclusive end date', async () => {
+    const expiration = {
+      ...event(),
+      type: CalendarEventType.CONTRACT_EXPIRATION,
+      requiresUserAction: false,
+      payload: { playerContractId: 12, sourceOfferId: 42 },
+    } as CalendarEvent;
+    const contract = {
+      id: 12,
+      careerId: 1,
+      sourceOfferId: 42,
+      status: PlayerContractStatus.ACTIVE,
+      endDate: '2026-12-31',
+    } as PlayerContract;
+    const record = { id: 77 } as TransferRecord;
+    const manager = { findOne: jest.fn().mockResolvedValue(contract) };
+    transfersService.expireContract.mockResolvedValueOnce(record);
+
+    await service.processExpirationEvent(
+      manager as unknown as EntityManager,
+      expiration,
+      '2027-01-01',
+    );
+
+    expect(transfersService.expireContract).toHaveBeenCalledWith(
+      manager,
+      contract,
+      '2027-01-01',
+    );
+    expect(expiration.payload).toEqual(
+      expect.objectContaining({ expired: true, transferRecordId: record.id }),
+    );
   });
 });

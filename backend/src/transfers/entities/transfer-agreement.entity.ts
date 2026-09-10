@@ -13,10 +13,7 @@ import { Career } from '../../careers/entities/career.entity';
 import { TransferAgreementStatus } from '../transfer.types';
 
 @Entity({ name: 'transfer_agreements' })
-@Index('IDX_transfer_agreements_buyer_status', [
-  'buyerCareerTeamId',
-  'status',
-])
+@Index('IDX_transfer_agreements_buyer_status', ['buyerCareerTeamId', 'status'])
 export class TransferAgreement {
   @PrimaryGeneratedColumn({ type: 'int', unsigned: true })
   id!: number;

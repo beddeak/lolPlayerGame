@@ -21,12 +21,15 @@ import {
 import {
   ContractDecisionAction,
   ContractOfferStatus,
+  ContractOfferType,
   type ContractTerms,
+  PlayerContractStatus,
 } from './contract.types';
 import { CreateContractOfferDto } from './dto/create-contract-offer.dto';
 import { RespondContractOfferDto } from './dto/respond-contract-offer.dto';
 import { ContractOffer } from './entities/contract-offer.entity';
 import { PlayerContract } from './entities/player-contract.entity';
+import { TransfersService } from '../transfers/transfers.service';
 
 const OPEN_STATUSES = [
   ContractOfferStatus.WAITING_PLAYER_RESPONSE,
@@ -37,7 +40,10 @@ const OPEN_STATUSES = [
 
 @Injectable()
 export class ContractsService {
-  constructor(private readonly dataSource: DataSource) {}
+  constructor(
+    private readonly dataSource: DataSource,
+    private readonly transfersService: TransfersService,
+  ) {}
 
   async findContracts(
     accountId: number,
@@ -45,7 +51,7 @@ export class ContractsService {
   ): Promise<PlayerContract[]> {
     await this.assertOwnedCareer(this.dataSource.manager, accountId, careerId);
     return this.dataSource.manager.find(PlayerContract, {
-      where: { careerId },
+      where: { careerId, status: PlayerContractStatus.ACTIVE },
       order: { id: 'ASC' },
     });
   }
@@ -75,11 +81,12 @@ export class ContractsService {
         true,
       );
       const team = await this.findManagedTeam(manager, careerId);
-      await this.assertRenewalPlayer(
+      const prepared = await this.transfersService.prepareContractOffer(
         manager,
-        careerId,
-        team.id,
+        career,
+        team,
         dto.careerPlayerId,
+        dto.transferAgreementId,
       );
       const openOffer = await manager.findOne(ContractOffer, {
         where: {
@@ -97,6 +104,9 @@ export class ContractsService {
         careerId,
         careerTeamId: team.id,
         careerPlayerId: dto.careerPlayerId,
+        offerType: prepared.offerType,
+        sourceCareerTeamId: prepared.sourceCareerTeamId,
+        transferAgreementId: prepared.transferAgreementId,
         status: ContractOfferStatus.WAITING_PLAYER_RESPONSE,
         revision: 1,
         offeredDate: career.currentDate,
@@ -183,11 +193,10 @@ export class ContractsService {
       ) {
         throw new ConflictException('선수의 답변 날짜까지 기다려 주세요.');
       }
-      await this.assertRenewalPlayer(
+      await this.transfersService.assertContractOfferEligible(
         manager,
-        careerId,
-        team.id,
-        offer.careerPlayerId,
+        offer,
+        team,
       );
 
       if (dto.action === ContractDecisionAction.ACCEPT) {
@@ -292,12 +301,16 @@ export class ContractsService {
       id: offer.careerTeamId,
       careerId: offer.careerId,
     });
-    if (
-      !player ||
-      !team ||
-      player.currentTeamId !== team.id ||
-      !team.isUserControlled
-    ) {
+    const eligible =
+      player &&
+      team &&
+      team.isUserControlled &&
+      (await this.transfersService.isContractOfferEligible(
+        manager,
+        offer,
+        team,
+      ));
+    if (!eligible) {
       offer.status = ContractOfferStatus.WITHDRAWN;
       event.requiresUserAction = false;
       await manager.save(ContractOffer, offer);
@@ -318,9 +331,15 @@ export class ContractsService {
           (total, member) => total + this.playerAbility(member),
           0,
         ) / Math.max(teammates.length, 1),
-      coachTrust: player.coachTrust,
+      coachTrust:
+        offer.offerType === ContractOfferType.RENEWAL
+          ? player.coachTrust
+          : CONTRACT_CONFIG.negotiation.trustNeutral,
       personality: player.personality,
-      currentAnnualSalary: contract?.terms.annualSalary ?? null,
+      currentAnnualSalary:
+        contract?.status === PlayerContractStatus.ACTIVE
+          ? contract.terms.annualSalary
+          : null,
     });
     offer.status =
       result.kind === 'ACCEPTED'
@@ -350,6 +369,18 @@ export class ContractsService {
     offer: ContractOffer,
     terms: ContractTerms,
   ): Promise<void> {
+    const destinationTeam = await manager.findOneBy(CareerTeam, {
+      id: offer.careerTeamId,
+      careerId: career.id,
+    });
+    if (!destinationTeam)
+      throw new ConflictException('계약 대상 구단을 찾을 수 없습니다.');
+    await this.transfersService.completeAcquisition(
+      manager,
+      offer,
+      destinationTeam,
+      career.currentDate,
+    );
     const current = await manager.findOne(PlayerContract, {
       where: { careerId: career.id, careerPlayerId: offer.careerPlayerId },
       lock: { mode: 'pessimistic_write' },
@@ -365,12 +396,58 @@ export class ContractsService {
     contract.signedDate = career.currentDate;
     contract.startDate = career.currentDate;
     contract.endDate = contractEndDate(career.currentDate, terms.years);
+    contract.status = PlayerContractStatus.ACTIVE;
+    contract.endedDate = null;
+    contract.endReason = null;
     contract.terms = structuredClone(terms);
     contract.promises = terms.promises.map((promise) => ({
       ...promise,
       status: 'PENDING',
     }));
-    await manager.save(PlayerContract, contract);
+    const savedContract = await manager.save(PlayerContract, contract);
+    await this.scheduleExpiration(manager, savedContract);
+  }
+
+  async processExpirationEvent(
+    manager: EntityManager,
+    event: CalendarEvent,
+    date: string,
+  ): Promise<void> {
+    const contractId = event.payload?.playerContractId;
+    const sourceOfferId = event.payload?.sourceOfferId;
+    if (
+      typeof contractId !== 'number' ||
+      !Number.isInteger(contractId) ||
+      typeof sourceOfferId !== 'number' ||
+      !Number.isInteger(sourceOfferId)
+    ) {
+      event.requiresUserAction = false;
+      return;
+    }
+    const contract = await manager.findOne(PlayerContract, {
+      where: { id: contractId, careerId: event.careerId },
+      lock: { mode: 'pessimistic_write' },
+    });
+    if (
+      !contract ||
+      contract.status !== PlayerContractStatus.ACTIVE ||
+      contract.sourceOfferId !== sourceOfferId ||
+      addCalendarDays(contract.endDate, 1) > date
+    ) {
+      event.requiresUserAction = false;
+      return;
+    }
+    const record = await this.transfersService.expireContract(
+      manager,
+      contract,
+      date,
+    );
+    event.requiresUserAction = false;
+    event.payload = {
+      ...event.payload,
+      expired: record !== null,
+      transferRecordId: record?.id ?? null,
+    };
   }
 
   private async scheduleResponse(
@@ -397,6 +474,26 @@ export class ContractsService {
     });
     await manager.save(CalendarEvent, event);
     offer.responseEventId = event.id;
+  }
+
+  private async scheduleExpiration(
+    manager: EntityManager,
+    contract: PlayerContract,
+  ): Promise<void> {
+    const event = manager.create(CalendarEvent, {
+      careerId: contract.careerId,
+      scheduledDate: addCalendarDays(contract.endDate, 1),
+      type: CalendarEventType.CONTRACT_EXPIRATION,
+      status: CalendarEventStatus.SCHEDULED,
+      requiresUserAction: false,
+      payload: {
+        playerContractId: contract.id,
+        careerPlayerId: contract.careerPlayerId,
+        sourceOfferId: contract.sourceOfferId,
+      },
+      completedAt: null,
+    });
+    await manager.save(CalendarEvent, event);
   }
 
   private async completeEvent(
@@ -464,25 +561,6 @@ export class ContractsService {
     if (!team)
       throw new NotFoundException('감독 소속 구단을 찾을 수 없습니다.');
     return team;
-  }
-
-  private async assertRenewalPlayer(
-    manager: EntityManager,
-    careerId: number,
-    teamId: number,
-    playerId: number,
-  ): Promise<CareerPlayer> {
-    const player = await manager.findOne(CareerPlayer, {
-      where: { id: playerId, careerId },
-      lock: { mode: 'pessimistic_write' },
-    });
-    if (!player)
-      throw new NotFoundException(`CareerPlayer ${playerId} was not found`);
-    if (player.currentTeamId !== teamId)
-      throw new ConflictException(
-        '현재는 소속 구단 선수와 계약할 수 있습니다. 이적과 FA 영입은 다음 단계에서 지원됩니다.',
-      );
-    return player;
   }
 }
 

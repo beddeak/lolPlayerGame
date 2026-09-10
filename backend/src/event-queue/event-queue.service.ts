@@ -150,11 +150,27 @@ export class EventQueueService {
 
     for (const event of events) {
       if (
+        event.type === CalendarEventType.CONTRACT_EXPIRATION &&
+        event.payload?.playerContractId !== undefined
+      ) {
+        await this.contractsService.processExpirationEvent(
+          manager,
+          event,
+          date,
+        );
+      }
+    }
+
+    for (const event of events) {
+      if (
         event.type === CalendarEventType.CONTRACT_RESPONSE &&
         event.payload?.contractOfferId !== undefined
       ) {
         await this.contractsService.processResponseEvent(manager, event, date);
       }
+    }
+
+    for (const event of events) {
       if (event.requiresUserAction) {
         event.status = CalendarEventStatus.READY;
       } else {
