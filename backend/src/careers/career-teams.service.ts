@@ -223,23 +223,20 @@ export class CareerTeamsService {
           roster.careerPlayerId === dto.benchCareerPlayerId,
       );
 
-      if (!currentStarter) {
-        throw new NotFoundException(
-          `${position} starter was not found in CareerTeam ${careerTeamId}`,
-        );
-      }
-
       if (!selectedBench) {
         throw new NotFoundException(
           `Bench CareerPlayer ${dto.benchCareerPlayerId} was not found in CareerTeam ${careerTeamId}`,
         );
       }
 
-      currentStarter.role = RosterRole.BENCH;
-      currentStarter.starterPosition = null;
-      currentStarter.playerInstruction = null;
-      currentStarter.championArchetype = null;
-      const demotedBench = await manager.save(Roster, currentStarter);
+      let demotedBench: Roster | null = null;
+      if (currentStarter) {
+        currentStarter.role = RosterRole.BENCH;
+        currentStarter.starterPosition = null;
+        currentStarter.playerInstruction = null;
+        currentStarter.championArchetype = null;
+        demotedBench = await manager.save(Roster, currentStarter);
+      }
 
       selectedBench.role = RosterRole.STARTER;
       selectedBench.starterPosition = position;
@@ -252,7 +249,9 @@ export class CareerTeamsService {
         careerTeamId,
         position,
         promotedStarter: this.toSwappedRosterSlot(promotedStarter),
-        demotedBench: this.toSwappedRosterSlot(demotedBench),
+        demotedBench: demotedBench
+          ? this.toSwappedRosterSlot(demotedBench)
+          : null,
       };
     });
   }

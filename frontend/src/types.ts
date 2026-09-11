@@ -122,7 +122,7 @@ export interface SwapStarterResponse {
     careerPlayerId: number;
     role: "BENCH";
     starterPosition: null;
-  };
+  } | null;
 }
 
 export interface CareerTeam {

@@ -266,6 +266,27 @@ describe('CareerTeamsService', () => {
     expect(transactionManager.save).toHaveBeenCalledTimes(2);
   });
 
+  it('promotes a bench player into a vacant starter position', async () => {
+    careerTeam.rosters = [benchRoster];
+    const result = await service.swapStarter(
+      7,
+      1,
+      careerTeam.id,
+      Position.ADC,
+      {
+        benchCareerPlayerId: benchRoster.careerPlayerId,
+      },
+    );
+    expect(result.promotedStarter).toEqual({
+      rosterId: benchRoster.id,
+      careerPlayerId: benchRoster.careerPlayerId,
+      role: RosterRole.STARTER,
+      starterPosition: Position.ADC,
+    });
+    expect(result.demotedBench).toBeNull();
+    expect(transactionManager.save).toHaveBeenCalledTimes(1);
+  });
+
   it('rejects a swap when the selected player is not on the bench', async () => {
     careerTeam.rosters = [roster];
 

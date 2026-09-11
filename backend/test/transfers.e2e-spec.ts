@@ -944,6 +944,65 @@ describe('Transfer, free agency and contract expiration (e2e)', () => {
     );
   });
 
+  it('fills a vacant starter slot after expiration and FA re-signing', async () => {
+    const career = await createCareer(0);
+    const home = team(career, 'TRANSFER_HOME');
+    const target = starter(home, Position.TOP).careerPlayer;
+    const contract = await seedActiveContract(
+      career,
+      home.id,
+      target.id,
+      career.currentDate,
+    );
+    const events = dataSource.getRepository(CalendarEvent);
+    await events.save(
+      events.create({
+        careerId: career.id,
+        scheduledDate: addCalendarDays(career.currentDate, 1),
+        type: CalendarEventType.CONTRACT_EXPIRATION,
+        status: CalendarEventStatus.SCHEDULED,
+        requiresUserAction: false,
+        payload: {
+          playerContractId: contract.id,
+          careerPlayerId: target.id,
+          sourceOfferId: contract.sourceOfferId,
+        },
+        completedAt: null,
+      }),
+    );
+    await api()
+      .post(`/careers/${career.id}/calendar/advance`)
+      .set(auth())
+      .send({ mode: 'ONE_DAY' })
+      .expect(201);
+    expect(
+      team(await getCareer(career.id), 'TRANSFER_HOME').starters,
+    ).toHaveLength(4);
+
+    const offer = await createContractOffer(career.id, target.id);
+    await advanceToContractResponse(career.id, offer);
+    await acceptContract(career.id, offer.id);
+    const result = await api()
+      .patch(`/careers/${career.id}/teams/${home.id}/starters/TOP/swap`)
+      .set(auth())
+      .send({ benchCareerPlayerId: target.id })
+      .expect(200);
+    expect(result.body).toEqual(
+      expect.objectContaining({
+        demotedBench: null,
+        promotedStarter: expect.objectContaining({
+          careerPlayerId: target.id,
+          role: 'STARTER',
+          starterPosition: 'TOP',
+        }) as unknown,
+      }),
+    );
+    const restored = team(await getCareer(career.id), 'TRANSFER_HOME');
+    expect(restored.starters).toHaveLength(5);
+    expect(restored.benches).toHaveLength(0);
+    expect(starter(restored, Position.TOP).careerPlayer.id).toBe(target.id);
+  });
+
   afterAll(async () => {
     try {
       if (dataSource?.isInitialized) {

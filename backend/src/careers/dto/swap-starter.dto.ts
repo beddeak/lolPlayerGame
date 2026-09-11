@@ -20,5 +20,5 @@ export class SwapStarterResponseDto {
   careerTeamId!: number;
   position!: Position;
   promotedStarter!: SwappedRosterSlotResponseDto;
-  demotedBench!: SwappedRosterSlotResponseDto;
+  demotedBench!: SwappedRosterSlotResponseDto | null;
 }
