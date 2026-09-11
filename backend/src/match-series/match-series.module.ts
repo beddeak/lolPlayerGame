@@ -4,6 +4,7 @@ import { AuthModule } from '../auth/auth.module';
 import { CareerTeam } from '../careers/entities/career-team.entity';
 import { CareerPlayer } from '../careers/entities/career-player.entity';
 import { MatchesModule } from '../matches/matches.module';
+import { LeagueFixture } from '../leagues/entities/league-fixture.entity';
 import { MatchSeries } from './entities/match-series.entity';
 import { MatchFeedback } from './entities/match-feedback.entity';
 import { MatchFeedbackPlayerEffect } from './entities/match-feedback-player-effect.entity';
@@ -21,6 +22,7 @@ import { MatchSeriesService } from './match-series.service';
       MatchFeedbackPlayerEffect,
       CareerTeam,
       CareerPlayer,
+      LeagueFixture,
     ]),
   ],
   controllers: [MatchSeriesController],

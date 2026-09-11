@@ -231,7 +231,9 @@ FA와 자기 구단 선수의 제안에서는 `transferAgreementId`를 생략한
 
 ## 이번 Phase에서 제외
 
-- 11월 19일~12월 말 Offseason Transfer Market의 개장·폐장 및 날짜 제한 (PHASE 21)
+11월 19일~12월 31일 Offseason Transfer Market의 개장·폐장 및 날짜 제한은
+[PHASE 21 오프시즌 이적시장](PHASE21-OFFSEASON-MARKET.md)에서 연결한다.
+
 - 시즌 중 Mini Transfer Window의 날짜와 세부 제한
 - Legend Event와 Legend 선수 생성 (PHASE 22)
 - AI 구단의 제안, 경쟁 영입과 선점 (PHASE 23)

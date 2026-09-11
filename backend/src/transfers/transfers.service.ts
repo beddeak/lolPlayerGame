@@ -5,6 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { DataSource, EntityManager, In } from 'typeorm';
+import { assertTransferWindow, getTransferWindow } from './transfer-window';
 import { CAREER_PLAYER_STATE_CONFIG } from '../careers/config/player-state.config';
 import { MAX_BENCH_PLAYERS } from '../careers/constants/career.constants';
 import { CareerPlayer } from '../careers/entities/career-player.entity';
@@ -100,6 +101,19 @@ export interface TransferRecordResponse {
 export class TransfersService {
   constructor(private readonly dataSource: DataSource) {}
 
+  async findWindow(accountId: number, careerId: number) {
+    const career = await this.assertOwnedCareer(
+      this.dataSource.manager,
+      accountId,
+      careerId,
+    );
+    return {
+      careerId,
+      currentDate: career.currentDate,
+      ...getTransferWindow(career.currentDate),
+    };
+  }
+
   async findMarket(
     accountId: number,
     careerId: number,
@@ -159,11 +173,9 @@ export class TransfersService {
             ? TransferMarketAvailability.FREE_AGENT
             : TransferMarketAvailability.CONTRACTED;
         const contract = contractsByPlayer.get(player.id) ?? null;
-        const blockedReason = this.marketBlockedReason(
-          player,
-          contract,
-          players,
-        );
+        const blockedReason = !getTransferWindow(career.currentDate).isOpen
+          ? '이적시장 개장 기간이 아닙니다.'
+          : this.marketBlockedReason(player, contract, players);
         const requiredFee =
           availability === TransferMarketAvailability.CONTRACTED &&
           player.roster
@@ -265,6 +277,7 @@ export class TransfersService {
         true,
       );
       const buyer = await this.findManagedTeam(manager, careerId);
+      assertTransferWindow(career.currentDate);
       const player = await this.findCareerPlayer(
         manager,
         careerId,
@@ -449,6 +462,7 @@ export class TransfersService {
       };
     }
     if (player.currentTeamId === null) {
+      assertTransferWindow(career.currentDate);
       if (transferAgreementId !== undefined)
         throw new BadRequestException(
           'FA 계약에는 이적 합의 ID를 사용할 수 없습니다.',
@@ -474,11 +488,13 @@ export class TransfersService {
       throw new ConflictException(
         '타 구단 선수에게 제안하려면 승인된 이적 합의 ID가 필요합니다.',
       );
+    assertTransferWindow(career.currentDate);
     const agreement = await manager.findOne(TransferAgreement, {
       where: { id: transferAgreementId, careerId: career.id },
       lock: { mode: 'pessimistic_write' },
     });
     this.assertMatchingAgreement(agreement, destinationTeam, player);
+    assertTransferWindow(career.currentDate, agreement!.offeredDate);
     const roster = await this.findPlayerRoster(manager, player.id, true);
     if (!roster || roster.careerTeamId !== player.currentTeamId)
       throw new ConflictException(

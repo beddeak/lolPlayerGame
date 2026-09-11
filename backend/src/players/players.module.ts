@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { AuthModule } from '../auth/auth.module';
 import { PlayerCard } from './entities/player-card.entity';
 import { Player } from './entities/player.entity';
 import { Theme } from './entities/theme.entity';
@@ -11,7 +12,7 @@ import { ThemesController } from './themes.controller';
 import { ThemesService } from './themes.service';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Player, Theme, PlayerCard])],
+  imports: [AuthModule, TypeOrmModule.forFeature([Player, Theme, PlayerCard])],
   providers: [PlayersService, ThemesService, PlayerCardsService],
   controllers: [PlayersController, ThemesController, PlayerCardsController],
   exports: [PlayersService, ThemesService, PlayerCardsService],

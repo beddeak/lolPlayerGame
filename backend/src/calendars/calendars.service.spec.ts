@@ -46,6 +46,7 @@ describe('CalendarsService', () => {
     processThroughDate: jest.fn(),
     findBlockingEvents: jest.fn(),
     findNextScheduledEvent: jest.fn(),
+    canAdvancePastTransferWindowClose: jest.fn(),
   };
 
   let service: CalendarsService;
@@ -65,6 +66,9 @@ describe('CalendarsService', () => {
     });
     eventQueueService.findBlockingEvents.mockResolvedValue([]);
     eventQueueService.findNextScheduledEvent.mockResolvedValue(null);
+    eventQueueService.canAdvancePastTransferWindowClose.mockResolvedValue(
+      false,
+    );
     service = new CalendarsService(
       dataSource as unknown as DataSource,
       careersRepository as unknown as Repository<Career>,
@@ -164,6 +168,22 @@ describe('CalendarsService', () => {
     expect(result.stopReason).toBe(CalendarStopReason.TARGET_REACHED);
   });
 
+  it('stops a multi-day advance when the transfer market opens', async () => {
+    career.currentDate = '2026-11-18';
+    career.currentYear = 2026;
+    fixture = createFixture(10, '2027-01-12');
+    fixturesRepository.find.mockResolvedValue([fixture]);
+
+    const result = await service.advance(7, career.id, {
+      mode: CalendarAdvanceMode.THREE_DAYS,
+    });
+
+    expect(result.currentDate).toBe('2026-11-19');
+    expect(result.advancedDays).toBe(1);
+    expect(result.transferWindow.isOpen).toBe(true);
+    expect(result.stopReason).toBe(CalendarStopReason.TRANSFER_WINDOW_BOUNDARY);
+  });
+
   it('fast-forwards to the next match and stops on match day', async () => {
     const result = await service.advance(7, career.id, {
       mode: CalendarAdvanceMode.NEXT_MATCH,
@@ -212,6 +232,7 @@ describe('CalendarsService', () => {
 
     expect(result.currentDate).toBe('2027-01-01');
     expect(result.currentYear).toBe(2027);
+    expect(result.stopReason).toBe(CalendarStopReason.TRANSFER_WINDOW_BOUNDARY);
   });
 
   it('rejects next-match movement when nothing is scheduled', async () => {
@@ -222,6 +243,92 @@ describe('CalendarsService', () => {
         mode: CalendarAdvanceMode.NEXT_MATCH,
       }),
     ).rejects.toBeInstanceOf(ConflictException);
+  });
+
+  it('keeps a December 31 match and acquisition response on the same day', async () => {
+    career.currentDate = '2026-12-31';
+    fixture = createFixture(10, career.currentDate);
+    fixturesRepository.find.mockResolvedValue([fixture]);
+    const response = {
+      ...createEventResponse(
+        20,
+        career.currentDate,
+        true,
+        CalendarEventStatus.READY,
+      ),
+      type: CalendarEventType.CONTRACT_RESPONSE,
+    };
+    eventQueueService.findBlockingEvents.mockResolvedValue([response]);
+    eventQueueService.canAdvancePastTransferWindowClose.mockResolvedValue(true);
+
+    const before = await service.findOne(7, career.id);
+    expect(before.canCloseTransferWindow).toBe(false);
+    const result = await service.advance(7, career.id, {
+      mode: CalendarAdvanceMode.ONE_DAY,
+    });
+
+    expect(result.currentDate).toBe('2026-12-31');
+    expect(result.currentYear).toBe(2026);
+    expect(result.advancedDays).toBe(0);
+    expect(result.stopReason).toBe(CalendarStopReason.BLOCKING_EVENT);
+    expect(result.canCloseTransferWindow).toBe(false);
+    expect(result.dueMatches.map((match) => match.id)).toEqual([10]);
+    expect(eventQueueService.processThroughDate).toHaveBeenCalledTimes(1);
+    expect(
+      eventQueueService.canAdvancePastTransferWindowClose,
+    ).not.toHaveBeenCalled();
+  });
+
+  it('advertises a safe closing action and clears it after advancing', async () => {
+    career.currentDate = '2026-12-31';
+    fixturesRepository.find.mockResolvedValue([]);
+    const response = {
+      ...createEventResponse(
+        20,
+        career.currentDate,
+        true,
+        CalendarEventStatus.READY,
+      ),
+      type: CalendarEventType.CONTRACT_RESPONSE,
+    };
+    eventQueueService.findBlockingEvents.mockImplementation(
+      (_manager: unknown, _careerId: number, date: string) =>
+        Promise.resolve(date === '2026-12-31' ? [response] : []),
+    );
+    eventQueueService.canAdvancePastTransferWindowClose.mockImplementation(
+      (_manager: unknown, _careerId: number, date: string) =>
+        Promise.resolve(date === '2026-12-31'),
+    );
+    expect((await service.findOne(7, career.id)).canCloseTransferWindow).toBe(
+      true,
+    );
+    const result = await service.advance(7, career.id, {
+      mode: CalendarAdvanceMode.ONE_DAY,
+    });
+    expect(result.currentDate).toBe('2027-01-01');
+    expect(result.advancedDays).toBe(1);
+    expect(result.canCloseTransferWindow).toBe(false);
+    expect(result.blockingEvents).toEqual([]);
+  });
+
+  it('still requires a scheduled match when closing via NEXT_MATCH', async () => {
+    career.currentDate = '2026-12-31';
+    fixturesRepository.find.mockResolvedValue([]);
+    eventQueueService.findBlockingEvents.mockResolvedValue([
+      createEventResponse(
+        20,
+        career.currentDate,
+        true,
+        CalendarEventStatus.READY,
+      ),
+    ]);
+    eventQueueService.canAdvancePastTransferWindowClose.mockResolvedValue(true);
+    await expect(
+      service.advance(7, career.id, {
+        mode: CalendarAdvanceMode.NEXT_MATCH,
+      }),
+    ).rejects.toBeInstanceOf(ConflictException);
+    expect(career.currentDate).toBe('2026-12-31');
   });
 
   it('does not expose another account career', async () => {

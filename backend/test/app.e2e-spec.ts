@@ -1,4 +1,5 @@
 import { INestApplication } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
 import request from 'supertest';
 import { App } from 'supertest/types';
@@ -18,6 +19,7 @@ import { LeagueFixtureStatus } from '../src/leagues/enums/league-fixture-status.
 import { LeagueSplitStatus } from '../src/leagues/enums/league-split-status.enum';
 import { LeagueStageStatus } from '../src/leagues/enums/league-stage-status.enum';
 import { MatchSeries } from '../src/match-series/entities/match-series.entity';
+import { MatchSeriesService } from '../src/match-series/match-series.service';
 import { MatchFeedbackPlayerEffect } from '../src/match-series/entities/match-feedback-player-effect.entity';
 import { MatchFeedback } from '../src/match-series/entities/match-feedback.entity';
 import { FeedbackOption } from '../src/match-series/enums/feedback-option.enum';
@@ -417,8 +419,47 @@ describe('Application authentication and career ownership (e2e)', () => {
 
     accountIds.push(registerB.account.id);
 
+    // Real guards: public reads, authenticated writes only for an explicit admin.
+    app.get(ConfigService).set('CATALOG_ADMIN_ACCOUNT_IDS', []);
+    for (const endpoint of [
+      '/players',
+      '/themes',
+      '/player-cards',
+      '/set-bonuses',
+    ]) {
+      await api.get(endpoint).expect(200);
+      await api.post(endpoint).send({}).expect(401);
+      await api
+        .post(endpoint)
+        .set('Authorization', `Bearer ${tokenA}`)
+        .send({})
+        .expect(403);
+    }
+    app
+      .get(ConfigService)
+      .set('CATALOG_ADMIN_ACCOUNT_IDS', [registerA.account.id]);
+    for (const endpoint of [
+      '/players',
+      '/themes',
+      '/player-cards',
+      '/set-bonuses',
+    ]) {
+      await api
+        .post(endpoint)
+        .set('Authorization', `Bearer ${tokenB}`)
+        .send({})
+        .expect(403);
+      // Authentication/authorization succeeds, then DTO validation rejects empty input.
+      await api
+        .post(endpoint)
+        .set('Authorization', `Bearer ${tokenA}`)
+        .send({})
+        .expect(400);
+    }
+
     const themeResponse = await api
       .post('/themes')
+      .set('Authorization', `Bearer ${tokenA}`)
       .send({
         code: `E2E_${fixtureKey}`,
         name: 'E2E Theme',
@@ -431,6 +472,7 @@ describe('Application authentication and career ownership (e2e)', () => {
       const position = positions[index % positions.length];
       const playerResponse = await api
         .post('/players')
+        .set('Authorization', `Bearer ${tokenA}`)
         .send({
           nickname: `E2E_${fixtureKey}_${index}`,
           nationality: index < 5 ? 'KR' : 'CN',
@@ -442,6 +484,7 @@ describe('Application authentication and career ownership (e2e)', () => {
 
       const playerCardResponse = await api
         .post('/player-cards')
+        .set('Authorization', `Bearer ${tokenA}`)
         .send({
           playerId,
           themeId,
@@ -467,6 +510,7 @@ describe('Application authentication and career ownership (e2e)', () => {
 
     await api
       .post('/set-bonuses')
+      .set('Authorization', `Bearer ${tokenA}`)
       .send({
         code: `E2E_DUPLICATE_REQUIREMENT_${fixtureKey}`,
         name: 'Invalid duplicate requirement',
@@ -475,6 +519,7 @@ describe('Application authentication and career ownership (e2e)', () => {
       .expect(400);
     await api
       .post('/set-bonuses')
+      .set('Authorization', `Bearer ${tokenA}`)
       .send({
         code: `E2E_MISSING_CARD_${fixtureKey}`,
         name: 'Invalid missing card',
@@ -484,6 +529,7 @@ describe('Application authentication and career ownership (e2e)', () => {
 
     const setBonusResponse = await api
       .post('/set-bonuses')
+      .set('Authorization', `Bearer ${tokenA}`)
       .send({
         code: `E2E_BOTTOM_DUO_${fixtureKey}`,
         name: 'E2E Bottom Duo',
@@ -499,6 +545,7 @@ describe('Application authentication and career ownership (e2e)', () => {
     setBonusId = (setBonusResponse.body as unknown as IdResponse).id;
     await api
       .post('/set-bonuses')
+      .set('Authorization', `Bearer ${tokenA}`)
       .send({
         code: `E2E_BOTTOM_DUO_${fixtureKey}`,
         name: 'Duplicate E2E Bottom Duo',
@@ -1631,6 +1678,7 @@ describe('Application authentication and career ownership (e2e)', () => {
       leagueSplit.fixtures[0].id,
     );
 
+    let recoveredLegacyFixture = false;
     const playLeagueFixture = async (
       fixtureId: number,
     ): Promise<LeagueFixtureGameResponse> => {
@@ -1659,6 +1707,82 @@ describe('Application authentication and career ownership (e2e)', () => {
 
         const responseBody: unknown = response.body;
         advance = responseBody as LeagueFixtureGameResponse;
+
+        await api
+          .post(`/match-series/${advance.series.seriesId}/games/simulate`)
+          .set('Authorization', `Bearer ${tokenA}`)
+          .expect(409);
+
+        if (
+          !recoveredLegacyFixture &&
+          advance.series.status !== MatchSeriesStatus.COMPLETED
+        ) {
+          // Reproduce an existing save made by the old direct-series route:
+          // persist the remaining games without advancing the league stage.
+          const stageBefore = advance.split.stages.find(
+            (stage) => stage.status === LeagueStageStatus.ACTIVE,
+          )!;
+          let storedSeries = advance.series;
+          while (storedSeries.status !== MatchSeriesStatus.COMPLETED) {
+            storedSeries = await app
+              .get(MatchSeriesService)
+              .simulateNextGame(registerA.account.id, storedSeries.seriesId);
+            if (
+              storedSeries.status !== MatchSeriesStatus.COMPLETED &&
+              storedSeries.teams.some((team) => team.wins === 2)
+            ) {
+              await api
+                .post(`/match-series/${storedSeries.seriesId}/feedback`)
+                .set('Authorization', `Bearer ${tokenA}`)
+                .send({
+                  type: FeedbackType.TEAM,
+                  option: FeedbackOption.REFOCUS_TEAM,
+                })
+                .expect(201);
+            }
+          }
+
+          const staleResponse = await api
+            .get(`/careers/${career.id}/league-splits/${leagueSplit.id}`)
+            .set('Authorization', `Bearer ${tokenA}`)
+            .expect(200);
+          const stale = staleResponse.body as unknown as LeagueSplitResponse;
+          expect(
+            stale.stages.find((stage) => stage.code === stageBefore.code)
+              ?.currentRound,
+          ).toBe(stageBefore.currentRound);
+          const savedGameCount = await dataSource
+            .getRepository(Match)
+            .countBy({ seriesId: storedSeries.seriesId });
+
+          const recoverResponse = await api
+            .post(
+              `/careers/${career.id}/league-splits/${leagueSplit.id}/fixtures/${fixtureId}/games/simulate`,
+            )
+            .set('Authorization', `Bearer ${tokenA}`)
+            .expect(201);
+          const recoveredBody: unknown = recoverResponse.body;
+          advance = recoveredBody as LeagueFixtureGameResponse;
+          expect(advance.series.status).toBe(MatchSeriesStatus.COMPLETED);
+          expect(
+            advance.split.stages.find(
+              (stage) => stage.code === stageBefore.code,
+            )?.currentRound,
+          ).toBe(stageBefore.currentRound + 1);
+          const retry = await api
+            .post(
+              `/careers/${career.id}/league-splits/${leagueSplit.id}/fixtures/${fixtureId}/games/simulate`,
+            )
+            .set('Authorization', `Bearer ${tokenA}`)
+            .expect(201);
+          expect(retry.body).toEqual(advance);
+          expect(
+            await dataSource
+              .getRepository(Match)
+              .countBy({ seriesId: storedSeries.seriesId }),
+          ).toBe(savedGameCount);
+          recoveredLegacyFixture = true;
+        }
       } while (advance.series.status !== MatchSeriesStatus.COMPLETED);
 
       return advance;
@@ -1698,12 +1822,21 @@ describe('Application authentication and career ownership (e2e)', () => {
         0,
       ),
     ).toBe(firstLeagueSeries.series.games.length);
-    await api
+    const completedFixtureRetry = await api
       .post(
         `/careers/${career.id}/league-splits/${leagueSplit.id}/fixtures/${leagueSplit.fixtures[0].id}/games/simulate`,
       )
       .set('Authorization', `Bearer ${tokenA}`)
-      .expect(409);
+      .expect(201);
+    expect(
+      (completedFixtureRetry.body as unknown as LeagueFixtureGameResponse)
+        .split,
+    ).toEqual(firstCompletedSplit);
+    expect(
+      await dataSource
+        .getRepository(Match)
+        .countBy({ seriesId: firstLeagueSeries.series.seriesId }),
+    ).toBe(firstLeagueSeries.series.games.length);
 
     expect(firstCompletedSplit.activeStageCode).toBe('PLAYOFFS');
     expect(firstCompletedSplit.stages[0].status).toBe(
@@ -1733,6 +1866,7 @@ describe('Application authentication and career ownership (e2e)', () => {
     expect(completedLeagueSplit.status).toBe(LeagueSplitStatus.COMPLETED);
     expect(completedLeagueSplit.activeStageCode).toBeNull();
     expect(playoffSeriesCount).toBeGreaterThanOrEqual(2);
+    expect(recoveredLegacyFixture).toBe(true);
     expect(
       completedLeagueSplit.fixtures.every(
         (fixture) => fixture.status === LeagueFixtureStatus.COMPLETED,

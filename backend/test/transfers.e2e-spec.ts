@@ -1,4 +1,5 @@
 import { INestApplication } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { App } from 'supertest/types';
@@ -8,6 +9,7 @@ import { AppModule } from '../src/app.module';
 import { Account } from '../src/auth/entities/account.entity';
 import { addCalendarDays } from '../src/calendars/calendar-date';
 import { CareerPlayer } from '../src/careers/entities/career-player.entity';
+import { Career } from '../src/careers/entities/career.entity';
 import { Roster } from '../src/careers/entities/roster.entity';
 import { Region } from '../src/careers/enums/region.enum';
 import { RosterRole } from '../src/careers/enums/roster-role.enum';
@@ -21,6 +23,7 @@ import { PlayerContract } from '../src/contracts/entities/player-contract.entity
 import { CalendarEvent } from '../src/event-queue/entities/calendar-event.entity';
 import { CalendarEventStatus } from '../src/event-queue/enums/calendar-event-status.enum';
 import { CalendarEventType } from '../src/event-queue/enums/calendar-event-type.enum';
+import { LeagueFixture } from '../src/leagues/entities/league-fixture.entity';
 import { PlayerCard } from '../src/players/entities/player-card.entity';
 import { Player } from '../src/players/entities/player.entity';
 import { Theme } from '../src/players/entities/theme.entity';
@@ -69,6 +72,8 @@ interface TransferMarketEntryResponse {
   currentTeamId: number | null;
   availability: TransferMarketAvailability;
   requiredFee: number;
+  canNegotiate: boolean;
+  blockedReason: string | null;
 }
 
 interface TransferAgreementResponse {
@@ -105,6 +110,7 @@ interface ContractOfferResponse {
 
 interface CalendarAdvanceResponse {
   currentDate: string;
+  canCloseTransferWindow: boolean;
   advancedDays: number;
   stopReason: string;
   processedEvents: Array<{
@@ -207,7 +213,11 @@ describe('Transfer, free agency and contract expiration (e2e)', () => {
         ],
       })
       .expect(201);
-    return result.body as CareerResponse;
+    const career = result.body as CareerResponse;
+    await dataSource
+      .getRepository(Career)
+      .update(career.id, { currentDate: '2026-11-19' });
+    return getCareer(career.id);
   }
 
   async function seedActiveContract(
@@ -387,7 +397,48 @@ describe('Transfer, free agency and contract expiration (e2e)', () => {
       (offer) => offer.id === offerId,
     );
     expect(result).toBeDefined();
+    expect(result).toEqual(
+      expect.objectContaining({
+        player: expect.objectContaining({
+          nickname: expect.any(String) as unknown,
+          currentPosition: expect.any(String) as unknown,
+          currentAge: expect.any(Number) as unknown,
+        }) as unknown,
+      }),
+    );
+    expect(result).not.toHaveProperty('careerPlayer');
+    expect(JSON.stringify(result)).not.toContain('potential');
     return result!;
+  }
+
+  async function scheduleYearEndResponse(
+    offer: ContractOfferResponse,
+  ): Promise<void> {
+    // Pin the randomized 1-3 day response delay to the boundary under test.
+    await dataSource
+      .getRepository(ContractOffer)
+      .update(offer.id, { responseDate: '2026-12-31' });
+    await dataSource
+      .getRepository(CalendarEvent)
+      .update(offer.responseEventId, { scheduledDate: '2026-12-31' });
+  }
+
+  async function createYearEndAcquisition(): Promise<{
+    career: CareerResponse;
+    offer: ContractOfferResponse;
+  }> {
+    const career = await createCareer();
+    await dataSource
+      .getRepository(Career)
+      .update(career.id, { currentDate: '2026-12-30' });
+    const freeAgent = team(career, 'TRANSFER_HOME').benches[0].careerPlayer;
+    await api()
+      .post(`${transferBase(career.id)}/players/${freeAgent.id}/release`)
+      .set(auth())
+      .expect(201);
+    const offer = await createContractOffer(career.id, freeAgent.id);
+    await scheduleYearEndResponse(offer);
+    return { career, offer };
   }
 
   async function acceptContract(
@@ -426,9 +477,11 @@ describe('Transfer, free agency and contract expiration (e2e)', () => {
       tokens.push(authResponse.accessToken);
     }
     [ownerToken, otherToken] = tokens;
+    app.get(ConfigService).set('CATALOG_ADMIN_ACCOUNT_IDS', [accountIds[0]]);
 
     const themeResponse = await api()
       .post('/themes')
+      .set('Authorization', `Bearer ${ownerToken}`)
       .send({ code: fixtureKey.toUpperCase(), name: 'Transfer E2E Theme' })
       .expect(201);
     themeId = (themeResponse.body as { id: number }).id;
@@ -436,6 +489,7 @@ describe('Transfer, free agency and contract expiration (e2e)', () => {
     for (let index = 0; index < 16; index += 1) {
       const playerResponse = await api()
         .post('/players')
+        .set('Authorization', `Bearer ${ownerToken}`)
         .send({ nickname: `${fixtureKey}_${index}`, nationality: 'KR' })
         .expect(201);
       const playerId = (playerResponse.body as { id: number }).id;
@@ -445,6 +499,7 @@ describe('Transfer, free agency and contract expiration (e2e)', () => {
         index === 15 ? Position.TOP : positions[index % positions.length];
       const cardResponse = await api()
         .post('/player-cards')
+        .set('Authorization', `Bearer ${ownerToken}`)
         .send({
           playerId,
           themeId,
@@ -944,6 +999,68 @@ describe('Transfer, free agency and contract expiration (e2e)', () => {
     );
   });
 
+  it('withdraws a postponed renewal when its contract expires before the decision date', async () => {
+    const career = await createCareer();
+    const home = team(career, 'TRANSFER_HOME');
+    const target = home.benches[0].careerPlayer;
+    const contract = await seedActiveContract(
+      career,
+      home.id,
+      target.id,
+      '2027-11-18',
+    );
+    const offer = await createContractOffer(career.id, target.id);
+    await advanceToContractResponse(career.id, offer);
+    const responseDate = (await getCareer(career.id)).currentDate;
+    contract.endDate = responseDate;
+    await dataSource.getRepository(PlayerContract).save(contract);
+    const events = dataSource.getRepository(CalendarEvent);
+    await events.save(
+      events.create({
+        careerId: career.id,
+        scheduledDate: addCalendarDays(responseDate, 1),
+        type: CalendarEventType.CONTRACT_EXPIRATION,
+        status: CalendarEventStatus.SCHEDULED,
+        requiresUserAction: false,
+        payload: {
+          playerContractId: contract.id,
+          careerPlayerId: target.id,
+          sourceOfferId: contract.sourceOfferId,
+        },
+        completedAt: null,
+      }),
+    );
+    await api()
+      .post(`${contractsBase(career.id)}/offers/${offer.id}/respond`)
+      .set(auth())
+      .send({ action: 'REQUEST_TIME' })
+      .expect(201);
+
+    const advanceResponse = await api()
+      .post(`/careers/${career.id}/calendar/advance`)
+      .set(auth())
+      .send({ mode: 'THREE_DAYS' })
+      .expect(201);
+    const advance = advanceResponse.body as CalendarAdvanceResponse;
+    expect(advance.currentDate).toBe(addCalendarDays(responseDate, 3));
+    expect(advance.blockingEvents).toEqual([]);
+    expect((await findContractOffer(career.id, offer.id)).status).toBe(
+      ContractOfferStatus.WITHDRAWN,
+    );
+    expect(await events.findOneByOrFail({ id: offer.responseEventId })).toEqual(
+      expect.objectContaining({
+        status: CalendarEventStatus.COMPLETED,
+        requiresUserAction: false,
+      }),
+    );
+    expect(
+      await dataSource
+        .getRepository(CareerPlayer)
+        .findOneByOrFail({ id: target.id }),
+    ).toEqual(expect.objectContaining({ currentTeamId: null }));
+    await acceptContract(career.id, offer.id, 409);
+  });
+
   it('fills a vacant starter slot after expiration and FA re-signing', async () => {
     const career = await createCareer(0);
     const home = team(career, 'TRANSFER_HOME');
@@ -1001,6 +1118,394 @@ describe('Transfer, free agency and contract expiration (e2e)', () => {
     expect(restored.starters).toHaveLength(5);
     expect(restored.benches).toHaveLength(0);
     expect(starter(restored, Position.TOP).careerPlayer.id).toBe(target.id);
+  });
+
+  it('opens on November 19, gates acquisitions, and keeps renewals available', async () => {
+    const career = await createCareer();
+    const home = team(career, 'TRANSFER_HOME');
+    const seller = team(career, 'TRANSFER_SELLER');
+    const target = starter(seller, Position.TOP).careerPlayer;
+    const freeAgent = home.benches[0].careerPlayer;
+    await dataSource
+      .getRepository(Career)
+      .update(career.id, { currentDate: '2026-11-18' });
+    const windowUrl = `${transferBase(career.id)}/window`;
+    await api().get(windowUrl).expect(401);
+    await api().get(windowUrl).set(auth(otherToken)).expect(404);
+    const before = await api().get(windowUrl).set(auth()).expect(200);
+    expect(before.body).toEqual(
+      expect.objectContaining({
+        isOpen: false,
+        nextBoundaryDate: '2026-11-19',
+      }),
+    );
+    const closedCandidate = (await listMarket(career.id)).find(
+      (entry) => entry.careerPlayerId === target.id,
+    );
+    expect(closedCandidate).toEqual(
+      expect.objectContaining({
+        canNegotiate: false,
+        blockedReason: '이적시장 개장 기간이 아닙니다.',
+      }),
+    );
+    await api()
+      .post(`${transferBase(career.id)}/agreements`)
+      .set(auth())
+      .send({ careerPlayerId: target.id, offeredFee: 500000 })
+      .expect(409);
+    await api()
+      .post(`${transferBase(career.id)}/players/${freeAgent.id}/release`)
+      .set(auth())
+      .expect(201);
+    await api()
+      .post(`${contractsBase(career.id)}/offers`)
+      .set(auth())
+      .send({ careerPlayerId: freeAgent.id, terms: generousTerms })
+      .expect(409);
+    const renewal = await createContractOffer(
+      career.id,
+      starter(home, Position.MID).careerPlayer.id,
+    );
+    await api()
+      .post(`${contractsBase(career.id)}/offers/${renewal.id}/respond`)
+      .set(auth())
+      .send({ action: 'WITHDRAW' })
+      .expect(201);
+    const advance = await api()
+      .post(`/careers/${career.id}/calendar/advance`)
+      .set(auth())
+      .send({ mode: 'NEXT_EVENT' })
+      .expect(201);
+    expect(advance.body).toEqual(
+      expect.objectContaining({
+        currentDate: '2026-11-19',
+        transferWindow: expect.objectContaining({ isOpen: true }) as unknown,
+      }),
+    );
+    await createAcceptedAgreement(career.id, target.id);
+    await createContractOffer(career.id, freeAgent.id);
+  });
+
+  it('stops Fast Sim when the offseason market opens', async () => {
+    const career = await createCareer();
+    await dataSource
+      .getRepository(Career)
+      .update(career.id, { currentDate: '2026-11-18' });
+
+    const result = await api()
+      .post(`/careers/${career.id}/simulations/fast`)
+      .set(auth())
+      .send({ days: 90 })
+      .expect(201);
+
+    expect(result.body).toEqual(
+      expect.objectContaining({
+        previousDate: '2026-11-18',
+        currentDate: '2026-11-19',
+        stopReason: 'TRANSFER_WINDOW_BOUNDARY',
+        calendar: expect.objectContaining({
+          transferWindow: expect.objectContaining({ isOpen: true }) as unknown,
+        }) as unknown,
+      }),
+    );
+  });
+
+  it('closes unfinished acquisition offers and agreements on January 1 without blocking', async () => {
+    const career = await createCareer();
+    const seller = team(career, 'TRANSFER_SELLER');
+    const target = starter(seller, Position.TOP).careerPlayer;
+    await dataSource
+      .getRepository(Career)
+      .update(career.id, { currentDate: '2026-12-27' });
+    const { accepted } = await createAcceptedAgreement(career.id, target.id);
+    const offer = await createContractOffer(career.id, target.id, accepted.id);
+    await advanceToContractResponse(career.id, offer);
+    await dataSource
+      .getRepository(Career)
+      .update(career.id, { currentDate: '2026-12-31' });
+    const beforeClose = await api()
+      .get(`/careers/${career.id}/calendar`)
+      .set(auth())
+      .expect(200);
+    expect(beforeClose.body).toEqual(
+      expect.objectContaining({
+        currentDate: '2026-12-31',
+        canCloseTransferWindow: true,
+        dueMatches: [],
+      }),
+    );
+    const advance = await api()
+      .post(`/careers/${career.id}/calendar/advance`)
+      .set(auth())
+      .send({ mode: 'NEXT_EVENT' })
+      .expect(201);
+    expect(advance.body).toEqual(
+      expect.objectContaining({
+        currentDate: '2027-01-01',
+        canCloseTransferWindow: false,
+        blockingEvents: [],
+      }),
+    );
+    expect((await findContractOffer(career.id, offer.id)).status).toBe(
+      ContractOfferStatus.WITHDRAWN,
+    );
+    expect(await listAgreements(career.id)).toContainEqual(
+      expect.objectContaining({
+        id: accepted.id,
+        status: TransferAgreementStatus.CANCELLED,
+      }),
+    );
+    await acceptContract(career.id, offer.id, 409);
+    expect(await listHistory(career.id)).toEqual([]);
+    const event = await dataSource
+      .getRepository(CalendarEvent)
+      .findOneByOrFail({ id: offer.responseEventId });
+    expect(event.status).toBe(CalendarEventStatus.COMPLETED);
+    expect(event.requiresUserAction).toBe(false);
+    await api()
+      .post(`/careers/${career.id}/calendar/advance`)
+      .set(auth())
+      .send({ mode: 'ONE_DAY' })
+      .expect(201);
+    expect(
+      team(await getCareer(career.id), 'TRANSFER_SELLER').starters,
+    ).toHaveLength(5);
+    await dataSource
+      .getRepository(Career)
+      .update(career.id, { currentDate: '2027-11-19', currentYear: 2027 });
+    await createAcceptedAgreement(career.id, target.id);
+  });
+
+  it('keeps a one-day Fast Sim on December 31 until another day is requested', async () => {
+    const { career, offer } = await createYearEndAcquisition();
+    const before = await api()
+      .get(`/careers/${career.id}/calendar`)
+      .set(auth())
+      .expect(200);
+    expect(before.body).toEqual(
+      expect.objectContaining({
+        currentDate: '2026-12-30',
+        canCloseTransferWindow: false,
+      }),
+    );
+
+    const lastDay = await api()
+      .post(`/careers/${career.id}/simulations/fast`)
+      .set(auth())
+      .send({ days: 1 })
+      .expect(201);
+    expect(lastDay.body).toEqual(
+      expect.objectContaining({
+        previousDate: '2026-12-30',
+        currentDate: '2026-12-31',
+        targetDate: '2026-12-31',
+        advancedDays: 1,
+        stopReason: 'BLOCKING_EVENT',
+        calendar: expect.objectContaining({
+          canCloseTransferWindow: true,
+          blockingEvents: expect.arrayContaining([
+            expect.objectContaining({
+              id: offer.responseEventId,
+              status: CalendarEventStatus.READY,
+            }),
+          ]) as unknown,
+        }) as unknown,
+      }),
+    );
+    expect((await findContractOffer(career.id, offer.id)).status).toBe(
+      ContractOfferStatus.PLAYER_ACCEPTED,
+    );
+
+    const newYear = await api()
+      .post(`/careers/${career.id}/simulations/fast`)
+      .set(auth())
+      .send({ days: 1 })
+      .expect(201);
+    expect(newYear.body).toEqual(
+      expect.objectContaining({
+        previousDate: '2026-12-31',
+        currentDate: '2027-01-01',
+        targetDate: '2027-01-01',
+        advancedDays: 1,
+        stopReason: 'TRANSFER_WINDOW_BOUNDARY',
+        blockingEvents: [],
+        calendar: expect.objectContaining({
+          canCloseTransferWindow: false,
+        }) as unknown,
+      }),
+    );
+    expect((await findContractOffer(career.id, offer.id)).status).toBe(
+      ContractOfferStatus.WITHDRAWN,
+    );
+  });
+
+  it('does not skip a December 31 fixture or expire an acquisition before it is played', async () => {
+    const { career, offer } = await createYearEndAcquisition();
+    const lastDay = await api()
+      .post(`/careers/${career.id}/calendar/advance`)
+      .set(auth())
+      .send({ mode: 'ONE_DAY' })
+      .expect(201);
+    expect(lastDay.body).toEqual(
+      expect.objectContaining({
+        currentDate: '2026-12-31',
+        canCloseTransferWindow: true,
+      }),
+    );
+
+    const splitResponse = await api()
+      .post(`/careers/${career.id}/league-splits`)
+      .set(auth())
+      .send({ region: Region.LCK, splitNumber: 2 })
+      .expect(201);
+    const split = splitResponse.body as { fixtures: Array<{ id: number }> };
+    expect(split.fixtures.length).toBeGreaterThan(0);
+    const fixtureId = split.fixtures[0].id;
+    // Move an API-created fixture onto the transfer deadline to cover collisions.
+    await dataSource
+      .getRepository(LeagueFixture)
+      .update(fixtureId, { scheduledDate: '2026-12-31' });
+
+    const calendar = await api()
+      .get(`/careers/${career.id}/calendar`)
+      .set(auth())
+      .expect(200);
+    expect(calendar.body).toEqual(
+      expect.objectContaining({
+        currentDate: '2026-12-31',
+        canCloseTransferWindow: false,
+        dueMatches: expect.arrayContaining([
+          expect.objectContaining({ id: fixtureId }),
+        ]) as unknown,
+      }),
+    );
+
+    for (const mode of ['ONE_DAY', 'NEXT_EVENT']) {
+      const advance = await api()
+        .post(`/careers/${career.id}/calendar/advance`)
+        .set(auth())
+        .send({ mode })
+        .expect(201);
+      expect(advance.body).toEqual(
+        expect.objectContaining({
+          currentDate: '2026-12-31',
+          advancedDays: 0,
+          canCloseTransferWindow: false,
+        }),
+      );
+    }
+    const fast = await api()
+      .post(`/careers/${career.id}/simulations/fast`)
+      .set(auth())
+      .send({ days: 1 })
+      .expect(201);
+    expect(fast.body).toEqual(
+      expect.objectContaining({
+        currentDate: '2026-12-31',
+        advancedDays: 0,
+        simulatedFixtures: [],
+      }),
+    );
+    expect((await findContractOffer(career.id, offer.id)).status).toBe(
+      ContractOfferStatus.PLAYER_ACCEPTED,
+    );
+    expect(
+      await dataSource
+        .getRepository(LeagueFixture)
+        .findOneByOrFail({ id: fixtureId }),
+    ).toEqual(expect.objectContaining({ seriesId: null }));
+    expect(
+      await dataSource
+        .getRepository(CalendarEvent)
+        .findOneByOrFail({ id: offer.responseEventId }),
+    ).toEqual(expect.objectContaining({ status: CalendarEventStatus.READY }));
+  });
+
+  it('cannot close the window while a renewal and acquisition both require a response', async () => {
+    const { career, offer } = await createYearEndAcquisition();
+    const renewal = await createContractOffer(
+      career.id,
+      starter(team(career, 'TRANSFER_HOME'), Position.MID).careerPlayer.id,
+    );
+    await scheduleYearEndResponse(renewal);
+    const lastDay = await api()
+      .post(`/careers/${career.id}/calendar/advance`)
+      .set(auth())
+      .send({ mode: 'ONE_DAY' })
+      .expect(201);
+    expect(lastDay.body).toEqual(
+      expect.objectContaining({
+        currentDate: '2026-12-31',
+        canCloseTransferWindow: false,
+        blockingEvents: expect.arrayContaining([
+          expect.objectContaining({ id: offer.responseEventId }),
+          expect.objectContaining({ id: renewal.responseEventId }),
+        ]) as unknown,
+      }),
+    );
+    const before = await api()
+      .get(`/careers/${career.id}/calendar`)
+      .set(auth())
+      .expect(200);
+    expect(
+      (before.body as CalendarAdvanceResponse).canCloseTransferWindow,
+    ).toBe(false);
+    const blocked = await api()
+      .post(`/careers/${career.id}/calendar/advance`)
+      .set(auth())
+      .send({ mode: 'ONE_DAY' })
+      .expect(201);
+    expect(blocked.body).toEqual(
+      expect.objectContaining({
+        currentDate: '2026-12-31',
+        advancedDays: 0,
+        canCloseTransferWindow: false,
+        stopReason: 'BLOCKING_EVENT',
+      }),
+    );
+    expect((await findContractOffer(career.id, offer.id)).status).toBe(
+      ContractOfferStatus.PLAYER_ACCEPTED,
+    );
+    expect((await findContractOffer(career.id, renewal.id)).status).toBe(
+      ContractOfferStatus.PLAYER_ACCEPTED,
+    );
+
+    await api()
+      .post(`${contractsBase(career.id)}/offers/${renewal.id}/respond`)
+      .set(auth())
+      .send({ action: 'WITHDRAW' })
+      .expect(201);
+    const after = await api()
+      .get(`/careers/${career.id}/calendar`)
+      .set(auth())
+      .expect(200);
+    expect((after.body as CalendarAdvanceResponse).canCloseTransferWindow).toBe(
+      true,
+    );
+  });
+
+  it('allows a ready signing on December 31', async () => {
+    const career = await createCareer();
+    const target = starter(
+      team(career, 'TRANSFER_SELLER'),
+      Position.TOP,
+    ).careerPlayer;
+    await dataSource
+      .getRepository(Career)
+      .update(career.id, { currentDate: '2026-12-28' });
+    const { accepted } = await createAcceptedAgreement(career.id, target.id);
+    const offer = await createContractOffer(career.id, target.id, accepted.id);
+    await advanceToContractResponse(career.id, offer);
+    await dataSource
+      .getRepository(Career)
+      .update(career.id, { currentDate: '2026-12-31' });
+    await acceptContract(career.id, offer.id);
+    expect(await listHistory(career.id)).toContainEqual(
+      expect.objectContaining({
+        careerPlayerId: target.id,
+        type: TransferRecordType.TRANSFER,
+      }),
+    );
   });
 
   afterAll(async () => {

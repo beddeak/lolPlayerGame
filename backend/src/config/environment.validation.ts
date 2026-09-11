@@ -5,6 +5,8 @@ import {
   Type,
 } from 'class-transformer';
 import {
+  ArrayUnique,
+  IsArray,
   IsIn,
   IsInt,
   IsNotEmpty,
@@ -60,6 +62,24 @@ export class EnvironmentVariables {
   @IsInt()
   @Min(60)
   JWT_EXPIRES_IN_SECONDS!: number;
+
+  @Transform(({ value }: TransformFnParams) =>
+    typeof value === 'string'
+      ? value.trim() === ''
+        ? []
+        : value
+            .split(',')
+            .map((id) =>
+              /^[1-9]\d*$/.test(id.trim()) ? Number(id.trim()) : Number.NaN,
+            )
+      : (value as unknown),
+  )
+  @IsArray()
+  @ArrayUnique()
+  @IsInt({ each: true })
+  @Min(1, { each: true })
+  @Max(4_294_967_295, { each: true })
+  CATALOG_ADMIN_ACCOUNT_IDS: number[] = [];
 
   @IsOptional()
   @Type(() => Number)

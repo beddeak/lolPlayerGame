@@ -47,6 +47,8 @@ describe('EventQueueService', () => {
       eventsRepository as unknown as Repository<CalendarEvent>,
       {
         processExpirationEvent: jest.fn(),
+        closeExpiredTransferNegotiations: jest.fn(),
+        areAcquisitionResponseEvents: jest.fn(),
         processResponseEvent: jest.fn(),
       } as unknown as ContractsService,
     );

@@ -36,6 +36,7 @@ const STOP_REASON_LABELS: Record<FastSimResponse["stopReason"], string> = {
   MANAGED_MATCH: "내 구단 경기를 앞두고 멈췄습니다.",
   BLOCKING_EVENT: "감독의 결정이 필요한 이벤트에서 멈췄습니다.",
   FIXTURE_LIMIT: "한 번에 처리할 수 있는 경기 수에 도달했습니다.",
+  TRANSFER_WINDOW_BOUNDARY: "이적시장 개장 또는 폐장 날짜에 도착했습니다.",
 };
 
 interface SeasonHubViewProps {
@@ -194,7 +195,10 @@ export default function SeasonHubView({
   }
 
   function resolveEvent(event: CalendarEvent) {
-    if (event.type === "CONTRACT_RESPONSE" && typeof event.payload?.contractOfferId === "number") {
+    if (
+      event.type === "CONTRACT_RESPONSE" &&
+      typeof event.payload?.contractOfferId === "number"
+    ) {
       onOpenContracts(event.payload.contractOfferId);
       return;
     }
@@ -241,7 +245,10 @@ export default function SeasonHubView({
       <section className="season-loading">
         <strong>시즌 정보를 불러오지 못했습니다.</strong>
         <p role="alert">{error}</p>
-        <button disabled={Boolean(busyAction)} onClick={() => void performAction("retry", fetchSeasonData)}>
+        <button
+          disabled={Boolean(busyAction)}
+          onClick={() => void performAction("retry", fetchSeasonData)}
+        >
           다시 시도
         </button>
         <button onClick={onBack}>구단으로 돌아가기</button>
@@ -321,11 +328,17 @@ export default function SeasonHubView({
           <button
             className="next-event-button"
             disabled={
-              Boolean(busyAction) || hasBlockingEvent || !nextScheduledEvent
+              Boolean(busyAction) ||
+              hasBlockingEvent ||
+              (!nextScheduledEvent && !calendar.transferWindow.nextBoundaryDate)
             }
             onClick={() => advanceCalendar("NEXT_EVENT")}
           >
-            다음 이벤트까지 진행
+            {nextScheduledEvent
+              ? "다음 이벤트까지 진행"
+              : calendar.transferWindow.nextBoundaryType === "OPEN"
+                ? "이적시장 개장까지 진행"
+                : "이적시장 폐장까지 진행"}
             <span>→</span>
           </button>
         </div>
@@ -339,7 +352,8 @@ export default function SeasonHubView({
             <strong>{STOP_REASON_LABELS[fastResult.stopReason]}</strong>
           </div>
           <p>
-            {fastResult.advancedDays}일 진행 · AI 경기 {fastResult.simulatedFixtures.length}개 처리
+            {fastResult.advancedDays}일 진행 · AI 경기{" "}
+            {fastResult.simulatedFixtures.length}개 처리
           </p>
           <button onClick={() => setFastResult(null)}>닫기</button>
         </div>
@@ -362,6 +376,15 @@ export default function SeasonHubView({
                 {EVENT_LABELS[event.type]} 처리하기
               </button>
             ))}
+            {calendar.canCloseTransferWindow && (
+              <button
+                disabled={Boolean(busyAction)}
+                onClick={() => advanceCalendar("ONE_DAY")}
+                title="진행 중인 영입 제안과 이적 합의를 종료하고 1월 1일로 이동합니다."
+              >
+                미완료 영입 종료하고 새해로
+              </button>
+            )}
           </div>
         </section>
       )}
@@ -387,7 +410,9 @@ export default function SeasonHubView({
             <div>
               <span>팀 케미스트리</span>
               <strong>{managedTeam.chemistry}</strong>
-              <i><b style={{ width: `${managedTeam.chemistry}%` }} /></i>
+              <i>
+                <b style={{ width: `${managedTeam.chemistry}%` }} />
+              </i>
             </div>
             <div>
               <span>현재 순위</span>
@@ -488,7 +513,9 @@ export default function SeasonHubView({
                 <span>INBOX</span>
                 <h2>이벤트 큐</h2>
               </div>
-              <b>{events.filter((event) => event.status !== "COMPLETED").length}</b>
+              <b>
+                {events.filter((event) => event.status !== "COMPLETED").length}
+              </b>
             </div>
             <EventFeed
               events={events}
@@ -556,7 +583,9 @@ function NextMatchCard({
     <section className={`next-match-card ${due ? "is-due" : ""}`}>
       <div className="next-match-topline">
         <span>{managed ? "MY NEXT FIXTURE" : "LEAGUE FIXTURE"}</span>
-        <strong>{fixture.region} · SPLIT {fixture.splitNumber}</strong>
+        <strong>
+          {fixture.region} · SPLIT {fixture.splitNumber}
+        </strong>
       </div>
       <div className="match-date-line">
         <span>{formatCompactDate(fixture.scheduledDate)}</span>
@@ -565,21 +594,33 @@ function NextMatchCard({
         <em>BO{fixture.bestOf}</em>
       </div>
       <div className="fixture-versus">
-        <TeamBadge team={fixture.teamA} managed={fixture.teamA.id === managedTeamId} />
+        <TeamBadge
+          team={fixture.teamA}
+          managed={fixture.teamA.id === managedTeamId}
+        />
         <div className="versus-mark">
           <span>ROUND {fixture.roundNumber}</span>
           <strong>VS</strong>
-          <small>{due ? "MATCH DAY" : daysUntil(currentDate, fixture.scheduledDate)}</small>
+          <small>
+            {due ? "MATCH DAY" : daysUntil(currentDate, fixture.scheduledDate)}
+          </small>
         </div>
-        <TeamBadge team={fixture.teamB} managed={fixture.teamB.id === managedTeamId} />
+        <TeamBadge
+          team={fixture.teamB}
+          managed={fixture.teamB.id === managedTeamId}
+        />
       </div>
       <button
         className="quick-sim-button"
         disabled={busy || !due || !managed}
         onClick={() => onQuickSim(fixture)}
       >
-        <span>{due && managed ? "QUICK SIM" : managed ? "경기일 대기" : "AI 경기"}</span>
-        <strong>{due && managed ? "시리즈 전체 진행 →" : "FAST SIM으로 처리"}</strong>
+        <span>
+          {due && managed ? "QUICK SIM" : managed ? "경기일 대기" : "AI 경기"}
+        </span>
+        <strong>
+          {due && managed ? "시리즈 전체 진행 →" : "FAST SIM으로 처리"}
+        </strong>
       </button>
     </section>
   );
@@ -616,7 +657,12 @@ function StandingsTable({
   return (
     <div className="standings-table">
       <div className="standings-head">
-        <span>순위</span><span>구단</span><span>경기</span><span>승</span><span>패</span><span>세트 득실</span>
+        <span>순위</span>
+        <span>구단</span>
+        <span>경기</span>
+        <span>승</span>
+        <span>패</span>
+        <span>세트 득실</span>
       </div>
       {stage.standings.map((standing) => (
         <div
@@ -626,13 +672,19 @@ function StandingsTable({
           <strong className="standing-rank">{standing.rank}</strong>
           <div className="standing-team">
             <i>{standing.teamCode.slice(0, 3)}</i>
-            <span><strong>{standing.teamCode}</strong><small>{standing.teamName}</small></span>
+            <span>
+              <strong>{standing.teamCode}</strong>
+              <small>{standing.teamName}</small>
+            </span>
           </div>
           <span>{standing.played}</span>
           <b>{standing.seriesWins}</b>
           <span>{standing.seriesLosses}</span>
-          <em className={standing.gameDifference >= 0 ? "positive" : "negative"}>
-            {standing.gameDifference > 0 ? "+" : ""}{standing.gameDifference}
+          <em
+            className={standing.gameDifference >= 0 ? "positive" : "negative"}
+          >
+            {standing.gameDifference > 0 ? "+" : ""}
+            {standing.gameDifference}
           </em>
         </div>
       ))}
@@ -648,8 +700,10 @@ function FixtureList({
   managedTeamId: number;
 }) {
   const visibleFixtures = [...fixtures]
-    .sort((left, right) =>
-      left.scheduledDate.localeCompare(right.scheduledDate) || left.id - right.id,
+    .sort(
+      (left, right) =>
+        left.scheduledDate.localeCompare(right.scheduledDate) ||
+        left.id - right.id,
     )
     .filter((fixture) => fixture.status !== "COMPLETED")
     .slice(0, 6);
@@ -662,7 +716,9 @@ function FixtureList({
     <div className="fixture-list">
       {visibleFixtures.map((fixture) => (
         <article
-          className={includesLeagueTeam(fixture, managedTeamId) ? "managed" : ""}
+          className={
+            includesLeagueTeam(fixture, managedTeamId) ? "managed" : ""
+          }
           key={fixture.id}
         >
           <div className="fixture-list-date">
@@ -671,12 +727,18 @@ function FixtureList({
           </div>
           <div className="fixture-list-teams">
             <span>{fixture.teamA.code}</span>
-            <b>{fixture.teamAWins} : {fixture.teamBWins}</b>
+            <b>
+              {fixture.teamAWins} : {fixture.teamBWins}
+            </b>
             <span>{fixture.teamB.code}</span>
           </div>
           <div className="fixture-list-state">
             <span>R{fixture.roundNumber}</span>
-            <strong>{fixture.status === "IN_PROGRESS" ? "진행 중" : `BO${fixture.bestOf}`}</strong>
+            <strong>
+              {fixture.status === "IN_PROGRESS"
+                ? "진행 중"
+                : `BO${fixture.bestOf}`}
+            </strong>
           </div>
         </article>
       ))}
@@ -709,10 +771,14 @@ function EventFeed({
           <div>
             <span>{formatCompactDate(event.scheduledDate)}</span>
             <strong>{EVENT_LABELS[event.type]}</strong>
-            <small>{event.status === "READY" ? "감독 결정 대기" : "예정"}</small>
+            <small>
+              {event.status === "READY" ? "감독 결정 대기" : "예정"}
+            </small>
           </div>
           {event.status === "READY" && (
-            <button disabled={busy} onClick={() => onResolve(event)}>처리</button>
+            <button disabled={busy} onClick={() => onResolve(event)}>
+              처리
+            </button>
           )}
         </article>
       ))}
@@ -761,15 +827,22 @@ function QuickSimReport({
   );
   const playerNames = new Map(
     career.teams.flatMap((team) =>
-      [...team.starters, ...team.benches].map((roster) => [
-        roster.careerPlayer.id,
-        roster.careerPlayer.playerCard.player.nickname,
-      ] as const),
+      [...team.starters, ...team.benches].map(
+        (roster) =>
+          [
+            roster.careerPlayer.id,
+            roster.careerPlayer.playerCard.player.nickname,
+          ] as const,
+      ),
     ),
   );
 
   return (
-    <div className="quick-report-backdrop" role="presentation" onMouseDown={onClose}>
+    <div
+      className="quick-report-backdrop"
+      role="presentation"
+      onMouseDown={onClose}
+    >
       <section
         className="quick-report-modal"
         role="dialog"
@@ -782,7 +855,9 @@ function QuickSimReport({
             <span>FULL TIME · QUICK SIM</span>
             <h2>시리즈 종료</h2>
           </div>
-          <button aria-label="결과 닫기" onClick={onClose}>×</button>
+          <button aria-label="결과 닫기" onClick={onClose}>
+            ×
+          </button>
         </div>
         <div className="series-scoreboard">
           <div className="winner-side">
@@ -808,13 +883,31 @@ function QuickSimReport({
 
             return (
               <article key={game.matchId}>
-                <div className="game-number"><span>GAME</span><strong>{index + 1}</strong></div>
-                <div className="game-winner"><span>WIN</span><strong>{game.winnerTeamCode}</strong></div>
-                <div className="game-duration"><span>TIME</span><strong>{Math.round(game.durationMinutes)}'</strong></div>
+                <div className="game-number">
+                  <span>GAME</span>
+                  <strong>{index + 1}</strong>
+                </div>
+                <div className="game-winner">
+                  <span>WIN</span>
+                  <strong>{game.winnerTeamCode}</strong>
+                </div>
+                <div className="game-duration">
+                  <span>TIME</span>
+                  <strong>{Math.round(game.durationMinutes)}'</strong>
+                </div>
                 <div className="game-mvp">
                   <span>MVP</span>
-                  <strong>{bestPlayer ? playerNames.get(bestPlayer.careerPlayerId) ?? `PLAYER ${bestPlayer.careerPlayerId}` : "-"}</strong>
-                  <small>{bestPlayer ? `${bestPlayer.kills}/${bestPlayer.deaths}/${bestPlayer.assists} · ${bestPlayer.rating.toFixed(1)}` : ""}</small>
+                  <strong>
+                    {bestPlayer
+                      ? (playerNames.get(bestPlayer.careerPlayerId) ??
+                        `PLAYER ${bestPlayer.careerPlayerId}`)
+                      : "-"}
+                  </strong>
+                  <small>
+                    {bestPlayer
+                      ? `${bestPlayer.kills}/${bestPlayer.deaths}/${bestPlayer.assists} · ${bestPlayer.rating.toFixed(1)}`
+                      : ""}
+                  </small>
                 </div>
               </article>
             );
@@ -846,7 +939,9 @@ function findManagedStanding(stage: LeagueStage | null, teamId: number) {
 function formatRecord(
   standing: ReturnType<typeof findManagedStanding>,
 ): string {
-  return standing ? `${standing.seriesWins}W ${standing.seriesLosses}L` : "0W 0L";
+  return standing
+    ? `${standing.seriesWins}W ${standing.seriesLosses}L`
+    : "0W 0L";
 }
 
 function includesTeam(fixture: CalendarFixture, teamId?: number): boolean {
@@ -896,7 +991,10 @@ function formatMonth(date: string): string {
 function daysUntil(from: string, to: string): string {
   const difference = Math.max(
     0,
-    Math.round((parseGameDate(to).getTime() - parseGameDate(from).getTime()) / 86_400_000),
+    Math.round(
+      (parseGameDate(to).getTime() - parseGameDate(from).getTime()) /
+        86_400_000,
+    ),
   );
   return `D-${difference}`;
 }

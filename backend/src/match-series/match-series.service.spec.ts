@@ -6,6 +6,7 @@ import {
 import { Repository } from 'typeorm';
 import { CareerTeam } from '../careers/entities/career-team.entity';
 import { TeamStrategy } from '../careers/enums/team-strategy.enum';
+import { LeagueFixture } from '../leagues/entities/league-fixture.entity';
 import { MatchSimulationResponseDto } from '../matches/dto/match-simulation-response.dto';
 import { SimulateMatchDto } from '../matches/dto/simulate-match.dto';
 import { Match } from '../matches/entities/match.entity';
@@ -59,6 +60,7 @@ describe('MatchSeriesService', () => {
     simulate: jest.fn(),
     findOne: jest.fn(),
   };
+  const leagueFixturesRepository = { findOneBy: jest.fn() };
 
   let service: MatchSeriesService;
   let winners: number[];
@@ -70,6 +72,7 @@ describe('MatchSeriesService', () => {
     series.bestOf = 3;
     winners = [teamA.id, teamB.id, teamA.id];
     simulatedSeeds = [];
+    leagueFixturesRepository.findOneBy.mockResolvedValue(null);
     careerTeamsRepository.find.mockResolvedValue([teamA, teamB]);
     matchSeriesRepository.findOne.mockResolvedValue(series);
     matchesService.findOne.mockImplementation(
@@ -107,7 +110,34 @@ describe('MatchSeriesService', () => {
       matchSeriesRepository as unknown as Repository<MatchSeries>,
       careerTeamsRepository as unknown as Repository<CareerTeam>,
       matchesService as unknown as MatchesService,
+      leagueFixturesRepository as unknown as Repository<LeagueFixture>,
     );
+  });
+
+  it('keeps the public simulation route available for standalone series', async () => {
+    const result = await service.simulateStandaloneNextGame(7, series.id);
+
+    expect(result.games).toHaveLength(1);
+    expect(matchesService.simulate).toHaveBeenCalledTimes(1);
+  });
+
+  it('prevents direct series simulation from bypassing league progression', async () => {
+    leagueFixturesRepository.findOneBy.mockResolvedValue({ id: 501 });
+
+    await expect(
+      service.simulateStandaloneNextGame(7, series.id),
+    ).rejects.toThrow('use the league fixture simulation endpoint');
+    expect(matchesService.simulate).not.toHaveBeenCalled();
+    expect(series.games).toHaveLength(0);
+  });
+
+  it('does not reveal linked fixtures before verifying series ownership', async () => {
+    matchSeriesRepository.findOne.mockResolvedValue(null);
+
+    await expect(
+      service.simulateStandaloneNextGame(8, series.id),
+    ).rejects.toBeInstanceOf(NotFoundException);
+    expect(leagueFixturesRepository.findOneBy).not.toHaveBeenCalled();
   });
 
   it('creates an owned BO3 series before Game 1', async () => {

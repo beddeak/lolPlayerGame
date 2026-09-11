@@ -3092,6 +3092,8 @@ Offseason Market
 
 11/19 ~ 12월
 
+구현 범위 및 사용법: [PHASE 21 오프시즌 이적시장](docs/PHASE21-OFFSEASON-MARKET.md)
+
 
 --------------------------------
 

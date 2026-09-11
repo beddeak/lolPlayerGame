@@ -76,6 +76,7 @@ export default function ContractsView({
   const [offers, setOffers] = useState<ContractOffer[]>([]);
   const [calendar, setCalendar] = useState<CalendarResponse | null>(null);
   const [playerId, setPlayerId] = useState<number | null>(null);
+  const [selectedOfferId, setSelectedOfferId] = useState<number | null>(null);
   const [terms, setTerms] = useState<ContractTerms>(defaultTerms());
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -105,18 +106,23 @@ export default function ContractsView({
         setCalendar(nextCalendar);
         const requested = nextOffers.find((item) => item.id === initialOfferId);
         const members = initialRoster;
+        const initialOffer =
+          requested ?? (members.length === 0 ? nextOffers[0] : undefined);
         const id =
-          requested?.careerPlayerId ?? members[0]?.careerPlayer.id ?? null;
+          initialOffer?.careerPlayerId ?? members[0]?.careerPlayer.id ?? null;
         setPlayerId(id);
+        setSelectedOfferId(initialOffer?.id ?? null);
         const current = nextContracts.find(
-          (item) => item.careerPlayerId === id,
+          (item) =>
+            item.careerPlayerId === id && item.careerTeamId === team?.id,
         );
         const openOffer = nextOffers.find(
           (item) => item.careerPlayerId === id && OPEN.has(item.status),
         );
         setTerms(
           structuredClone(
-            openOffer?.terms ??
+            initialOffer?.terms ??
+              openOffer?.terms ??
               current?.terms ??
               defaultTerms(members.find((item) => item.careerPlayer.id === id)),
           ),
@@ -132,20 +138,42 @@ export default function ContractsView({
     return () => {
       active = false;
     };
-  }, [fetchData, initialOfferId, initialRoster, reloadKey]);
+  }, [fetchData, initialOfferId, initialRoster, reloadKey, team?.id]);
 
   const selected = roster.find((item) => item.careerPlayer.id === playerId);
-  const contract = contracts.find((item) => item.careerPlayerId === playerId);
-  const offer = offers.find(
-    (item) => item.careerPlayerId === playerId && OPEN.has(item.status),
+  const managedContracts = contracts.filter(
+    (item) => item.careerTeamId === team?.id,
   );
+  const contract = managedContracts.find(
+    (item) => item.careerPlayerId === playerId,
+  );
+  const offer =
+    selectedOfferId !== null
+      ? offers.find((item) => item.id === selectedOfferId)
+      : offers.find(
+          (item) => item.careerPlayerId === playerId && OPEN.has(item.status),
+        );
+  const externalOffers = offers.filter(
+    (item) =>
+      item.offerType !== "RENEWAL" &&
+      !roster.some((member) => member.careerPlayer.id === item.careerPlayerId),
+  );
+  const player = selected
+    ? {
+        nickname: selected.careerPlayer.playerCard.player.nickname,
+        currentPosition: selected.careerPlayer.currentPosition,
+        currentAge: selected.careerPlayer.currentAge,
+      }
+    : offer?.player;
+  const open = Boolean(offer && OPEN.has(offer.status));
   const ready = Boolean(
+    open &&
     offer &&
     calendar?.blockingEvents.some(
       (event) => event.id === offer.responseEventId,
     ),
   );
-  const editable = !busy && (!offer || ready);
+  const editable = !busy && ((!offer && Boolean(selected)) || ready);
   const maySign =
     ready &&
     (offer?.status === "PLAYER_ACCEPTED" ||
@@ -155,11 +183,12 @@ export default function ContractsView({
   function selectPlayer(item: CareerRoster) {
     const id = item.careerPlayer.id;
     setPlayerId(id);
+    setSelectedOfferId(null);
     const existingOffer = offers.find(
       (candidate) =>
         candidate.careerPlayerId === id && OPEN.has(candidate.status),
     );
-    const existingContract = contracts.find(
+    const existingContract = managedContracts.find(
       (candidate) => candidate.careerPlayerId === id,
     );
     setTerms(
@@ -171,8 +200,16 @@ export default function ContractsView({
     setNotice("");
   }
 
+  function selectOffer(item: ContractOffer) {
+    setPlayerId(item.careerPlayerId);
+    setSelectedOfferId(item.id);
+    setTerms(structuredClone(item.terms));
+    setError("");
+    setNotice("");
+  }
+
   async function mutate(action?: ContractOfferAction) {
-    if (!selected || busy) return;
+    if (busy || (action ? !offer || !open : !selected)) return;
     if ((!action || action === "COUNTER") && validation) {
       setError(validation);
       return;
@@ -190,7 +227,7 @@ export default function ContractsView({
           token,
           body: action
             ? { action, ...(action === "COUNTER" ? { terms } : {}) }
-            : { careerPlayerId: selected.careerPlayer.id, terms },
+            : { careerPlayerId: playerId, terms },
         },
       );
       setNotice(
@@ -213,7 +250,8 @@ export default function ContractsView({
         (item) => item.careerPlayerId === playerId && OPEN.has(item.status),
       );
       const nextContract = nextContracts.find(
-        (item) => item.careerPlayerId === playerId,
+        (item) =>
+          item.careerPlayerId === playerId && item.careerTeamId === team?.id,
       );
       setTerms(
         structuredClone(nextOffer?.terms ?? nextContract?.terms ?? terms),
@@ -288,7 +326,7 @@ export default function ContractsView({
           </span>
         </div>
         <div className="contracts-count">
-          <strong>{contracts.length}</strong>
+          <strong>{managedContracts.length}</strong>
           <span>체결 계약</span>
         </div>
       </header>
@@ -316,8 +354,10 @@ export default function ContractsView({
             다시 불러오기
           </button>
         </div>
-      ) : !selected ? (
-        <p className="contracts-empty">계약할 소속 선수가 없습니다.</p>
+      ) : !player ? (
+        <p className="contracts-empty">
+          계약할 소속 선수나 영입 협상이 없습니다.
+        </p>
       ) : (
         <div className="contracts-layout">
           <aside className="contracts-roster">
@@ -330,7 +370,7 @@ export default function ContractsView({
                 (entry) =>
                   entry.careerPlayerId === id && OPEN.has(entry.status),
               );
-              const signed = contracts.find(
+              const signed = managedContracts.find(
                 (entry) => entry.careerPlayerId === id,
               );
               return (
@@ -357,20 +397,46 @@ export default function ContractsView({
               );
             })}
             <p>소속 선수의 계약과 재계약을 관리합니다.</p>
+            {externalOffers.length > 0 && (
+              <h2>
+                외부 선수 영입 협상 <small>{externalOffers.length}</small>
+              </h2>
+            )}
+            {externalOffers.map((item) => (
+              <button
+                key={`offer-${item.id}`}
+                disabled={busy}
+                className={item.id === offer?.id ? "selected" : ""}
+                onClick={() => selectOffer(item)}
+              >
+                <span className="contracts-position">
+                  {item.offerType === "FREE_AGENT" ? "FA" : "이적"} ·{" "}
+                  {item.player.currentPosition}
+                </span>
+                <strong>{item.player.nickname}</strong>
+                <small>
+                  #{item.id} · {STATUS[item.status]}
+                </small>
+              </button>
+            ))}
           </aside>
           <div className="contracts-main">
             <section className="contracts-player">
               <div>
                 <span>
-                  {selected.role === "STARTER"
-                    ? "STARTING PLAYER"
-                    : "BENCH PLAYER"}
+                  {!selected
+                    ? offer?.offerType === "FREE_AGENT"
+                      ? "FREE AGENT"
+                      : "TRANSFER TARGET"
+                    : selected.role === "STARTER"
+                      ? "STARTING PLAYER"
+                      : "BENCH PLAYER"}
                 </span>
-                <h2>{selected.careerPlayer.playerCard.player.nickname}</h2>
+                <h2>{player.nickname}</h2>
                 <p>
-                  {selected.careerPlayer.currentPosition} ·{" "}
-                  {selected.careerPlayer.currentAge}세 · 감독 신뢰{" "}
-                  {selected.careerPlayer.coachTrust}
+                  {player.currentPosition} · {player.currentAge}세
+                  {selected &&
+                    ` · 감독 신뢰 ${selected.careerPlayer.coachTrust}`}
                 </p>
               </div>
               <div>
@@ -378,12 +444,16 @@ export default function ContractsView({
                 <strong>
                   {contract
                     ? `${formatSalary(contract.terms.annualSalary)} / 년`
-                    : "미등록"}
+                    : selected
+                      ? "미등록"
+                      : "우리 구단과 미계약"}
                 </strong>
                 <small>
                   {contract
                     ? `${contract.startDate} ~ ${contract.endDate}`
-                    : "새 계약을 제안해 주세요."}
+                    : selected
+                      ? "새 계약을 제안해 주세요."
+                      : "영입 협상 내용을 확인해 주세요."}
                 </small>
               </div>
             </section>
@@ -406,9 +476,11 @@ export default function ContractsView({
                   </span>
                 </div>
                 <p>
-                  {ready
-                    ? offer.response?.reason
-                    : `답변 예정일 ${offer.responseDate}. 시즌 허브에서 날짜를 진행하면 선수의 답변을 확인할 수 있습니다.`}
+                  {!open
+                    ? "종료된 협상입니다."
+                    : ready
+                      ? offer.response?.reason
+                      : `답변 예정일 ${offer.responseDate}. 시즌 허브에서 날짜를 진행하면 선수의 답변을 확인할 수 있습니다.`}
                 </p>
                 {offer.counterTerms && (
                   <>
@@ -419,225 +491,229 @@ export default function ContractsView({
                 {offer.status === "PLAYER_ACCEPTED" && (
                   <TermsSummary terms={offer.terms} />
                 )}
-                <div className="contracts-decision-actions">
-                  {maySign && (
+                {open && (
+                  <div className="contracts-decision-actions">
+                    {maySign && (
+                      <button
+                        className="contracts-primary"
+                        disabled={busy}
+                        onClick={() => void mutate("ACCEPT")}
+                      >
+                        {offer.status === "COUNTER_OFFERED"
+                          ? "요청 조건 수락 · 계약 확정"
+                          : "계약 확정"}
+                      </button>
+                    )}
+                    {ready && offer.status !== "REJECTED" && (
+                      <>
+                        <button
+                          disabled={busy || offer.revision >= 5}
+                          onClick={() => void mutate("KEEP")}
+                        >
+                          기존 조건 유지
+                        </button>
+                        <button
+                          disabled={busy || offer.extensionsUsed >= 1}
+                          onClick={() => void mutate("REQUEST_TIME")}
+                        >
+                          답변 시간 2일 요청
+                        </button>
+                      </>
+                    )}
                     <button
-                      className="contracts-primary"
                       disabled={busy}
-                      onClick={() => void mutate("ACCEPT")}
+                      className="contracts-withdraw"
+                      onClick={() => void mutate("WITHDRAW")}
                     >
-                      {offer.status === "COUNTER_OFFERED"
-                        ? "요청 조건 수락 · 계약 확정"
-                        : "계약 확정"}
+                      협상 철회
                     </button>
-                  )}
-                  {ready && offer.status !== "REJECTED" && (
-                    <>
-                      <button
-                        disabled={busy || offer.revision >= 5}
-                        onClick={() => void mutate("KEEP")}
-                      >
-                        기존 조건 유지
+                    {!ready && (
+                      <button disabled={busy} onClick={onOpenSeason}>
+                        날짜 진행하러 가기 →
                       </button>
-                      <button
-                        disabled={busy || offer.extensionsUsed >= 1}
-                        onClick={() => void mutate("REQUEST_TIME")}
-                      >
-                        답변 시간 2일 요청
-                      </button>
-                    </>
-                  )}
-                  <button
-                    disabled={busy}
-                    className="contracts-withdraw"
-                    onClick={() => void mutate("WITHDRAW")}
-                  >
-                    협상 철회
-                  </button>
-                  {!ready && (
-                    <button disabled={busy} onClick={onOpenSeason}>
-                      날짜 진행하러 가기 →
-                    </button>
-                  )}
-                </div>
+                    )}
+                  </div>
+                )}
               </section>
             )}
-            <form className="contracts-form" onSubmit={submit}>
-              <div className="contracts-section-title">
-                <h3>
-                  {offer
-                    ? "재협상 조건"
-                    : contract
-                      ? "재계약 제안"
-                      : "계약 제안"}
-                </h3>
-                <span>
-                  {offer
-                    ? "수정 조건을 보내면 다시 검토합니다"
-                    : "응답까지 게임 날짜 기준 1~3일"}
-                </span>
-              </div>
-              <fieldset disabled={!editable}>
-                <legend className="contracts-sr-only">계약 조건</legend>
-                <div className="contracts-fields">
-                  <label>
-                    연봉 <span>만원 / 년</span>
-                    <input
-                      type="number"
-                      min={1}
-                      max={10000000}
-                      step={1}
-                      required
-                      value={
-                        Number.isNaN(terms.annualSalary)
-                          ? ""
-                          : terms.annualSalary
-                      }
-                      onChange={(event) =>
-                        setTerms((value) => ({
-                          ...value,
-                          annualSalary: event.target.valueAsNumber,
-                        }))
-                      }
-                    />
-                    <small>
-                      {Number.isFinite(terms.annualSalary)
-                        ? formatSalary(terms.annualSalary)
-                        : "연봉을 입력해 주세요"}
-                    </small>
-                  </label>
-                  <label>
-                    계약 기간
-                    <select
-                      value={terms.years}
-                      onChange={(event) =>
-                        setTerms((value) => ({
-                          ...value,
-                          years: Number(event.target.value),
-                        }))
-                      }
-                    >
-                      {[1, 2, 3, 4, 5].map((year) => (
-                        <option key={year} value={year}>
-                          {year}년
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <label>
-                    예상 역할
-                    <select
-                      value={terms.expectedRole}
-                      onChange={(event) =>
-                        changeRole(event.target.value as ContractRole)
-                      }
-                    >
-                      {Object.entries(ROLES).map(([role, label]) => (
-                        <option key={role} value={role}>
-                          {label}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
+            {(!offer || open) && (
+              <form className="contracts-form" onSubmit={submit}>
+                <div className="contracts-section-title">
+                  <h3>
+                    {offer
+                      ? "재협상 조건"
+                      : contract
+                        ? "재계약 제안"
+                        : "계약 제안"}
+                  </h3>
+                  <span>
+                    {offer
+                      ? "수정 조건을 보내면 다시 검토합니다"
+                      : "응답까지 게임 날짜 기준 1~3일"}
+                  </span>
                 </div>
-                <label className="contracts-check">
-                  <input
-                    type="checkbox"
-                    checked={terms.starterGuarantee}
-                    onChange={(event) => {
-                      const checked = event.target.checked;
-                      setTerms((value) => ({
-                        ...value,
-                        starterGuarantee: checked,
-                        expectedRole:
-                          checked &&
-                          !["CORE", "STARTER"].includes(value.expectedRole)
-                            ? "STARTER"
-                            : value.expectedRole,
-                        promises: checked
-                          ? value.promises
-                          : value.promises.filter(
-                              (item) => item.type !== "STARTER_GUARANTEE",
-                            ),
-                      }));
-                    }}
-                  />
-                  <span>주전 보장</span>
-                </label>
-                <h4>감독의 약속</h4>
-                <div className="contracts-promises">
-                  {Object.entries(PROMISES).map(([key, label]) => (
-                    <label key={key} className="contracts-check">
+                <fieldset disabled={!editable}>
+                  <legend className="contracts-sr-only">계약 조건</legend>
+                  <div className="contracts-fields">
+                    <label>
+                      연봉 <span>만원 / 년</span>
                       <input
-                        type="checkbox"
-                        checked={terms.promises.some(
-                          (item) => item.type === key,
-                        )}
+                        type="number"
+                        min={1}
+                        max={10000000}
+                        step={1}
+                        required
+                        value={
+                          Number.isNaN(terms.annualSalary)
+                            ? ""
+                            : terms.annualSalary
+                        }
                         onChange={(event) =>
-                          togglePromise(
-                            key as ContractPromiseType,
-                            event.target.checked,
-                          )
+                          setTerms((value) => ({
+                            ...value,
+                            annualSalary: event.target.valueAsNumber,
+                          }))
                         }
                       />
-                      <span>{label}</span>
+                      <small>
+                        {Number.isFinite(terms.annualSalary)
+                          ? formatSalary(terms.annualSalary)
+                          : "연봉을 입력해 주세요"}
+                      </small>
                     </label>
-                  ))}
-                </div>
-                {terms.promises.some(
-                  (item) => item.type === "SIGN_POSITION",
-                ) && (
-                  <label className="contracts-position-select">
-                    보강할 포지션
-                    <select
-                      value={
-                        terms.promises.find(
-                          (item) => item.type === "SIGN_POSITION",
-                        )?.position ?? "TOP"
-                      }
-                      onChange={(event) =>
+                    <label>
+                      계약 기간
+                      <select
+                        value={terms.years}
+                        onChange={(event) =>
+                          setTerms((value) => ({
+                            ...value,
+                            years: Number(event.target.value),
+                          }))
+                        }
+                      >
+                        {[1, 2, 3, 4, 5].map((year) => (
+                          <option key={year} value={year}>
+                            {year}년
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label>
+                      예상 역할
+                      <select
+                        value={terms.expectedRole}
+                        onChange={(event) =>
+                          changeRole(event.target.value as ContractRole)
+                        }
+                      >
+                        {Object.entries(ROLES).map(([role, label]) => (
+                          <option key={role} value={role}>
+                            {label}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  </div>
+                  <label className="contracts-check">
+                    <input
+                      type="checkbox"
+                      checked={terms.starterGuarantee}
+                      onChange={(event) => {
+                        const checked = event.target.checked;
                         setTerms((value) => ({
                           ...value,
-                          promises: value.promises.map((item) =>
-                            item.type === "SIGN_POSITION"
-                              ? {
-                                  ...item,
-                                  position: event.target.value as Position,
-                                }
-                              : item,
-                          ),
-                        }))
-                      }
-                    >
-                      {POSITIONS.map((position) => (
-                        <option key={position}>{position}</option>
-                      ))}
-                    </select>
+                          starterGuarantee: checked,
+                          expectedRole:
+                            checked &&
+                            !["CORE", "STARTER"].includes(value.expectedRole)
+                              ? "STARTER"
+                              : value.expectedRole,
+                          promises: checked
+                            ? value.promises
+                            : value.promises.filter(
+                                (item) => item.type !== "STARTER_GUARANTEE",
+                              ),
+                        }));
+                      }}
+                    />
+                    <span>주전 보장</span>
                   </label>
+                  <h4>감독의 약속</h4>
+                  <div className="contracts-promises">
+                    {Object.entries(PROMISES).map(([key, label]) => (
+                      <label key={key} className="contracts-check">
+                        <input
+                          type="checkbox"
+                          checked={terms.promises.some(
+                            (item) => item.type === key,
+                          )}
+                          onChange={(event) =>
+                            togglePromise(
+                              key as ContractPromiseType,
+                              event.target.checked,
+                            )
+                          }
+                        />
+                        <span>{label}</span>
+                      </label>
+                    ))}
+                  </div>
+                  {terms.promises.some(
+                    (item) => item.type === "SIGN_POSITION",
+                  ) && (
+                    <label className="contracts-position-select">
+                      보강할 포지션
+                      <select
+                        value={
+                          terms.promises.find(
+                            (item) => item.type === "SIGN_POSITION",
+                          )?.position ?? "TOP"
+                        }
+                        onChange={(event) =>
+                          setTerms((value) => ({
+                            ...value,
+                            promises: value.promises.map((item) =>
+                              item.type === "SIGN_POSITION"
+                                ? {
+                                    ...item,
+                                    position: event.target.value as Position,
+                                  }
+                                : item,
+                            ),
+                          }))
+                        }
+                      >
+                        {POSITIONS.map((position) => (
+                          <option key={position}>{position}</option>
+                        ))}
+                      </select>
+                    </label>
+                  )}
+                </fieldset>
+                {editable && validation && (
+                  <p className="contracts-validation">{validation}</p>
                 )}
-              </fieldset>
-              {editable && validation && (
-                <p className="contracts-validation">{validation}</p>
-              )}
-              <div className="contracts-form-footer">
-                <p>확정한 게임 날짜부터 새 계약 조건을 적용합니다.</p>
-                <button
-                  className="contracts-primary"
-                  type="submit"
-                  disabled={
-                    !editable ||
-                    Boolean(validation) ||
-                    Boolean(offer && offer.revision >= 5)
-                  }
-                >
-                  {busy
-                    ? "처리 중…"
-                    : offer
-                      ? "수정 조건으로 재협상"
-                      : "계약 제안 보내기"}
-                </button>
-              </div>
-            </form>
+                <div className="contracts-form-footer">
+                  <p>확정한 게임 날짜부터 새 계약 조건을 적용합니다.</p>
+                  <button
+                    className="contracts-primary"
+                    type="submit"
+                    disabled={
+                      !editable ||
+                      Boolean(validation) ||
+                      Boolean(offer && offer.revision >= 5)
+                    }
+                  >
+                    {busy
+                      ? "처리 중…"
+                      : offer
+                        ? "수정 조건으로 재협상"
+                        : "계약 제안 보내기"}
+                  </button>
+                </div>
+              </form>
+            )}
             <section className="contracts-history">
               <h3>이 선수의 협상 기록</h3>
               {offers

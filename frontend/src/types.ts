@@ -158,10 +158,7 @@ export interface Career {
 
 export type ContractRole = "CORE" | "STARTER" | "ROTATION" | "PROSPECT";
 export type ContractPromiseType =
-  | "STARTER_GUARANTEE"
-  | "CARRY_ROLE"
-  | "STRENGTHEN_TEAM"
-  | "SIGN_POSITION";
+  "STARTER_GUARANTEE" | "CARRY_ROLE" | "STRENGTHEN_TEAM" | "SIGN_POSITION";
 
 export interface ContractPromise {
   type: ContractPromiseType;
@@ -185,17 +182,21 @@ export type ContractOfferStatus =
   | "SIGNED";
 
 export type ContractOfferAction =
-  | "ACCEPT"
-  | "COUNTER"
-  | "KEEP"
-  | "WITHDRAW"
-  | "REQUEST_TIME";
+  "ACCEPT" | "COUNTER" | "KEEP" | "WITHDRAW" | "REQUEST_TIME";
 
 export interface ContractOffer {
   id: number;
   careerId: number;
   careerTeamId: number;
   careerPlayerId: number;
+  offerType: "RENEWAL" | "FREE_AGENT" | "TRANSFER";
+  sourceCareerTeamId: number | null;
+  transferAgreementId: number | null;
+  player: {
+    nickname: string;
+    currentPosition: Position;
+    currentAge: number;
+  };
   status: ContractOfferStatus;
   revision: number;
   offeredDate: string;
@@ -227,15 +228,13 @@ export interface PlayerContract {
 }
 
 export type CalendarAdvanceMode =
-  | "ONE_DAY"
-  | "THREE_DAYS"
-  | "NEXT_MATCH"
-  | "NEXT_EVENT";
+  "ONE_DAY" | "THREE_DAYS" | "NEXT_MATCH" | "NEXT_EVENT";
 
 export type CalendarStopReason =
   | "TARGET_REACHED"
   | "MATCH_DAY"
-  | "BLOCKING_EVENT";
+  | "BLOCKING_EVENT"
+  | "TRANSFER_WINDOW_BOUNDARY";
 
 export type CalendarEventStatus = "SCHEDULED" | "READY" | "COMPLETED";
 
@@ -285,6 +284,15 @@ export interface CalendarResponse {
   careerId: number;
   currentDate: string;
   currentYear: number;
+  canCloseTransferWindow: boolean;
+  transferWindow: {
+    seasonYear: number;
+    isOpen: boolean;
+    opensAt: string;
+    endsAt: string;
+    nextBoundaryDate: string | null;
+    nextBoundaryType: "OPEN" | "CLOSE";
+  };
   nextMatch: CalendarFixture | null;
   dueMatches: CalendarFixture[];
   blockingEvents: CalendarEvent[];
@@ -431,7 +439,8 @@ export type FastSimStopReason =
   | "TARGET_REACHED"
   | "MANAGED_MATCH"
   | "BLOCKING_EVENT"
-  | "FIXTURE_LIMIT";
+  | "FIXTURE_LIMIT"
+  | "TRANSFER_WINDOW_BOUNDARY";
 
 export interface FastSimResponse {
   mode: "FAST";

@@ -74,7 +74,7 @@ describe('MatchesService', () => {
         position,
         proficiency: 100,
       })),
-    }) as CareerPlayer;
+    }) as unknown as CareerPlayer;
   const createCareerTeam = (id: number, code: string): CareerTeam => {
     const careerTeam = {
       id,

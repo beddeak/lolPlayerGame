@@ -1,4 +1,5 @@
 import { INestApplication } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { App } from 'supertest/types';
@@ -216,9 +217,11 @@ describe('Contract negotiations through the career calendar (e2e)', () => {
       tokens.push(auth.accessToken);
     }
     [token, otherToken] = tokens;
+    app.get(ConfigService).set('CATALOG_ADMIN_ACCOUNT_IDS', [accountIds[0]]);
 
     const themeResponse = await api()
       .post('/themes')
+      .set('Authorization', `Bearer ${token}`)
       .send({ code: fixtureKey.toUpperCase(), name: 'Contract E2E Theme' })
       .expect(201);
     themeId = (themeResponse.body as { id: number }).id;
@@ -226,12 +229,14 @@ describe('Contract negotiations through the career calendar (e2e)', () => {
     for (let index = 0; index < positions.length * 2; index += 1) {
       const playerResponse = await api()
         .post('/players')
+        .set('Authorization', `Bearer ${token}`)
         .send({ nickname: `${fixtureKey}_${index}`, nationality: 'KR' })
         .expect(201);
       const id = (playerResponse.body as { id: number }).id;
       playerIds.push(id);
       const cardResponse = await api()
         .post('/player-cards')
+        .set('Authorization', `Bearer ${token}`)
         .send({
           playerId: id,
           themeId,

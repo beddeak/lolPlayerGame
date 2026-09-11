@@ -80,6 +80,22 @@ export class SimulationsService {
     let calendar = await this.calendarsService.findOne(accountId, careerId);
 
     if (prepared.blockingEvents.length > 0) {
+      const closedCalendar = await this.advancePastClosingTransferBlockers(
+        accountId,
+        careerId,
+        calendar,
+        targetDate,
+      );
+      if (closedCalendar) {
+        return this.toFastSimResponse(
+          previousDate,
+          targetDate,
+          fixtureLimit,
+          FastSimStopReason.TRANSFER_WINDOW_BOUNDARY,
+          simulatedFixtures,
+          closedCalendar,
+        );
+      }
       return this.toFastSimResponse(
         previousDate,
         targetDate,
@@ -92,6 +108,22 @@ export class SimulationsService {
 
     while (true) {
       if (calendar.blockingEvents.length > 0) {
+        const closedCalendar = await this.advancePastClosingTransferBlockers(
+          accountId,
+          careerId,
+          calendar,
+          targetDate,
+        );
+        if (closedCalendar) {
+          return this.toFastSimResponse(
+            previousDate,
+            targetDate,
+            fixtureLimit,
+            FastSimStopReason.TRANSFER_WINDOW_BOUNDARY,
+            simulatedFixtures,
+            closedCalendar,
+          );
+        }
         return this.toFastSimResponse(
           previousDate,
           targetDate,
@@ -157,10 +189,42 @@ export class SimulationsService {
         );
       }
 
+      const wasWindowOpen = calendar.transferWindow.isOpen;
       calendar = await this.calendarsService.advance(accountId, careerId, {
         mode: CalendarAdvanceMode.ONE_DAY,
       });
+      if (calendar.transferWindow.isOpen !== wasWindowOpen) {
+        return this.toFastSimResponse(
+          previousDate,
+          targetDate,
+          fixtureLimit,
+          FastSimStopReason.TRANSFER_WINDOW_BOUNDARY,
+          simulatedFixtures,
+          calendar,
+        );
+      }
     }
+  }
+
+  private async advancePastClosingTransferBlockers(
+    accountId: number,
+    careerId: number,
+    calendar: CalendarResponseDto,
+    targetDate: string,
+  ): Promise<CalendarResponseDto | null> {
+    if (
+      calendar.currentDate >= targetDate ||
+      !calendar.canCloseTransferWindow ||
+      calendar.dueMatches.length > 0 ||
+      !calendar.transferWindow.isOpen ||
+      calendar.currentDate !== calendar.transferWindow.endsAt
+    ) {
+      return null;
+    }
+    const advanced = await this.calendarsService.advance(accountId, careerId, {
+      mode: CalendarAdvanceMode.ONE_DAY,
+    });
+    return advanced.currentDate > calendar.currentDate ? advanced : null;
   }
 
   private async runQuickSim(

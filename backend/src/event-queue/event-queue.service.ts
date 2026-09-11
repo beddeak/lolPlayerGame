@@ -17,6 +17,7 @@ import { CalendarEvent } from './entities/calendar-event.entity';
 import { CalendarEventStatus } from './enums/calendar-event-status.enum';
 import { CalendarEventType } from './enums/calendar-event-type.enum';
 import { ContractsService } from '../contracts/contracts.service';
+import { getTransferWindow } from '../transfers/transfer-window';
 
 export interface EnqueueCalendarEventInput {
   scheduledDate: string;
@@ -138,6 +139,11 @@ export class EventQueueService {
       where: { id: careerId },
       lock: { mode: 'pessimistic_write' },
     });
+    await this.contractsService.closeExpiredTransferNegotiations(
+      manager,
+      careerId,
+      date,
+    );
     const events = await manager.find(CalendarEvent, {
       where: {
         careerId,
@@ -191,6 +197,30 @@ export class EventQueueService {
         (event) => event.status === CalendarEventStatus.READY,
       ),
     };
+  }
+
+  async canAdvancePastTransferWindowClose(
+    manager: EntityManager,
+    careerId: number,
+    date: string,
+    blockingEvents: CalendarEventResponseDto[],
+  ): Promise<boolean> {
+    const window = getTransferWindow(date);
+    if (
+      !window.isOpen ||
+      date !== window.endsAt ||
+      blockingEvents.length === 0 ||
+      blockingEvents.some(
+        (event) => event.type !== CalendarEventType.CONTRACT_RESPONSE,
+      )
+    ) {
+      return false;
+    }
+    return this.contractsService.areAcquisitionResponseEvents(
+      manager,
+      careerId,
+      blockingEvents.map((event) => event.id),
+    );
   }
 
   async findBlockingEvents(

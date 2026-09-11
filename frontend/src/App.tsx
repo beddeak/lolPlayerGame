@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import "./App.css";
 import ContractsView from "./ContractsView";
 import SeasonHubView from "./SeasonHubView";
@@ -87,9 +87,34 @@ function App() {
   const [playerCards, setPlayerCards] = useState<PlayerCard[]>([]);
   const [activeCareer, setActiveCareer] = useState<Career | null>(null);
   const [view, setView] = useState<AppView>("saves");
-  const [selectedContractOfferId, setSelectedContractOfferId] = useState<number | null>(null);
+  const [selectedContractOfferId, setSelectedContractOfferId] = useState<
+    number | null
+  >(null);
   const [booting, setBooting] = useState(() => Boolean(getStoredAccessToken()));
   const [pageError, setPageError] = useState("");
+  const sessionVersion = useRef(0);
+  const sessionToken = useRef<string | null>(null);
+  const careerSelection = useRef(0);
+  const selectedCareerId = useRef<number | null>(null);
+  const pendingCreation = useRef<number | null>(null);
+
+  function isCurrentSession(requestToken: string, session: number) {
+    return (
+      sessionVersion.current === session &&
+      sessionToken.current === requestToken
+    );
+  }
+
+  function isCurrentSelection(
+    requestToken: string,
+    session: number,
+    selection: number,
+  ) {
+    return (
+      isCurrentSession(requestToken, session) &&
+      careerSelection.current === selection
+    );
+  }
 
   useEffect(() => {
     const savedToken = getStoredAccessToken();
@@ -98,73 +123,123 @@ function App() {
       return;
     }
 
+    let active = true;
+    const session = ++sessionVersion.current;
+    sessionToken.current = savedToken;
+
     Promise.all([
       apiRequest<Account>("/auth/me", { token: savedToken }),
       apiRequest<CareerSummary[]>("/careers", { token: savedToken }),
     ])
       .then(([savedAccount, savedCareers]) => {
+        if (!active || !isCurrentSession(savedToken, session)) return;
         setToken(savedToken);
         setAccount(savedAccount);
         setCareers(savedCareers);
       })
-      .catch(() => clearStoredAccessToken())
-      .finally(() => setBooting(false));
+      .catch(() => {
+        if (!active || !isCurrentSession(savedToken, session)) return;
+        sessionToken.current = null;
+        clearStoredAccessToken();
+      })
+      .finally(() => {
+        if (active && sessionVersion.current === session) setBooting(false);
+      });
+
+    return () => {
+      active = false;
+    };
   }, []);
 
   async function finishAuthentication(response: AuthResponse) {
+    const session = ++sessionVersion.current;
+    sessionToken.current = response.accessToken;
+    careerSelection.current++;
+    selectedCareerId.current = null;
     const savedCareers = await apiRequest<CareerSummary[]>("/careers", {
       token: response.accessToken,
     });
+    if (!isCurrentSession(response.accessToken, session)) return;
     storeAccessToken(response.accessToken);
     setToken(response.accessToken);
     setAccount(response.account);
     setCareers(savedCareers);
+    setActiveCareer(null);
+    setSelectedContractOfferId(null);
     setPageError("");
     setView("saves");
   }
 
   async function logout() {
-    if (token) {
-      await apiRequest<{ message: string }>("/auth/logout", {
-        method: "POST",
-        token,
-      }).catch(() => undefined);
-    }
+    const logoutToken = sessionToken.current;
+    sessionVersion.current++;
+    sessionToken.current = null;
+    careerSelection.current++;
+    selectedCareerId.current = null;
+    pendingCreation.current = null;
     clearStoredAccessToken();
     setToken(null);
     setAccount(null);
     setCareers([]);
     setActiveCareer(null);
+    setSelectedContractOfferId(null);
+    setPageError("");
     setView("saves");
+    if (logoutToken) {
+      await apiRequest<{ message: string }>("/auth/logout", {
+        method: "POST",
+        token: logoutToken,
+      }).catch(() => undefined);
+    }
   }
 
   async function openCareer(id: number) {
-    if (!token) return;
+    if (!token || token !== sessionToken.current) return;
+    const session = sessionVersion.current;
+    const selection = ++careerSelection.current;
+    selectedCareerId.current = id;
     setPageError("");
     try {
       const career = await apiRequest<Career>(`/careers/${id}`, { token });
+      if (!isCurrentSelection(token, session, selection)) return;
       setActiveCareer(career);
+      setSelectedContractOfferId(null);
       setView("career");
     } catch (error) {
+      if (!isCurrentSelection(token, session, selection)) return;
+      selectedCareerId.current = activeCareer?.id ?? null;
       handleAuthenticatedError(error);
     }
   }
 
   async function openCreateCareer() {
+    if (!token || token !== sessionToken.current) return;
+    const session = sessionVersion.current;
+    const selection = ++careerSelection.current;
     setPageError("");
     setView("create");
 
     if (playerCards.length > 0) return;
 
     try {
-      setPlayerCards(await apiRequest<PlayerCard[]>("/player-cards"));
+      const cards = await apiRequest<PlayerCard[]>("/player-cards");
+      if (isCurrentSelection(token, session, selection)) setPlayerCards(cards);
     } catch (error) {
-      setPageError(toMessage(error));
+      if (isCurrentSelection(token, session, selection))
+        setPageError(toMessage(error));
     }
   }
 
   async function createCareer(payload: CreateCareerPayload) {
-    if (!token) return;
+    if (
+      !token ||
+      token !== sessionToken.current ||
+      pendingCreation.current !== null
+    )
+      return;
+    const session = sessionVersion.current;
+    const selection = careerSelection.current;
+    pendingCreation.current = session;
     setPageError("");
     try {
       const career = await apiRequest<Career>("/careers", {
@@ -172,15 +247,47 @@ function App() {
         token,
         body: payload,
       });
-      const savedCareers = await apiRequest<CareerSummary[]>("/careers", {
-        token,
-      });
-      setCareers(savedCareers);
+      if (!isCurrentSession(token, session)) return;
+      const managedTeam = career.teams.find((team) => team.isUserControlled);
+      if (managedTeam) {
+        const summary: CareerSummary = {
+          id: career.id,
+          startYear: career.startYear,
+          currentYear: career.currentYear,
+          currentDate: career.currentDate,
+          currentMeta: career.currentMeta,
+          managedTeamId: managedTeam.id,
+          managedTeamCode: managedTeam.code,
+          managedTeamName: managedTeam.name,
+        };
+        setCareers((current) => [
+          summary,
+          ...current.filter((item) => item.id !== career.id),
+        ]);
+      }
+      if (!isCurrentSelection(token, session, selection)) return;
+      selectedCareerId.current = career.id;
       setActiveCareer(career);
+      setSelectedContractOfferId(null);
       setView("career");
+      try {
+        const savedCareers = await apiRequest<CareerSummary[]>("/careers", {
+          token,
+        });
+        if (isCurrentSelection(token, session, selection))
+          setCareers(savedCareers);
+      } catch (error) {
+        if (!isCurrentSelection(token, session, selection)) return;
+        setPageError(
+          `커리어는 저장했습니다. 목록을 새로 불러오지 못했습니다: ${toMessage(error)}`,
+        );
+      }
     } catch (error) {
+      if (!isCurrentSelection(token, session, selection)) return;
       handleAuthenticatedError(error);
       throw error;
+    } finally {
+      if (pendingCreation.current === session) pendingCreation.current = null;
     }
   }
 
@@ -189,7 +296,15 @@ function App() {
     position: Position,
     benchCareerPlayerId: number,
   ) {
-    if (!token || !activeCareer) return;
+    if (
+      !token ||
+      token !== sessionToken.current ||
+      !activeCareer ||
+      selectedCareerId.current !== activeCareer.id
+    )
+      return;
+    const session = sessionVersion.current;
+    const selection = careerSelection.current;
     setPageError("");
 
     try {
@@ -201,26 +316,44 @@ function App() {
           body: { benchCareerPlayerId },
         },
       );
+      if (!isCurrentSelection(token, session, selection)) return;
       const refreshedCareer = await apiRequest<Career>(
         `/careers/${activeCareer.id}`,
         { token },
       );
+      if (!isCurrentSelection(token, session, selection)) return;
       setActiveCareer(refreshedCareer);
     } catch (error) {
+      if (!isCurrentSelection(token, session, selection)) return;
       handleAuthenticatedError(error);
       throw error;
     }
   }
 
   async function refreshActiveCareer() {
-    if (!token || !activeCareer) return;
+    if (
+      !token ||
+      token !== sessionToken.current ||
+      !activeCareer ||
+      selectedCareerId.current !== activeCareer.id
+    )
+      return;
+    const session = sessionVersion.current;
+    const selection = careerSelection.current;
 
-    const [refreshedCareer, savedCareers] = await Promise.all([
-      apiRequest<Career>(`/careers/${activeCareer.id}`, { token }),
-      apiRequest<CareerSummary[]>("/careers", { token }),
-    ]);
-    setActiveCareer(refreshedCareer);
-    setCareers(savedCareers);
+    try {
+      const [refreshedCareer, savedCareers] = await Promise.all([
+        apiRequest<Career>(`/careers/${activeCareer.id}`, { token }),
+        apiRequest<CareerSummary[]>("/careers", { token }),
+      ]);
+      if (!isCurrentSelection(token, session, selection)) return;
+      setActiveCareer(refreshedCareer);
+      setCareers(savedCareers);
+    } catch (error) {
+      if (!isCurrentSelection(token, session, selection)) return;
+      handleAuthenticatedError(error);
+      throw error;
+    }
   }
 
   function handleAuthenticatedError(error: unknown) {

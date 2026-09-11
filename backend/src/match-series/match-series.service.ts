@@ -7,6 +7,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, QueryFailedError, Repository } from 'typeorm';
 import { CareerTeam } from '../careers/entities/career-team.entity';
+import { LeagueFixture } from '../leagues/entities/league-fixture.entity';
 import { MatchSimulationResponseDto } from '../matches/dto/match-simulation-response.dto';
 import { MatchesService } from '../matches/matches.service';
 import {
@@ -32,6 +33,8 @@ export class MatchSeriesService {
     @InjectRepository(CareerTeam)
     private readonly careerTeamsRepository: Repository<CareerTeam>,
     private readonly matchesService: MatchesService,
+    @InjectRepository(LeagueFixture)
+    private readonly leagueFixturesRepository: Repository<LeagueFixture>,
   ) {}
 
   async create(
@@ -88,6 +91,24 @@ export class MatchSeriesService {
     const series = await this.findOwnedSeries(accountId, id);
 
     return this.toResponse(accountId, series);
+  }
+
+  async simulateStandaloneNextGame(
+    accountId: number,
+    id: number,
+  ): Promise<MatchSeriesResponseDto> {
+    await this.findOwnedSeries(accountId, id);
+    const fixture = await this.leagueFixturesRepository.findOneBy({
+      seriesId: id,
+    });
+
+    if (fixture) {
+      throw new ConflictException(
+        `MatchSeries ${id} belongs to LeagueFixture ${fixture.id}; use the league fixture simulation endpoint`,
+      );
+    }
+
+    return this.simulateNextGame(accountId, id);
   }
 
   async simulateNextGame(

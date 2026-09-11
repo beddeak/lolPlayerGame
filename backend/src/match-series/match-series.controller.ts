@@ -74,6 +74,6 @@ export class MatchSeriesController {
     @CurrentAccount() account: AuthenticatedAccount,
     @Param('id', ParseIntPipe) id: number,
   ): Promise<MatchSeriesResponseDto> {
-    return this.matchSeriesService.simulateNextGame(account.id, id);
+    return this.matchSeriesService.simulateStandaloneNextGame(account.id, id);
   }
 }

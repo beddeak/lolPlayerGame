@@ -4,6 +4,7 @@ import { JwtModule } from '@nestjs/jwt';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
+import { CatalogAdminGuard } from './catalog-admin.guard';
 import { Account } from './entities/account.entity';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { PasswordService } from './password.service';
@@ -22,7 +23,13 @@ import { PasswordService } from './password.service';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, PasswordService, JwtAuthGuard],
-  exports: [JwtModule, JwtAuthGuard, PasswordService],
+  providers: [AuthService, PasswordService, JwtAuthGuard, CatalogAdminGuard],
+  exports: [
+    TypeOrmModule,
+    JwtModule,
+    JwtAuthGuard,
+    CatalogAdminGuard,
+    PasswordService,
+  ],
 })
 export class AuthModule {}

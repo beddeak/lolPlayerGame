@@ -14,6 +14,7 @@ import { LeagueSplit } from './entities/league-split.entity';
 import { LeagueStageParticipant } from './entities/league-stage-participant.entity';
 import { LeagueStage } from './entities/league-stage.entity';
 import { LeagueFixtureStatus } from './enums/league-fixture-status.enum';
+import { LeagueStageFormat } from './enums/league-stage-format.enum';
 import { LeagueStageStatus } from './enums/league-stage-status.enum';
 import { LeaguesService } from './leagues.service';
 
@@ -50,6 +51,7 @@ describe('LeaguesService', () => {
   };
   const matchSeriesService = {
     simulateNextGame: jest.fn(),
+    findOne: jest.fn(),
   };
   const eventQueueService = {
     processThroughDate: jest.fn(),
@@ -258,6 +260,102 @@ describe('LeaguesService', () => {
     expect(result.fixtureId).toBe(fixture.id);
     expect(fixture.series?.bestOf).toBe(3);
     expect(matchSeriesService.simulateNextGame).toHaveBeenCalledWith(7, 50);
+  });
+
+  it('recovers a completed fixture without replaying games and makes retries idempotent', async () => {
+    career.careerTeams = lckTeams.slice(0, 2);
+    await service.createSplit(7, career.id, {
+      region: Region.LCK,
+      splitNumber: 2,
+    });
+    const stage = savedSplit!.stages[0];
+    const fixture = stage.fixtures[0];
+    career.currentDate = fixture.scheduledDate;
+    fixture.seriesId = 50;
+    fixture.series = {
+      id: 50,
+      bestOf: 3,
+      games: [
+        { winnerTeamId: fixture.teamAId },
+        { winnerTeamId: fixture.teamAId },
+      ],
+    } as MatchSeries;
+    matchSeriesService.findOne.mockResolvedValue({
+      ...createSeriesResponse(),
+      status: MatchSeriesStatus.COMPLETED,
+      winnerTeamId: fixture.teamAId,
+      nextGameNumber: null,
+    });
+    entityManager.findOne.mockImplementation((entity: unknown) =>
+      Promise.resolve(entity === LeagueFixture ? fixture : savedSplit),
+    );
+
+    const recovered = await service.simulateNextFixtureGame(
+      7,
+      career.id,
+      savedSplit!.id,
+      fixture.id,
+    );
+    const retried = await service.simulateNextFixtureGame(
+      7,
+      career.id,
+      savedSplit!.id,
+      fixture.id,
+    );
+
+    expect(recovered.series.status).toBe(MatchSeriesStatus.COMPLETED);
+    expect(retried.series).toEqual(recovered.series);
+    expect(stage.currentRound).toBe(2);
+    expect(stage.fixtures).toHaveLength(2);
+    expect(matchSeriesService.simulateNextGame).not.toHaveBeenCalled();
+  });
+
+  it('reports a gauntlet champion above a runner-up with more wins', async () => {
+    career.careerTeams = lckTeams.slice(0, 6);
+    await service.createSplit(7, career.id, {
+      region: Region.LCK,
+      splitNumber: 2,
+    });
+    const stage = savedSplit!.stages[1];
+    stage.status = LeagueStageStatus.COMPLETED;
+    stage.format = LeagueStageFormat.GAUNTLET;
+    stage.participants = career.careerTeams.map((team, index) => ({
+      careerTeamId: team.id,
+      initialSeed: index + 1,
+      team,
+    })) as LeagueStageParticipant[];
+    const runner = career.careerTeams[5];
+    stage.fixtures = [5, 4, 3, 2, 1].map((seed, index) => {
+      const opponent = career.careerTeams[seed - 1];
+      return {
+        id: 300 + index,
+        teamAId: opponent.id,
+        teamA: opponent,
+        teamBId: runner.id,
+        teamB: runner,
+        bestOf: 5,
+        roundNumber: index + 1,
+        stageFixtureNumber: index + 1,
+        seriesId: 400 + index,
+        series: {
+          games: Array.from({ length: 3 }, () => ({
+            winnerTeamId: seed === 1 ? opponent.id : runner.id,
+          })),
+        },
+      } as LeagueFixture;
+    });
+
+    const response = await service.findOne(7, career.id, savedSplit!.id);
+    const standings = response.stages[1].standings;
+
+    expect(standings.map((standing) => standing.teamId)).toEqual([
+      1, 6, 2, 3, 4, 5,
+    ]);
+    expect(standings.map((standing) => standing.rank)).toEqual([
+      1, 2, 3, 4, 5, 6,
+    ]);
+    expect(standings[0].seriesWins).toBe(1);
+    expect(standings[1].seriesWins).toBe(4);
   });
 
   it('blocks the active fixture before its scheduled date', async () => {

@@ -2,6 +2,7 @@ import { Region } from '../../careers/enums/region.enum';
 import { CalendarAdvanceMode } from '../enums/calendar-advance-mode.enum';
 import { CalendarStopReason } from '../enums/calendar-stop-reason.enum';
 import { CalendarEventResponseDto } from '../../event-queue/dto/calendar-event-response.dto';
+import type { TransferWindowState } from '../../transfers/transfer-window';
 
 export class CalendarTeamResponseDto {
   id!: number;
@@ -28,6 +29,8 @@ export class CalendarResponseDto {
   careerId!: number;
   currentDate!: string;
   currentYear!: number;
+  transferWindow!: TransferWindowState;
+  canCloseTransferWindow!: boolean;
   nextMatch!: CalendarFixtureResponseDto | null;
   dueMatches!: CalendarFixtureResponseDto[];
   blockingEvents!: CalendarEventResponseDto[];

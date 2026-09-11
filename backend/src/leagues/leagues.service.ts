@@ -43,6 +43,7 @@ import { LeagueSplitStatus } from './enums/league-split-status.enum';
 import { LeagueStageFormat } from './enums/league-stage-format.enum';
 import { LeagueStageStatus } from './enums/league-stage-status.enum';
 import { LeagueGroupPairingMode } from './league-format.types';
+import { rankTournamentStandings } from './league-standings';
 import type { RegionalLeagueFormat } from './league-format.types';
 import {
   createCrossGroupSchedule,
@@ -237,7 +238,7 @@ export class LeaguesService {
   ): Promise<LeagueFixtureGameResponseDto> {
     await this.assertNoBlockingEvents(accountId, careerId);
 
-    const seriesId = await this.dataSource.transaction(async (manager) => {
+    const gameContext = await this.dataSource.transaction(async (manager) => {
       const fixture = await manager.findOne(LeagueFixture, {
         where: {
           id: fixtureId,
@@ -249,7 +250,7 @@ export class LeaguesService {
           leagueStage: true,
           teamA: true,
           teamB: true,
-          series: true,
+          series: { games: true },
         },
         lock: { mode: 'pessimistic_write' },
       });
@@ -258,6 +259,16 @@ export class LeaguesService {
         throw new NotFoundException(
           `LeagueFixture ${fixtureId} was not found in LeagueSplit ${splitId}`,
         );
+      }
+
+      // A retry can reconcile a game that was persisted before league
+      // progression failed, including saves created by the old direct API.
+      if (
+        fixture.seriesId !== null &&
+        this.calculateFixtureState(fixture).status ===
+          LeagueFixtureStatus.COMPLETED
+      ) {
+        return { seriesId: fixture.seriesId, completed: true };
       }
 
       if (
@@ -276,7 +287,7 @@ export class LeaguesService {
       }
 
       if (fixture.seriesId !== null) {
-        return fixture.seriesId;
+        return { seriesId: fixture.seriesId, completed: false };
       }
 
       const series = await manager.save(
@@ -298,12 +309,14 @@ export class LeaguesService {
       fixture.series = series;
       await manager.save(LeagueFixture, fixture);
 
-      return series.id;
+      return { seriesId: series.id, completed: false };
     });
-    const series = await this.matchSeriesService.simulateNextGame(
-      accountId,
-      seriesId,
-    );
+    const series = gameContext.completed
+      ? await this.matchSeriesService.findOne(accountId, gameContext.seriesId)
+      : await this.matchSeriesService.simulateNextGame(
+          accountId,
+          gameContext.seriesId,
+        );
 
     if (series.status === MatchSeriesStatus.COMPLETED) {
       await this.progressLeague(accountId, careerId, splitId);
@@ -467,6 +480,7 @@ export class LeaguesService {
       const split = await manager.findOne(LeagueSplit, {
         where: { id: splitId, careerId, career: { accountId } },
         relations: this.splitRelations,
+        lock: { mode: 'pessimistic_write' },
       });
 
       if (!split) {
@@ -1150,9 +1164,42 @@ export class LeaguesService {
   private calculateStageStandings(
     stage: LeagueStage,
   ): LeagueStandingResponseDto[] {
-    return this.calculateStandings(
+    const standings = this.calculateStandings(
       stage.fixtures,
       stage.participants.map((participant) => participant.team),
+    );
+
+    if (
+      [
+        LeagueStageFormat.ROUND_ROBIN,
+        LeagueStageFormat.GROUP,
+        LeagueStageFormat.SWISS,
+      ].includes(stage.format)
+    ) {
+      return standings;
+    }
+
+    return rankTournamentStandings(
+      standings,
+      stage.participants.map((participant) => ({
+        teamId: participant.careerTeamId,
+        seed: participant.initialSeed,
+      })),
+      stage.fixtures.flatMap((fixture) => {
+        const winnerTeamId = this.calculateFixtureState(fixture).winnerTeamId;
+        return winnerTeamId === null
+          ? []
+          : [
+              {
+                roundNumber: fixture.roundNumber,
+                loserTeamId:
+                  winnerTeamId === fixture.teamAId
+                    ? fixture.teamBId
+                    : fixture.teamAId,
+              },
+            ];
+      }),
+      stage.format === LeagueStageFormat.DOUBLE_ELIMINATION ? 2 : 1,
     );
   }
 

@@ -18,6 +18,7 @@ import { LeagueFixtureStatus } from '../leagues/enums/league-fixture-status.enum
 import { LeagueSplitStatus } from '../leagues/enums/league-split-status.enum';
 import { LeaguesService } from '../leagues/leagues.service';
 import { MatchSeriesStatus } from '../match-series/enums/match-series-status.enum';
+import { getTransferWindow } from '../transfers/transfer-window';
 import { FastSimStopReason } from './enums/fast-sim-stop-reason.enum';
 import { SimulationsService } from './simulations.service';
 
@@ -240,6 +241,121 @@ describe('SimulationsService', () => {
     expect(calendarsService.advance).toHaveBeenCalledTimes(2);
   });
 
+  it('stops fast simulation when the offseason market opens', async () => {
+    career.currentDate = '2026-11-18';
+    calendarsService.findOne.mockResolvedValue(
+      createCalendar('2026-11-18', []),
+    );
+    calendarsService.advance.mockResolvedValue(
+      createCalendar('2026-11-19', []),
+    );
+
+    const result = await service.fastSim(7, career.id, { days: 90 });
+
+    expect(result.stopReason).toBe(FastSimStopReason.TRANSFER_WINDOW_BOUNDARY);
+    expect(result.currentDate).toBe('2026-11-19');
+    expect(calendarsService.advance).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps the final signing day when it is the requested target and closes only on the next request', async () => {
+    career.currentDate = '2026-12-30';
+    const acquisitionResponse = createAcquisitionResponse();
+    const lastDayCalendar = createCalendar(
+      '2026-12-31',
+      [],
+      [acquisitionResponse],
+      true,
+    );
+    calendarsService.findOne.mockImplementation(() =>
+      Promise.resolve(
+        career.currentDate === '2026-12-31'
+          ? lastDayCalendar
+          : createCalendar(career.currentDate, []),
+      ),
+    );
+    calendarsService.advance.mockImplementation(() => {
+      if (career.currentDate === '2026-12-30') {
+        career.currentDate = '2026-12-31';
+        return Promise.resolve(lastDayCalendar);
+      }
+      career.currentDate = '2027-01-01';
+      return Promise.resolve(createCalendar(career.currentDate, []));
+    });
+
+    const lastDay = await service.fastSim(7, career.id, { days: 1 });
+
+    expect(lastDay.stopReason).toBe(FastSimStopReason.BLOCKING_EVENT);
+    expect(lastDay.currentDate).toBe('2026-12-31');
+    expect(lastDay.targetDate).toBe('2026-12-31');
+    expect(lastDay.advancedDays).toBe(1);
+    expect(lastDay.blockingEvents).toEqual([acquisitionResponse]);
+    expect(calendarsService.advance).toHaveBeenCalledTimes(1);
+
+    eventQueueService.findBlockingEvents.mockResolvedValue([
+      acquisitionResponse,
+    ]);
+    const closed = await service.fastSim(7, career.id, { days: 1 });
+
+    expect(closed.stopReason).toBe(FastSimStopReason.TRANSFER_WINDOW_BOUNDARY);
+    expect(closed.currentDate).toBe('2027-01-01');
+    expect(closed.targetDate).toBe('2027-01-01');
+    expect(closed.advancedDays).toBe(1);
+    expect(closed.blockingEvents).toEqual([]);
+    expect(calendarsService.advance).toHaveBeenCalledTimes(2);
+  });
+
+  it.each([
+    { label: 'managed', teamAId: 1, teamBId: 2 },
+    { label: 'AI', teamAId: 2, teamBId: 3 },
+  ])(
+    'does not close the market past an unresolved $label match',
+    async ({ teamAId, teamBId }) => {
+      career.currentDate = '2026-12-31';
+      const acquisitionResponse = createAcquisitionResponse();
+      const fixture = createFixture(10, teamAId, teamBId);
+      fixture.scheduledDate = career.currentDate;
+      eventQueueService.findBlockingEvents.mockResolvedValue([
+        acquisitionResponse,
+      ]);
+      calendarsService.findOne.mockResolvedValue(
+        createCalendar(
+          career.currentDate,
+          [toCalendarFixture(fixture)],
+          [acquisitionResponse],
+        ),
+      );
+
+      const result = await service.fastSim(7, career.id, { days: 1 });
+
+      expect(result.stopReason).toBe(FastSimStopReason.BLOCKING_EVENT);
+      expect(result.currentDate).toBe('2026-12-31');
+      expect(result.advancedDays).toBe(0);
+      expect(result.calendar.dueMatches).toHaveLength(1);
+      expect(calendarsService.advance).not.toHaveBeenCalled();
+      expect(leaguesService.simulateNextFixtureGame).not.toHaveBeenCalled();
+    },
+  );
+
+  it('preserves a non-acquisition blocker when the closing day has mixed events', async () => {
+    career.currentDate = '2026-12-31';
+    const blockingEvents = [
+      createAcquisitionResponse(),
+      { ...createBlockingEvent(), id: 100, scheduledDate: career.currentDate },
+    ];
+    eventQueueService.findBlockingEvents.mockResolvedValue(blockingEvents);
+    calendarsService.findOne.mockResolvedValue(
+      createCalendar(career.currentDate, [], blockingEvents),
+    );
+
+    const result = await service.fastSim(7, career.id, { days: 1 });
+
+    expect(result.stopReason).toBe(FastSimStopReason.BLOCKING_EVENT);
+    expect(result.currentDate).toBe('2026-12-31');
+    expect(result.advancedDays).toBe(0);
+    expect(result.blockingEvents).toEqual(blockingEvents);
+    expect(calendarsService.advance).not.toHaveBeenCalled();
+  });
+
   it('stops at the fixture limit and returns a refreshed calendar', async () => {
     const firstFixture = createFixture(10, 2, 3);
     const secondFixture = createFixture(11, 3, 4);
@@ -407,11 +523,14 @@ function createCalendar(
   currentDate: string,
   dueMatches: CalendarResponseDto['dueMatches'],
   blockingEvents: CalendarEventResponseDto[] = [],
+  canCloseTransferWindow = false,
 ): CalendarResponseDto {
   return {
     careerId: 1,
     currentDate,
     currentYear: 2026,
+    transferWindow: getTransferWindow(currentDate),
+    canCloseTransferWindow,
     nextMatch: dueMatches[0] ?? null,
     dueMatches,
     blockingEvents,
@@ -429,5 +548,14 @@ function createBlockingEvent(): CalendarEventResponseDto {
     payload: null,
     createdAt: new Date('2026-01-01T00:00:00Z'),
     completedAt: null,
+  };
+}
+
+function createAcquisitionResponse(): CalendarEventResponseDto {
+  return {
+    ...createBlockingEvent(),
+    scheduledDate: '2026-12-31',
+    type: CalendarEventType.CONTRACT_RESPONSE,
+    payload: { contractOfferId: 10 },
   };
 }

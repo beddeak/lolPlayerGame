@@ -20,6 +20,10 @@ import { MatchFeedback } from './entities/match-feedback.entity';
 import { MatchSeries } from './entities/match-series.entity';
 import { FeedbackType } from './enums/feedback-type.enum';
 import { calculateFeedbackPlayerEffect } from './feedback-effect';
+import {
+  getSeriesWinsRequired,
+  MATCH_SERIES_CONFIG,
+} from './config/bo3-series.config';
 
 @Injectable()
 export class MatchFeedbackService {
@@ -237,7 +241,11 @@ export class MatchFeedbackService {
       (game) => game.winnerTeamId === series.teamBId,
     ).length;
 
-    return teamAWins >= 2 || teamBWins >= 2;
+    const winsRequired = getSeriesWinsRequired(
+      series.bestOf ?? MATCH_SERIES_CONFIG.defaultBestOf,
+    );
+
+    return teamAWins >= winsRequired || teamBWins >= winsRequired;
   }
 
   private findManagedTeam(series: MatchSeries): CareerTeam {

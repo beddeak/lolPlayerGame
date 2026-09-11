@@ -5,7 +5,10 @@ import {
   Param,
   ParseIntPipe,
   Post,
+  UseGuards,
 } from '@nestjs/common';
+import { CatalogAdminGuard } from '../auth/catalog-admin.guard';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CreateThemeDto } from './dto/create-theme.dto';
 import { Theme } from './entities/theme.entity';
 import { ThemesService } from './themes.service';
@@ -15,6 +18,7 @@ export class ThemesController {
   constructor(private readonly themesService: ThemesService) {}
 
   @Post()
+  @UseGuards(JwtAuthGuard, CatalogAdminGuard)
   create(@Body() dto: CreateThemeDto): Promise<Theme> {
     return this.themesService.create(dto);
   }

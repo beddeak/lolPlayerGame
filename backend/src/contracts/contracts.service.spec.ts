@@ -9,16 +9,19 @@ import { ContractOffer } from './entities/contract-offer.entity';
 import { TransfersService } from '../transfers/transfers.service';
 import { PlayerContract } from './entities/player-contract.entity';
 import { TransferRecord } from '../transfers/entities/transfer-record.entity';
+import { CareerPlayer } from '../careers/entities/career-player.entity';
+import { CareerTeam } from '../careers/entities/career-team.entity';
 
 describe('Contract response processing invariants', () => {
   const transfersService = {
     expireContract: jest.fn(),
+    isContractOfferEligible: jest.fn(),
   };
   const service = new ContractsService(
     {} as DataSource,
     transfersService as unknown as TransfersService,
   );
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => jest.resetAllMocks());
   const event = (): CalendarEvent =>
     ({
       id: 7,
@@ -53,6 +56,52 @@ describe('Contract response processing invariants', () => {
     expect(manager.save).not.toHaveBeenCalled();
   });
 
+  it.each([
+    ContractOfferStatus.PLAYER_ACCEPTED,
+    ContractOfferStatus.COUNTER_OFFERED,
+  ])(
+    'withdraws a postponed %s response after the player leaves the club',
+    async (status) => {
+      const postponed = event();
+      const offer = {
+        id: 5,
+        careerId: 1,
+        careerPlayerId: 9,
+        careerTeamId: 3,
+        responseEventId: 7,
+        revision: 2,
+        status,
+      } as ContractOffer;
+      const player = { id: 9, currentTeamId: null } as CareerPlayer;
+      const team = { id: 3, isUserControlled: true } as CareerTeam;
+      const manager = {
+        findOne: jest.fn().mockResolvedValue(offer),
+        findOneBy: jest
+          .fn()
+          .mockImplementation((entity: unknown) =>
+            Promise.resolve(entity === CareerPlayer ? player : team),
+          ),
+        save: jest.fn(),
+      };
+      transfersService.isContractOfferEligible.mockResolvedValueOnce(false);
+
+      await service.processResponseEvent(
+        manager as unknown as EntityManager,
+        postponed,
+        '2026-01-04',
+      );
+
+      expect(transfersService.isContractOfferEligible).toHaveBeenCalledWith(
+        manager,
+        offer,
+        team,
+      );
+      expect(offer.status).toBe(ContractOfferStatus.WITHDRAWN);
+      expect(postponed.requiresUserAction).toBe(false);
+      expect(manager.save).toHaveBeenCalledWith(ContractOffer, offer);
+    },
+  );
+
   it('preserves the original player response when a requested extension ends', async () => {
     const postponed = event();
     const offer = {
@@ -68,8 +117,10 @@ describe('Contract response processing invariants', () => {
     } as ContractOffer;
     const manager = {
       findOne: jest.fn().mockResolvedValue(offer),
+      findOneBy: jest.fn().mockResolvedValue({ isUserControlled: true }),
       save: jest.fn(),
     };
+    transfersService.isContractOfferEligible.mockResolvedValueOnce(true);
     await service.processResponseEvent(
       manager as unknown as EntityManager,
       postponed,

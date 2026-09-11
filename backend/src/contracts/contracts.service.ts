@@ -4,7 +4,13 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { DataSource, EntityManager, In } from 'typeorm';
+import { DataSource, EntityManager, In, LessThan } from 'typeorm';
+import {
+  assertTransferWindow,
+  getTransferWindow,
+} from '../transfers/transfer-window';
+import { TransferAgreement } from '../transfers/entities/transfer-agreement.entity';
+import { TransferAgreementStatus } from '../transfers/transfer.types';
 import { addCalendarDays } from '../calendars/calendar-date';
 import { Career } from '../careers/entities/career.entity';
 import { CareerPlayer } from '../careers/entities/career-player.entity';
@@ -27,6 +33,7 @@ import {
 } from './contract.types';
 import { CreateContractOfferDto } from './dto/create-contract-offer.dto';
 import { RespondContractOfferDto } from './dto/respond-contract-offer.dto';
+import type { ContractOfferResponseDto } from './dto/contract-offer-response.dto';
 import { ContractOffer } from './entities/contract-offer.entity';
 import { PlayerContract } from './entities/player-contract.entity';
 import { TransfersService } from '../transfers/transfers.service';
@@ -59,12 +66,21 @@ export class ContractsService {
   async findOffers(
     accountId: number,
     careerId: number,
-  ): Promise<ContractOffer[]> {
+  ): Promise<ContractOfferResponseDto[]> {
     await this.assertOwnedCareer(this.dataSource.manager, accountId, careerId);
-    return this.dataSource.manager.find(ContractOffer, {
+    const offers = await this.dataSource.manager.find(ContractOffer, {
       where: { careerId },
+      relations: { careerPlayer: { playerCard: { player: true } } },
       order: { id: 'DESC' },
     });
+    return offers.map(({ careerPlayer, ...offer }) => ({
+      ...offer,
+      player: {
+        nickname: careerPlayer.playerCard.player.nickname,
+        currentPosition: careerPlayer.currentPosition,
+        currentAge: careerPlayer.currentAge,
+      },
+    }));
   }
 
   async createOffer(
@@ -198,6 +214,9 @@ export class ContractsService {
         offer,
         team,
       );
+      if (offer.offerType !== ContractOfferType.RENEWAL) {
+        assertTransferWindow(career.currentDate, offer.offeredDate);
+      }
 
       if (dto.action === ContractDecisionAction.ACCEPT) {
         if (
@@ -268,6 +287,78 @@ export class ContractsService {
   }
 
   // Called inside the calendar's existing transaction. Reads never advance negotiations.
+  async closeExpiredTransferNegotiations(
+    manager: EntityManager,
+    careerId: number,
+    date: string,
+  ): Promise<void> {
+    const window = getTransferWindow(date);
+    const cutoff = window.isOpen ? window.opensAt : addCalendarDays(date, 1);
+    const offers = await manager.find(ContractOffer, {
+      where: {
+        careerId,
+        offerType: In([
+          ContractOfferType.FREE_AGENT,
+          ContractOfferType.TRANSFER,
+        ]),
+        status: In(OPEN_STATUSES),
+        offeredDate: LessThan(cutoff),
+      },
+      lock: { mode: 'pessimistic_write' },
+    });
+    for (const offer of offers) {
+      offer.status = ContractOfferStatus.WITHDRAWN;
+      this.recordDecision(offer, 'TRANSFER_WINDOW_CLOSED', date);
+      if (offer.responseEventId) {
+        const event = await manager.findOne(CalendarEvent, {
+          where: { id: offer.responseEventId, careerId },
+          lock: { mode: 'pessimistic_write' },
+        });
+        if (event) {
+          event.requiresUserAction = false;
+          await this.completeEvent(manager, event);
+        }
+      }
+      await manager.save(ContractOffer, offer);
+    }
+    await manager.update(
+      TransferAgreement,
+      {
+        careerId,
+        status: TransferAgreementStatus.ACCEPTED,
+        offeredDate: LessThan(cutoff),
+      },
+      {
+        status: TransferAgreementStatus.CANCELLED,
+        resolvedDate: date,
+        reason: '이적시장 종료로 합의가 만료되었습니다.',
+      },
+    );
+  }
+
+  async areAcquisitionResponseEvents(
+    manager: EntityManager,
+    careerId: number,
+    eventIds: number[],
+  ): Promise<boolean> {
+    if (eventIds.length === 0) return false;
+    const offers = await manager.find(ContractOffer, {
+      where: {
+        careerId,
+        responseEventId: In(eventIds),
+        offerType: In([
+          ContractOfferType.FREE_AGENT,
+          ContractOfferType.TRANSFER,
+        ]),
+        status: In(OPEN_STATUSES),
+      },
+    });
+    const coveredEventIds = new Set(
+      offers.map((offer) => offer.responseEventId),
+    );
+    return eventIds.every((eventId) => coveredEventIds.has(eventId));
+  }
+
   async processResponseEvent(
     manager: EntityManager,
     event: CalendarEvent,
@@ -286,11 +377,6 @@ export class ContractsService {
       !OPEN_STATUSES.includes(offer.status)
     ) {
       event.requiresUserAction = false;
-      return;
-    }
-    if (offer.status !== ContractOfferStatus.WAITING_PLAYER_RESPONSE) {
-      // A postponed decision retains the response the player already gave.
-      event.requiresUserAction = true;
       return;
     }
     const player = await manager.findOneBy(CareerPlayer, {
@@ -314,6 +400,11 @@ export class ContractsService {
       offer.status = ContractOfferStatus.WITHDRAWN;
       event.requiresUserAction = false;
       await manager.save(ContractOffer, offer);
+      return;
+    }
+    if (offer.status !== ContractOfferStatus.WAITING_PLAYER_RESPONSE) {
+      // Retain a postponed response only while its player and club are still eligible.
+      event.requiresUserAction = true;
       return;
     }
     const teammates = await manager.findBy(CareerPlayer, {

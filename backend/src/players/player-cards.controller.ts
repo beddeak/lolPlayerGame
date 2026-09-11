@@ -6,7 +6,10 @@ import {
   ParseIntPipe,
   Post,
   Query,
+  UseGuards,
 } from '@nestjs/common';
+import { CatalogAdminGuard } from '../auth/catalog-admin.guard';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CreatePlayerCardDto } from './dto/create-player-card.dto';
 import { PlayerCardResponseDto } from './dto/player-card-response.dto';
 import { QueryPlayerCardDto } from './dto/query-player-card.dto';
@@ -17,6 +20,7 @@ export class PlayerCardsController {
   constructor(private readonly playerCardsService: PlayerCardsService) {}
 
   @Post()
+  @UseGuards(JwtAuthGuard, CatalogAdminGuard)
   create(@Body() dto: CreatePlayerCardDto): Promise<PlayerCardResponseDto> {
     return this.playerCardsService.create(dto);
   }

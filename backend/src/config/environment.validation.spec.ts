@@ -21,7 +21,30 @@ describe('validateEnvironment', () => {
     expect(result.DB_SSL).toBe('false');
     expect(result.JWT_EXPIRES_IN_SECONDS).toBe(3600);
     expect(result.PORT).toBe(3000);
+    expect(result.CATALOG_ADMIN_ACCOUNT_IDS).toEqual([]);
   });
+
+  it('parses explicitly configured catalog admins, with empty denying everyone', () => {
+    expect(
+      validateEnvironment({
+        ...validConfig,
+        CATALOG_ADMIN_ACCOUNT_IDS: ' 7, 12 ',
+      }).CATALOG_ADMIN_ACCOUNT_IDS,
+    ).toEqual([7, 12]);
+    expect(
+      validateEnvironment({ ...validConfig, CATALOG_ADMIN_ACCOUNT_IDS: '' })
+        .CATALOG_ADMIN_ACCOUNT_IDS,
+    ).toEqual([]);
+  });
+
+  it.each(['0', '-1', '1.5', '1e2', '*', '7,,8', '7,7', '4294967296'])(
+    'rejects invalid catalog admin IDs: %s',
+    (ids) => {
+      expect(() =>
+        validateEnvironment({ ...validConfig, CATALOG_ADMIN_ACCOUNT_IDS: ids }),
+      ).toThrow('Invalid environment configuration');
+    },
+  );
 
   it('rejects invalid database configuration', () => {
     expect(() =>

@@ -24,6 +24,7 @@ import {
 } from './dto/calendar-response.dto';
 import { CalendarAdvanceMode } from './enums/calendar-advance-mode.enum';
 import { CalendarStopReason } from './enums/calendar-stop-reason.enum';
+import { getTransferWindow } from '../transfers/transfer-window';
 
 @Injectable()
 export class CalendarsService {
@@ -80,13 +81,6 @@ export class CalendarsService {
 
       const fixtures = await this.findIncompleteFixtures(manager, careerId);
       const previousDate = career.currentDate;
-      const nextEvent =
-        dto.mode === CalendarAdvanceMode.NEXT_EVENT
-          ? await this.eventQueueService.findNextScheduledEvent(
-              manager,
-              careerId,
-            )
-          : null;
       const processedEvents: CalendarEventResponseDto[] = [];
       let blockingEvents: CalendarEventResponseDto[] = [];
       let stopReason = CalendarStopReason.TARGET_REACHED;
@@ -104,10 +98,50 @@ export class CalendarsService {
       );
 
       if (blockingEvents.length > 0) {
-        stopReason = CalendarStopReason.BLOCKING_EVENT;
+        const canCloseWindow = await this.canCloseTransferWindow(
+          manager,
+          career,
+          fixtures,
+          blockingEvents,
+        );
+        if (!canCloseWindow) {
+          stopReason = CalendarStopReason.BLOCKING_EVENT;
+        } else {
+          if (dto.mode === CalendarAdvanceMode.NEXT_MATCH && !fixtures.length) {
+            throw new ConflictException(
+              `Career ${careerId} does not have a scheduled match`,
+            );
+          }
+          career.currentDate = addCalendarDays(career.currentDate, 1);
+          career.currentYear = getCalendarYear(career.currentDate);
+          const closeResult = await this.eventQueueService.processThroughDate(
+            manager,
+            careerId,
+            career.currentDate,
+          );
+          processedEvents.push(...closeResult.processedEvents);
+          blockingEvents = await this.eventQueueService.findBlockingEvents(
+            manager,
+            careerId,
+            career.currentDate,
+          );
+          stopReason =
+            blockingEvents.length > 0
+              ? CalendarStopReason.BLOCKING_EVENT
+              : this.hasDueMatch(fixtures, career.currentDate)
+                ? CalendarStopReason.MATCH_DAY
+                : CalendarStopReason.TARGET_REACHED;
+        }
       } else if (this.hasDueMatch(fixtures, career.currentDate)) {
         stopReason = CalendarStopReason.MATCH_DAY;
       } else {
+        const nextEvent =
+          dto.mode === CalendarAdvanceMode.NEXT_EVENT
+            ? await this.eventQueueService.findNextScheduledEvent(
+                manager,
+                careerId,
+              )
+            : null;
         const requestedDate = this.getRequestedDate(
           career,
           fixtures,
@@ -143,10 +177,18 @@ export class CalendarsService {
         }
       }
 
+      if (
+        stopReason === CalendarStopReason.TARGET_REACHED &&
+        getTransferWindow(previousDate).isOpen !==
+          getTransferWindow(career.currentDate).isOpen
+      ) {
+        stopReason = CalendarStopReason.TRANSFER_WINDOW_BOUNDARY;
+      }
+
       await manager.save(Career, career);
 
       return {
-        ...this.toResponse(career, fixtures, blockingEvents),
+        ...(await this.toResponse(career, fixtures, blockingEvents, manager)),
         mode: dto.mode,
         previousDate,
         advancedDays: calendarDaysBetween(previousDate, career.currentDate),
@@ -162,37 +204,36 @@ export class CalendarsService {
     mode: CalendarAdvanceMode,
     nextEvent: CalendarEvent | null,
   ): string {
+    const boundary = getTransferWindow(career.currentDate).nextBoundaryDate;
+    let requestedDate: string;
     if (mode === CalendarAdvanceMode.ONE_DAY) {
-      return addCalendarDays(career.currentDate, 1);
-    }
-
-    if (mode === CalendarAdvanceMode.THREE_DAYS) {
-      return addCalendarDays(career.currentDate, 3);
-    }
-
-    if (mode === CalendarAdvanceMode.NEXT_EVENT) {
-      if (!nextEvent) {
+      requestedDate = addCalendarDays(career.currentDate, 1);
+    } else if (mode === CalendarAdvanceMode.THREE_DAYS) {
+      requestedDate = addCalendarDays(career.currentDate, 3);
+    } else if (mode === CalendarAdvanceMode.NEXT_EVENT) {
+      if (!nextEvent && !boundary) {
         throw new ConflictException(
           `Career ${career.id} does not have a scheduled event`,
         );
       }
-
-      return nextEvent.scheduledDate <= career.currentDate
-        ? career.currentDate
-        : nextEvent.scheduledDate;
+      requestedDate = [nextEvent?.scheduledDate, boundary]
+        .filter((date): date is string => !!date)
+        .sort()[0];
+    } else {
+      const nextMatch = fixtures[0];
+      if (!nextMatch) {
+        throw new ConflictException(
+          `Career ${career.id} does not have a scheduled match`,
+        );
+      }
+      requestedDate = nextMatch.scheduledDate;
     }
-
-    const nextMatch = fixtures[0];
-
-    if (!nextMatch) {
-      throw new ConflictException(
-        `Career ${career.id} does not have a scheduled match`,
-      );
+    if (boundary && boundary > career.currentDate && boundary < requestedDate) {
+      requestedDate = boundary;
     }
-
-    return nextMatch.scheduledDate <= career.currentDate
+    return requestedDate <= career.currentDate
       ? career.currentDate
-      : nextMatch.scheduledDate;
+      : requestedDate;
   }
 
   private async findIncompleteFixtures(
@@ -233,11 +274,12 @@ export class CalendarsService {
     return [...wins.values()].some((count) => count >= winsRequired);
   }
 
-  private toResponse(
+  private async toResponse(
     career: Career,
     fixtures: LeagueFixture[],
     blockingEvents: CalendarEventResponseDto[],
-  ): CalendarResponseDto {
+    manager: EntityManager = this.dataSource.manager,
+  ): Promise<CalendarResponseDto> {
     const dueMatches = fixtures.filter(
       (fixture) => fixture.scheduledDate <= career.currentDate,
     );
@@ -246,6 +288,13 @@ export class CalendarsService {
       careerId: career.id,
       currentDate: career.currentDate,
       currentYear: career.currentYear,
+      transferWindow: getTransferWindow(career.currentDate),
+      canCloseTransferWindow: await this.canCloseTransferWindow(
+        manager,
+        career,
+        fixtures,
+        blockingEvents,
+      ),
       nextMatch: fixtures[0] ? this.toFixtureResponse(fixtures[0]) : null,
       dueMatches: dueMatches.map((fixture) => this.toFixtureResponse(fixture)),
       blockingEvents,
@@ -254,6 +303,21 @@ export class CalendarsService {
 
   private hasDueMatch(fixtures: LeagueFixture[], date: string): boolean {
     return fixtures.some((fixture) => fixture.scheduledDate <= date);
+  }
+
+  private async canCloseTransferWindow(
+    manager: EntityManager,
+    career: Career,
+    fixtures: LeagueFixture[],
+    blockingEvents: CalendarEventResponseDto[],
+  ): Promise<boolean> {
+    if (this.hasDueMatch(fixtures, career.currentDate)) return false;
+    return this.eventQueueService.canAdvancePastTransferWindowClose(
+      manager,
+      career.id,
+      career.currentDate,
+      blockingEvents,
+    );
   }
 
   private toFixtureResponse(

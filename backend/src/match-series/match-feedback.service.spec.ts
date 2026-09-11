@@ -115,6 +115,7 @@ describe('MatchFeedbackService', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     series.games = [game1];
+    series.bestOf = 3;
     manager.findOne.mockResolvedValue(series);
     manager.findOneBy.mockResolvedValue(null);
     manager.find.mockResolvedValue(careerPlayers);
@@ -210,6 +211,54 @@ describe('MatchFeedbackService', () => {
       }),
     ).rejects.toBeInstanceOf(ConflictException);
   });
+
+  it.each([0, 1, 2])(
+    'allows BO5 feedback at a 2:%i score',
+    async (opponentWins) => {
+      series.bestOf = 5;
+      series.games = [
+        teamA.id,
+        teamA.id,
+        ...Array<number>(opponentWins).fill(teamB.id),
+      ].map((winnerTeamId, index) => ({
+        ...game1,
+        id: 11 + index,
+        seriesGameNumber: index + 1,
+        winnerTeamId,
+      }));
+
+      const result = await service.create(7, series.id, {
+        type: FeedbackType.TEAM,
+        option: FeedbackOption.REFOCUS_TEAM,
+      });
+
+      expect(result.afterGameNumber).toBe(2 + opponentWins);
+      expect(result.effects).toHaveLength(5);
+    },
+  );
+
+  it.each([1, 3, 5])(
+    'rejects feedback after BO%i reaches its winning score',
+    async (bestOf) => {
+      series.bestOf = bestOf;
+      series.games = Array.from(
+        { length: Math.floor(bestOf / 2) + 1 },
+        (_, index) => ({
+          ...game1,
+          id: 11 + index,
+          seriesGameNumber: index + 1,
+        }),
+      );
+
+      await expect(
+        service.create(7, series.id, {
+          type: FeedbackType.TEAM,
+          option: FeedbackOption.REFOCUS_TEAM,
+        }),
+      ).rejects.toBeInstanceOf(ConflictException);
+      expect(manager.update).not.toHaveBeenCalled();
+    },
+  );
 
   it('hides feedback history outside the owning account', async () => {
     matchSeriesRepository.findOne.mockResolvedValue(null);

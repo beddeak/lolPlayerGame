@@ -20,6 +20,14 @@ import { TransfersService } from './transfers.service';
 export class TransfersController {
   constructor(private readonly transfers: TransfersService) {}
 
+  @Get('window')
+  findWindow(
+    @CurrentAccount() account: AuthenticatedAccount,
+    @Param('careerId', ParseIntPipe) careerId: number,
+  ) {
+    return this.transfers.findWindow(account.id, careerId);
+  }
+
   @Get('market')
   findMarket(
     @CurrentAccount() account: AuthenticatedAccount,
