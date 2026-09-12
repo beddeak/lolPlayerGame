@@ -8,6 +8,7 @@ import {
   DataSource,
   EntityManager,
   LessThanOrEqual,
+  Not,
   Repository,
 } from 'typeorm';
 import { Career } from '../careers/entities/career.entity';
@@ -19,6 +20,9 @@ import { CalendarEventType } from './enums/calendar-event-type.enum';
 import { ContractsService } from '../contracts/contracts.service';
 import { getTransferWindow } from '../transfers/transfer-window';
 import { LegendsService } from '../legends/legends.service';
+import { AiClubsService } from '../ai-clubs/ai-clubs.service';
+import { ManagerCareerService } from '../manager-career/manager-career.service';
+import { lockActiveManagerCareer } from '../manager-career/manager-access';
 
 export interface EnqueueCalendarEventInput {
   scheduledDate: string;
@@ -42,6 +46,8 @@ export class EventQueueService {
     private readonly eventsRepository: Repository<CalendarEvent>,
     private readonly contractsService: ContractsService,
     private readonly legendsService: LegendsService,
+    private readonly aiClubsService: AiClubsService,
+    private readonly managerCareerService: ManagerCareerService,
   ) {}
 
   async findAll(
@@ -73,6 +79,7 @@ export class EventQueueService {
     eventId: number,
   ): Promise<CalendarEventResponseDto> {
     return this.dataSource.transaction(async (manager) => {
+      await lockActiveManagerCareer(manager, accountId, careerId);
       const event = await manager.findOne(CalendarEvent, {
         where: {
           id: eventId,
@@ -153,12 +160,23 @@ export class EventQueueService {
     });
     if (!savedCareer)
       throw new NotFoundException(`Career ${careerId} was not found`);
+    if (date < savedCareer.currentDate) {
+      throw new ConflictException(
+        '이전 날짜로 커리어 이벤트를 재처리할 수 없습니다.',
+      );
+    }
     // Calendar advancement saves its local date at transaction end, not before each day.
     const career = {
       ...savedCareer,
       currentDate: date,
       currentYear: Number(date.slice(0, 4)),
     };
+    const managerState = await this.managerCareerService.initialize(
+      manager,
+      career,
+    );
+    if (managerState.status === 'DISMISSED')
+      return { processedEvents: [], blockingEvents: [] };
     await this.legendsService.prepareSeason(manager, career, date);
     await this.contractsService.closeExpiredTransferNegotiations(
       manager,
@@ -199,7 +217,14 @@ export class EventQueueService {
       date,
     );
 
-    for (const event of events) {
+    // Automated signings can invalidate a user's response on the same day.
+    // Settle them first so the subsequent user evaluation reads the final offer
+    // state instead of resurrecting an already-completed response from this array.
+    const responseOrder = [...events].sort(
+      (left, right) =>
+        Number(left.requiresUserAction) - Number(right.requiresUserAction),
+    );
+    for (const event of responseOrder) {
       if (
         event.type === CalendarEventType.CONTRACT_RESPONSE &&
         event.payload?.contractOfferId !== undefined
@@ -207,6 +232,17 @@ export class EventQueueService {
         await this.contractsService.processResponseEvent(manager, event, date);
       }
     }
+
+    const clubNews = await this.aiClubsService.processDay(
+      manager,
+      career,
+      date,
+    );
+    const managerNews = await this.managerCareerService.processDay(
+      manager,
+      career,
+      date,
+    );
 
     for (const event of events) {
       if (event.requiresUserAction) {
@@ -221,9 +257,12 @@ export class EventQueueService {
       await manager.save(CalendarEvent, events);
     }
 
-    const processedEvents = [...events, ...legendNews].map((event) =>
-      this.toResponse(event),
-    );
+    const processedEvents = [
+      ...events,
+      ...legendNews,
+      ...clubNews,
+      ...managerNews,
+    ].map((event) => this.toResponse(event));
 
     return {
       processedEvents,
@@ -289,7 +328,21 @@ export class EventQueueService {
         : repository;
 
     return eventRepository.findOne({
-      where: { careerId, status: CalendarEventStatus.SCHEDULED },
+      // AI negotiations run in the daily loop, but must not shorten a jump to
+      // the next user event just to stop for an automated club response.
+      where: [
+        {
+          careerId,
+          status: CalendarEventStatus.SCHEDULED,
+          type: Not(CalendarEventType.CONTRACT_RESPONSE),
+        },
+        {
+          careerId,
+          status: CalendarEventStatus.SCHEDULED,
+          type: CalendarEventType.CONTRACT_RESPONSE,
+          requiresUserAction: true,
+        },
+      ],
       order: { scheduledDate: 'ASC', id: 'ASC' },
     });
   }

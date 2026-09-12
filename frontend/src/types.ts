@@ -128,6 +128,8 @@ export interface SwapStarterResponse {
 export interface CareerTeam {
   id: number;
   code: string;
+  clubCode?: string | null;
+  logoUrl?: string | null;
   name: string;
   region: Region;
   isUserControlled: boolean;
@@ -262,6 +264,8 @@ export type CalendarStopReason =
   | "TARGET_REACHED"
   | "MATCH_DAY"
   | "BLOCKING_EVENT"
+  | "MANAGER_DISMISSED"
+  | "SEASON_BOUNDARY"
   | "TRANSFER_WINDOW_BOUNDARY";
 
 export type CalendarEventStatus = "SCHEDULED" | "READY" | "COMPLETED";
@@ -271,6 +275,10 @@ export type CalendarEventType =
   | "CONTRACT_RESPONSE"
   | "LEGEND_REVEAL"
   | "LEGEND_SIGNING"
+  | "AI_CLUB_UPDATE"
+  | "MANAGER_REVIEW"
+  | "JOB_SECURITY_WARNING"
+  | "MANAGER_DISMISSED"
   | "PLAYER_MEETING"
   | "INTERNATIONAL_ROSTER_REGISTRATION"
   | "SEASON_REVIEW"
@@ -309,10 +317,48 @@ export interface CalendarFixture {
   teamB: FixtureTeam;
 }
 
+export interface SeasonPeriod {
+  code: string;
+  label: string;
+  kind: "PRESEASON" | "REGIONAL" | "INTERNATIONAL" | "BREAK" | "REVIEW" | "OFFSEASON";
+  startsAt: string;
+  endsAt: string;
+  splitNumber: number | null;
+  status: "UPCOMING" | "CURRENT" | "COMPLETED";
+  activities: string[];
+}
+
+export interface SeasonSchedule {
+  year: number;
+  currentPhase: SeasonPeriod;
+  nextPhase: SeasonPeriod | null;
+  nextBoundaryDate: string | null;
+  periods: SeasonPeriod[];
+}
+
+export interface SeasonScheduleWarning {
+  fixtureId: number;
+  leagueSplitId: number;
+  scheduledDate: string;
+  expectedEndDate: string;
+  message: string;
+}
+
 export interface CalendarResponse {
   careerId: number;
   currentDate: string;
   currentYear: number;
+  manager?: ManagerOverview;
+  autoSchedule: boolean;
+  season: SeasonSchedule;
+  scheduleWarnings: SeasonScheduleWarning[];
+  seasonReadiness: Array<{
+    region: Region;
+    teamCount: number;
+    status: "READY" | "INSUFFICIENT_TEAMS" | "WAITING_FOR_PREVIOUS_SPLIT" | "NO_REMAINING_SPLIT";
+    splitNumber: number | null;
+    message: string;
+  }>;
   canCloseTransferWindow: boolean;
   transferWindow: {
     seasonYear: number;
@@ -325,6 +371,42 @@ export interface CalendarResponse {
   nextMatch: CalendarFixture | null;
   dueMatches: CalendarFixture[];
   blockingEvents: CalendarEvent[];
+}
+
+export interface ManagerOverview {
+  careerId: number;
+  careerTeamId: number;
+  status: "ACTIVE" | "WARNING" | "DISMISSED";
+  fanApproval: number;
+  boardConfidence: number;
+  canManage: boolean;
+  trackingStartedDate: string | null;
+  reviewYear: number;
+  record: {
+    played: number;
+    wins: number;
+    losses: number;
+    expectedWins: number;
+    winningStreak: number;
+    losingStreak: number;
+  };
+  warning: {
+    issuedDate: string;
+    issuedAtPlayed: number;
+    minimumAdditionalSeries: number;
+  } | null;
+  dismissedDate: string | null;
+  recentReviews: Array<{
+    id: number;
+    date: string;
+    type: "BASELINE" | "EXPECTATION" | "SERIES" | "SPLIT" | "TRANSFER" | "SEASON" | "WARNING" | "RECOVERED" | "DISMISSED";
+    title: string;
+    reason: string;
+    fanDelta: number;
+    boardDelta: number;
+    fanApproval: number;
+    boardConfidence: number;
+  }>;
 }
 
 export interface CalendarAdvanceResponse extends CalendarResponse {
@@ -468,7 +550,9 @@ export type FastSimStopReason =
   | "TARGET_REACHED"
   | "MANAGED_MATCH"
   | "BLOCKING_EVENT"
+  | "MANAGER_DISMISSED"
   | "FIXTURE_LIMIT"
+  | "SEASON_BOUNDARY"
   | "TRANSFER_WINDOW_BOUNDARY";
 
 export interface FastSimResponse {
@@ -497,19 +581,26 @@ export interface FastSimResponse {
   calendar: CalendarResponse;
 }
 
-export interface CreateCareerPayload {
+export interface Club {
+  code: string;
+  name: string;
+  region: Region;
+  logoUrl: string | null;
+  selectable: boolean;
+  unavailableReason: string | null;
+  startingStrength: number | null;
+  starters: Array<{ position: Position; playerCard: PlayerCard }>;
+  benches: Array<{ playerCard: PlayerCard }>;
+}
+
+export interface ClubsResponse {
   startYear: number;
-  managedTeamCode: string;
-  teams: Array<{
-    code: string;
-    name: string;
-    region: Region;
-    starters: Array<{
-      playerCardId: number;
-      position: Position;
-    }>;
-    benches?: Array<{
-      playerCardId: number;
-    }>;
-  }>;
+  worldTeamCount: number;
+  ready: boolean;
+  unavailableReason: string | null;
+  clubs: Club[];
+}
+
+export interface CreateCareerFromClubPayload {
+  clubCode: string;
 }

@@ -51,6 +51,11 @@ function harness(file, props, request) {
         },
       ];
     },
+    useRef(initial) {
+      const index = cursor++;
+      if (!slots[index]) slots[index] = { current: initial };
+      return slots[index];
+    },
     useEffect(effect, dependencies) {
       const index = cursor++;
       if (!slots[index] || !sameDeps(slots[index].dependencies, dependencies)) {

@@ -10,12 +10,14 @@ import { LeagueStageParticipant } from './entities/league-stage-participant.enti
 import { LeagueStage } from './entities/league-stage.entity';
 import { LeaguesController } from './leagues.controller';
 import { LeaguesService } from './leagues.service';
+import { ManagerCareerModule } from '../manager-career/manager-career.module';
 
 @Module({
   imports: [
     AuthModule,
     EventQueueModule,
     MatchSeriesModule,
+    ManagerCareerModule,
     TypeOrmModule.forFeature([
       Career,
       LeagueSplit,

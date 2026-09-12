@@ -316,6 +316,7 @@ interface FastSimResponse {
 }
 
 describe('Application authentication and career ownership (e2e)', () => {
+  jest.setTimeout(120_000);
   const fixtureKey = `${Date.now()}_${process.pid}`;
   const accountIds: number[] = [];
   const playerIds: number[] = [];
@@ -1664,17 +1665,36 @@ describe('Application authentication and career ownership (e2e)', () => {
       })
       .expect(409);
 
-    const fastSimResponse = await api
-      .post(`/careers/${career.id}/simulations/fast`)
-      .set('Authorization', `Bearer ${tokenA}`)
-      .send({ days: 90 })
-      .expect(201);
-    const fastSim = fastSimResponse.body as unknown as FastSimResponse;
+    // Full-season boundaries now stop the same public Fast Sim route before
+    // its distant managed match; resume explicitly without bypassing dates.
+    const seasonRuns: FastSimResponse[] = [];
+    for (const date of [
+      '2026-01-12',
+      '2026-03-09',
+      '2026-03-16',
+      '2026-03-23',
+      '2026-03-30',
+    ]) {
+      const response = await api
+        .post(`/careers/${career.id}/simulations/fast`)
+        .set('Authorization', `Bearer ${tokenA}`)
+        .send({ days: 90 })
+        .expect(201);
+      const run = response.body as unknown as FastSimResponse;
+      expect(run.currentDate).toBe(date);
+      expect(run.stopReason).toBe(
+        date === '2026-03-30'
+          ? FastSimStopReason.MANAGED_MATCH
+          : FastSimStopReason.SEASON_BOUNDARY,
+      );
+      seasonRuns.push(run);
+    }
+    const fastSim = seasonRuns.at(-1)!;
 
     expect(fastSim.stopReason).toBe(FastSimStopReason.MANAGED_MATCH);
-    expect(fastSim.previousDate).toBe('2026-01-04');
+    expect(seasonRuns[0].previousDate).toBe('2026-01-04');
     expect(fastSim.currentDate).toBe('2026-03-30');
-    expect(fastSim.advancedDays).toBe(85);
+    expect(seasonRuns.reduce((sum, run) => sum + run.advancedDays, 0)).toBe(85);
     expect(
       fastSim.simulatedFixtures.map((fixture) => fixture.fixtureId),
     ).toEqual([aiLeagueSplit.fixtures[0].id]);

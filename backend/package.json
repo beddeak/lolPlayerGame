@@ -25,6 +25,7 @@
     "migration:revert": "npm run typeorm -- migration:revert",
     "schema:verify": "ts-node test/verify-schema-sync.ts",
     "seed": "ts-node src/database/seeds/development.seed.ts",
+    "seed:catalog": "ts-node src/database/seeds/development.seed.ts --catalog-only",
     "seed:legends": "ts-node src/database/seeds/legend.seed.ts"
   },
   "dependencies": {

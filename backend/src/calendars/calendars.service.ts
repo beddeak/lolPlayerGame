@@ -25,6 +25,14 @@ import {
 import { CalendarAdvanceMode } from './enums/calendar-advance-mode.enum';
 import { CalendarStopReason } from './enums/calendar-stop-reason.enum';
 import { getTransferWindow } from '../transfers/transfer-window';
+import {
+  getFullSeasonCalendar,
+  isSeasonBoundary,
+} from './config/full-season-calendar';
+import { getLeagueSplitWindow } from './config/season-calendar.config';
+import { SeasonScheduleService } from './season-schedule.service';
+import { assertManagerActive } from '../manager-career/manager-access';
+import { ManagerCareerService } from '../manager-career/manager-career.service';
 
 @Injectable()
 export class CalendarsService {
@@ -35,7 +43,34 @@ export class CalendarsService {
     @InjectRepository(LeagueFixture)
     private readonly fixturesRepository: Repository<LeagueFixture>,
     private readonly eventQueueService: EventQueueService,
+    private readonly seasonScheduleService: SeasonScheduleService,
+    private readonly managerCareerService: ManagerCareerService,
   ) {}
+
+  async startSeason(
+    accountId: number,
+    careerId: number,
+  ): Promise<CalendarResponseDto> {
+    return this.dataSource.transaction(async (manager) => {
+      const career = await manager.findOne(Career, {
+        where: { id: careerId, accountId },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (!career)
+        throw new NotFoundException(`Career ${careerId} was not found`);
+      await assertManagerActive(manager, careerId);
+      career.autoSchedule = true;
+      await manager.save(Career, career);
+      await this.seasonScheduleService.prepare(manager, career);
+      const fixtures = await this.findIncompleteFixtures(manager, careerId);
+      const blockingEvents = await this.eventQueueService.findBlockingEvents(
+        manager,
+        careerId,
+        career.currentDate,
+      );
+      return this.toResponse(career, fixtures, blockingEvents, manager);
+    });
+  }
 
   async findOne(
     accountId: number,
@@ -79,7 +114,9 @@ export class CalendarsService {
         throw new NotFoundException(`Career ${careerId} was not found`);
       }
 
-      const fixtures = await this.findIncompleteFixtures(manager, careerId);
+      await assertManagerActive(manager, careerId);
+
+      let fixtures = await this.findIncompleteFixtures(manager, careerId);
       const previousDate = career.currentDate;
       const processedEvents: CalendarEventResponseDto[] = [];
       let blockingEvents: CalendarEventResponseDto[] = [];
@@ -91,6 +128,10 @@ export class CalendarsService {
       );
 
       processedEvents.push(...currentDayResult.processedEvents);
+      if (career.autoSchedule) {
+        await this.seasonScheduleService.prepare(manager, career);
+        fixtures = await this.findIncompleteFixtures(manager, careerId);
+      }
       blockingEvents = await this.eventQueueService.findBlockingEvents(
         manager,
         careerId,
@@ -120,6 +161,10 @@ export class CalendarsService {
             career.currentDate,
           );
           processedEvents.push(...closeResult.processedEvents);
+          if (career.autoSchedule) {
+            await this.seasonScheduleService.prepare(manager, career);
+            fixtures = await this.findIncompleteFixtures(manager, careerId);
+          }
           blockingEvents = await this.eventQueueService.findBlockingEvents(
             manager,
             careerId,
@@ -159,6 +204,10 @@ export class CalendarsService {
           );
 
           processedEvents.push(...dayResult.processedEvents);
+          if (career.autoSchedule) {
+            await this.seasonScheduleService.prepare(manager, career);
+            fixtures = await this.findIncompleteFixtures(manager, careerId);
+          }
           blockingEvents = await this.eventQueueService.findBlockingEvents(
             manager,
             careerId,
@@ -183,6 +232,11 @@ export class CalendarsService {
           getTransferWindow(career.currentDate).isOpen
       ) {
         stopReason = CalendarStopReason.TRANSFER_WINDOW_BOUNDARY;
+      } else if (
+        stopReason === CalendarStopReason.TARGET_REACHED &&
+        isSeasonBoundary(previousDate, career.currentDate)
+      ) {
+        stopReason = CalendarStopReason.SEASON_BOUNDARY;
       }
 
       await manager.save(Career, career);
@@ -204,7 +258,7 @@ export class CalendarsService {
     mode: CalendarAdvanceMode,
     nextEvent: CalendarEvent | null,
   ): string {
-    const boundary = getTransferWindow(career.currentDate).nextBoundaryDate;
+    const boundary = getFullSeasonCalendar(career.currentDate).nextBoundaryDate;
     let requestedDate: string;
     if (mode === CalendarAdvanceMode.ONE_DAY) {
       requestedDate = addCalendarDays(career.currentDate, 1);
@@ -288,6 +342,29 @@ export class CalendarsService {
       careerId: career.id,
       currentDate: career.currentDate,
       currentYear: career.currentYear,
+      manager: await this.managerCareerService.describe(manager, career),
+      autoSchedule: !!career.autoSchedule,
+      season: getFullSeasonCalendar(career.currentDate),
+      seasonReadiness: await this.seasonScheduleService.describe(
+        manager,
+        career,
+      ),
+      scheduleWarnings: fixtures.flatMap((fixture) => {
+        const window = getLeagueSplitWindow(
+          fixture.leagueSplit.year,
+          fixture.leagueSplit.splitNumber,
+        );
+        if (fixture.scheduledDate <= window.endsAt) return [];
+        return [
+          {
+            fixtureId: fixture.id,
+            leagueSplitId: fixture.leagueSplitId,
+            scheduledDate: fixture.scheduledDate,
+            expectedEndDate: window.endsAt,
+            message: `${fixture.leagueSplit.region} Split ${fixture.leagueSplit.splitNumber}: 기존 또는 늦게 시작한 일정이 시즌 기간을 넘었습니다. 경기 기록은 보존하며 미완료 경기를 먼저 진행합니다.`,
+          },
+        ];
+      }),
       transferWindow: getTransferWindow(career.currentDate),
       canCloseTransferWindow: await this.canCloseTransferWindow(
         manager,

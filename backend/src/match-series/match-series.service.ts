@@ -5,7 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, QueryFailedError, Repository } from 'typeorm';
+import { DataSource, In, QueryFailedError, Repository } from 'typeorm';
 import { CareerTeam } from '../careers/entities/career-team.entity';
 import { LeagueFixture } from '../leagues/entities/league-fixture.entity';
 import { MatchSimulationResponseDto } from '../matches/dto/match-simulation-response.dto';
@@ -24,6 +24,7 @@ import {
 import { MatchSeries } from './entities/match-series.entity';
 import { MatchSeriesStatus } from './enums/match-series-status.enum';
 import { deriveSeriesGameSeed } from './match-series.utils';
+import { lockActiveManagerCareer } from '../manager-career/manager-access';
 
 @Injectable()
 export class MatchSeriesService {
@@ -35,6 +36,7 @@ export class MatchSeriesService {
     private readonly matchesService: MatchesService,
     @InjectRepository(LeagueFixture)
     private readonly leagueFixturesRepository: Repository<LeagueFixture>,
+    private readonly dataSource: DataSource,
   ) {}
 
   async create(
@@ -45,41 +47,45 @@ export class MatchSeriesService {
       throw new BadRequestException('A team cannot play against itself');
     }
 
-    const careerTeams = await this.careerTeamsRepository.find({
-      where: {
-        id: In([dto.teamAId, dto.teamBId]),
-        careerId: dto.careerId,
-        career: { accountId },
-      },
-      relations: { career: true },
+    const series = await this.dataSource.transaction(async (manager) => {
+      await lockActiveManagerCareer(manager, accountId, dto.careerId);
+      const careerTeams = await manager.getRepository(CareerTeam).find({
+        where: {
+          id: In([dto.teamAId, dto.teamBId]),
+          careerId: dto.careerId,
+          career: { accountId },
+        },
+        relations: { career: true },
+      });
+      const teamsById = new Map(careerTeams.map((team) => [team.id, team]));
+      const teamA = teamsById.get(dto.teamAId);
+      const teamB = teamsById.get(dto.teamBId);
+
+      if (!teamA || !teamB) {
+        const missingTeamIds = [dto.teamAId, dto.teamBId].filter(
+          (teamId) => !teamsById.has(teamId),
+        );
+
+        throw new NotFoundException(
+          `CareerTeams not found in Career ${dto.careerId}: ${missingTeamIds.join(', ')}`,
+        );
+      }
+
+      const repository = manager.getRepository(MatchSeries);
+      return repository.save(
+        repository.create({
+          careerId: dto.careerId,
+          career: teamA.career,
+          teamAId: teamA.id,
+          teamA,
+          teamBId: teamB.id,
+          teamB,
+          seed: dto.seed,
+          bestOf: dto.bestOf ?? MATCH_SERIES_CONFIG.defaultBestOf,
+          games: [],
+        }),
+      );
     });
-    const teamsById = new Map(careerTeams.map((team) => [team.id, team]));
-    const teamA = teamsById.get(dto.teamAId);
-    const teamB = teamsById.get(dto.teamBId);
-
-    if (!teamA || !teamB) {
-      const missingTeamIds = [dto.teamAId, dto.teamBId].filter(
-        (teamId) => !teamsById.has(teamId),
-      );
-
-      throw new NotFoundException(
-        `CareerTeams not found in Career ${dto.careerId}: ${missingTeamIds.join(', ')}`,
-      );
-    }
-
-    const series = await this.matchSeriesRepository.save(
-      this.matchSeriesRepository.create({
-        careerId: dto.careerId,
-        career: teamA.career,
-        teamAId: teamA.id,
-        teamA,
-        teamBId: teamB.id,
-        teamB,
-        seed: dto.seed,
-        bestOf: dto.bestOf ?? MATCH_SERIES_CONFIG.defaultBestOf,
-        games: [],
-      }),
-    );
 
     return this.toResponse(accountId, series);
   }

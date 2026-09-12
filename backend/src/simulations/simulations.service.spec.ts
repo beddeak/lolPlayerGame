@@ -1,6 +1,8 @@
 import { ConflictException } from '@nestjs/common';
 import { DataSource, Repository } from 'typeorm';
 import { CalendarsService } from '../calendars/calendars.service';
+import { getFullSeasonCalendar } from '../calendars/config/full-season-calendar';
+import { CalendarStopReason } from '../calendars/enums/calendar-stop-reason.enum';
 import { CalendarResponseDto } from '../calendars/dto/calendar-response.dto';
 import { CareerTeam } from '../careers/entities/career-team.entity';
 import { Career } from '../careers/entities/career.entity';
@@ -21,6 +23,7 @@ import { MatchSeriesStatus } from '../match-series/enums/match-series-status.enu
 import { getTransferWindow } from '../transfers/transfer-window';
 import { FastSimStopReason } from './enums/fast-sim-stop-reason.enum';
 import { SimulationsService } from './simulations.service';
+import type { ManagerOverview } from '../manager-career/manager-overview';
 
 describe('SimulationsService', () => {
   const career = {
@@ -78,6 +81,22 @@ describe('SimulationsService', () => {
       eventQueueService as unknown as EventQueueService,
       leaguesService as unknown as LeaguesService,
     );
+  });
+
+  it('stops fast simulation at an annual season boundary', async () => {
+    career.currentDate = '2026-07-28';
+    calendarsService.findOne.mockResolvedValue(
+      createCalendar('2026-07-28', []),
+    );
+    calendarsService.advance.mockResolvedValue({
+      ...createCalendar('2026-07-29', []),
+      stopReason: CalendarStopReason.SEASON_BOUNDARY,
+    });
+    const result = await service.fastSim(7, career.id, { days: 3 });
+    expect(result.stopReason).toBe(FastSimStopReason.SEASON_BOUNDARY);
+    expect(result.currentDate).toBe('2026-07-29');
+    expect(result.advancedDays).toBe(1);
+    expect(calendarsService.advance).toHaveBeenCalledTimes(1);
   });
 
   it('quick-simulates every remaining game in a BO3 and returns the detailed series', async () => {
@@ -529,7 +548,12 @@ function createCalendar(
     careerId: 1,
     currentDate,
     currentYear: 2026,
+    manager: { status: 'ACTIVE', canManage: true } as ManagerOverview,
     transferWindow: getTransferWindow(currentDate),
+    autoSchedule: false,
+    season: getFullSeasonCalendar(currentDate),
+    scheduleWarnings: [],
+    seasonReadiness: [],
     canCloseTransferWindow,
     nextMatch: dueMatches[0] ?? null,
     dueMatches,

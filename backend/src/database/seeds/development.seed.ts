@@ -1,5 +1,6 @@
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
+import { EntityManager } from 'typeorm';
 import { PasswordService } from '../../auth/password.service';
 import { Account } from '../../auth/entities/account.entity';
 import { CareersService } from '../../careers/careers.service';
@@ -21,8 +22,6 @@ import { CareerPlayerPositionProficiency } from '../../careers/entities/career-p
 import { CareerPlayerRoleProficiency } from '../../careers/entities/career-player-role-proficiency.entity';
 import { Career } from '../../careers/entities/career.entity';
 import { Roster } from '../../careers/entities/roster.entity';
-import { ChampionArchetype } from '../../careers/enums/champion-archetype.enum';
-import { Region } from '../../careers/enums/region.enum';
 import { RosterRole } from '../../careers/enums/roster-role.enum';
 import { TeamStrategy } from '../../careers/enums/team-strategy.enum';
 import { PlayerCard } from '../../players/entities/player-card.entity';
@@ -33,6 +32,8 @@ import { PlayerPersonality } from '../../players/enums/player-personality.enum';
 import { SetBonus } from '../../set-bonuses/entities/set-bonus.entity';
 import { SetBonusRequirement } from '../../set-bonuses/entities/set-bonus-requirement.entity';
 import dataSource from '../data-source';
+import { seedClubCatalog, validateClubSeeds } from './club-catalog.seed';
+import type { ClubSeedData } from './club-catalog.seed';
 
 interface DevelopmentSeedData {
   startYear: number;
@@ -54,22 +55,7 @@ interface DevelopmentSeedData {
     macroBonus: number;
     teamPlayBonus: number;
   }>;
-  teams: Array<{
-    code: string;
-    name: string;
-    region: Region;
-    initialChemistry?: number;
-    starters: Array<{
-      position: Position;
-      playerCardKey: string;
-      championArchetype?: ChampionArchetype;
-      initialCoachTrust?: number;
-    }>;
-    benches?: Array<{
-      playerCardKey: string;
-      initialForm: number;
-    }>;
-  }>;
+  teams: ClubSeedData[];
 }
 
 interface DevelopmentPlayerCardData {
@@ -184,102 +170,101 @@ async function loadSeedData(): Promise<DevelopmentSeedData> {
 
 async function seedCatalog(
   seedData: DevelopmentSeedData,
+  manager: EntityManager,
 ): Promise<Map<string, PlayerCard>> {
-  return dataSource.transaction(async (manager) => {
-    const themesRepository = manager.getRepository(Theme);
-    const playersRepository = manager.getRepository(Player);
-    const playerCardsRepository = manager.getRepository(PlayerCard);
-    const themesByCode = new Map<string, Theme>();
+  const themesRepository = manager.getRepository(Theme);
+  const playersRepository = manager.getRepository(Player);
+  const playerCardsRepository = manager.getRepository(PlayerCard);
+  const themesByCode = new Map<string, Theme>();
 
-    for (const themeData of seedData.themes) {
-      const theme =
-        (await themesRepository.findOneBy({ code: themeData.code })) ??
-        themesRepository.create({ code: themeData.code });
+  for (const themeData of seedData.themes) {
+    const theme =
+      (await themesRepository.findOneBy({ code: themeData.code })) ??
+      themesRepository.create({ code: themeData.code });
 
-      theme.name = themeData.name;
-      theme.description = themeData.description;
-      themesByCode.set(themeData.code, await themesRepository.save(theme));
+    theme.name = themeData.name;
+    theme.description = themeData.description;
+    themesByCode.set(themeData.code, await themesRepository.save(theme));
+  }
+
+  const playerCardsByKey = new Map<string, PlayerCard>();
+
+  for (const cardData of seedData.playerCards) {
+    const theme = themesByCode.get(cardData.themeCode);
+    const nationality =
+      cardData.nationality ?? DEVELOPMENT_PLAYER_DEFAULTS.nationality;
+
+    if (!theme) {
+      throw new Error(`Unknown theme code: ${cardData.themeCode}`);
     }
 
-    const playerCardsByKey = new Map<string, PlayerCard>();
+    let player = await playersRepository.findOneBy({
+      nickname: cardData.nickname,
+      nationality,
+    });
 
-    for (const cardData of seedData.playerCards) {
-      const theme = themesByCode.get(cardData.themeCode);
-      const nationality =
-        cardData.nationality ?? DEVELOPMENT_PLAYER_DEFAULTS.nationality;
+    if (!player && nationality !== DEVELOPMENT_PLAYER_DEFAULTS.nationality) {
+      const unknownPlayers = await playersRepository.findBy({
+        nickname: cardData.nickname,
+        nationality: DEVELOPMENT_PLAYER_DEFAULTS.nationality,
+      });
 
-      if (!theme) {
-        throw new Error(`Unknown theme code: ${cardData.themeCode}`);
+      if (unknownPlayers.length > 1) {
+        throw new Error(
+          `Multiple UNKNOWN players found for ${cardData.nickname}; nationality cannot be migrated safely`,
+        );
       }
 
-      let player = await playersRepository.findOneBy({
+      if (unknownPlayers.length === 1) {
+        unknownPlayers[0].nationality = nationality;
+        player = await playersRepository.save(unknownPlayers[0]);
+      }
+    }
+
+    player ??= await playersRepository.save(
+      playersRepository.create({
         nickname: cardData.nickname,
         nationality,
+      }),
+    );
+    const playerCard =
+      (await playerCardsRepository.findOneBy({
+        playerId: player.id,
+        themeId: theme.id,
+        cardYear: cardData.cardYear,
+      })) ??
+      playerCardsRepository.create({
+        playerId: player.id,
+        player,
+        themeId: theme.id,
+        theme,
+        cardYear: cardData.cardYear,
       });
 
-      if (!player && nationality !== DEVELOPMENT_PLAYER_DEFAULTS.nationality) {
-        const unknownPlayers = await playersRepository.findBy({
-          nickname: cardData.nickname,
-          nationality: DEVELOPMENT_PLAYER_DEFAULTS.nationality,
-        });
+    Object.assign(playerCard, {
+      startingAge:
+        cardData.startingAge ?? DEVELOPMENT_PLAYER_DEFAULTS.startingAge,
+      imageUrl: cardData.imageUrl ?? null,
+      mainPosition: cardData.mainPosition,
+      mechanics: cardData.mechanics,
+      gameSense: cardData.gameSense,
+      laning: cardData.laning,
+      teamFight: cardData.teamFight,
+      macro: cardData.macro,
+      teamPlay: cardData.teamPlay,
+      mental: cardData.mental,
+      championPool: cardData.championPool,
+      personality:
+        cardData.personality ?? DEVELOPMENT_PLAYER_DEFAULTS.personality,
+      potential: cardData.potential ?? getFallbackPotential(cardData),
+    });
+    playerCardsByKey.set(
+      cardData.key,
+      await playerCardsRepository.save(playerCard),
+    );
+  }
 
-        if (unknownPlayers.length > 1) {
-          throw new Error(
-            `Multiple UNKNOWN players found for ${cardData.nickname}; nationality cannot be migrated safely`,
-          );
-        }
-
-        if (unknownPlayers.length === 1) {
-          unknownPlayers[0].nationality = nationality;
-          player = await playersRepository.save(unknownPlayers[0]);
-        }
-      }
-
-      player ??= await playersRepository.save(
-        playersRepository.create({
-          nickname: cardData.nickname,
-          nationality,
-        }),
-      );
-      const playerCard =
-        (await playerCardsRepository.findOneBy({
-          playerId: player.id,
-          themeId: theme.id,
-          cardYear: cardData.cardYear,
-        })) ??
-        playerCardsRepository.create({
-          playerId: player.id,
-          player,
-          themeId: theme.id,
-          theme,
-          cardYear: cardData.cardYear,
-        });
-
-      Object.assign(playerCard, {
-        startingAge:
-          cardData.startingAge ?? DEVELOPMENT_PLAYER_DEFAULTS.startingAge,
-        imageUrl: cardData.imageUrl ?? null,
-        mainPosition: cardData.mainPosition,
-        mechanics: cardData.mechanics,
-        gameSense: cardData.gameSense,
-        laning: cardData.laning,
-        teamFight: cardData.teamFight,
-        macro: cardData.macro,
-        teamPlay: cardData.teamPlay,
-        mental: cardData.mental,
-        championPool: cardData.championPool,
-        personality:
-          cardData.personality ?? DEVELOPMENT_PLAYER_DEFAULTS.personality,
-        potential: cardData.potential ?? getFallbackPotential(cardData),
-      });
-      playerCardsByKey.set(
-        cardData.key,
-        await playerCardsRepository.save(playerCard),
-      );
-    }
-
-    return playerCardsByKey;
-  });
+  return playerCardsByKey;
 }
 
 interface ExistingCareerSyncResult {
@@ -619,9 +604,11 @@ async function syncCareerBenches(
       }
 
       for (const benchData of teamData.benches ?? []) {
+        const initialForm =
+          benchData.initialForm ?? CAREER_PLAYER_STATE_CONFIG.initial.form;
         if (
-          benchData.initialForm < CAREER_PLAYER_STATE_CONFIG.min ||
-          benchData.initialForm > CAREER_PLAYER_STATE_CONFIG.max
+          initialForm < CAREER_PLAYER_STATE_CONFIG.min ||
+          initialForm > CAREER_PLAYER_STATE_CONFIG.max
         ) {
           throw new Error(
             `${benchData.playerCardKey} initialForm must be between ${CAREER_PLAYER_STATE_CONFIG.min} and ${CAREER_PLAYER_STATE_CONFIG.max}`,
@@ -650,7 +637,7 @@ async function syncCareerBenches(
             initializeExistingBenches &&
             careerPlayer.roster.role === RosterRole.BENCH
           ) {
-            careerPlayer.form = benchData.initialForm;
+            careerPlayer.form = initialForm;
             await manager.save(CareerPlayer, careerPlayer);
           }
 
@@ -676,7 +663,7 @@ async function syncCareerBenches(
               currentTeamPlay: playerCard.teamPlay,
               currentMental: playerCard.mental,
               currentChampionPool: playerCard.championPool,
-              form: benchData.initialForm,
+              form: initialForm,
               condition: CAREER_PLAYER_STATE_CONFIG.initial.condition,
               personality: playerCard.personality,
               coachTrust: CAREER_PLAYER_STATE_CONFIG.initial.coachTrust,
@@ -713,7 +700,7 @@ async function syncCareerBenches(
         } else {
           careerPlayer.currentTeamId = careerTeam.id;
           careerPlayer.currentTeam = careerTeam;
-          careerPlayer.form = benchData.initialForm;
+          careerPlayer.form = initialForm;
           careerPlayer = await manager.save(CareerPlayer, careerPlayer);
         }
 
@@ -741,53 +728,52 @@ async function syncCareerBenches(
 async function seedSetBonuses(
   seedData: DevelopmentSeedData,
   playerCardsByKey: Map<string, PlayerCard>,
+  manager: EntityManager,
 ): Promise<number> {
-  return dataSource.transaction(async (manager) => {
-    const setBonusesRepository = manager.getRepository(SetBonus);
-    const requirementsRepository = manager.getRepository(SetBonusRequirement);
+  const setBonusesRepository = manager.getRepository(SetBonus);
+  const requirementsRepository = manager.getRepository(SetBonusRequirement);
 
-    for (const setBonusData of seedData.setBonuses) {
-      const requiredPlayerCards = setBonusData.requiredPlayerCardKeys.map(
-        (playerCardKey) => {
-          const playerCard = playerCardsByKey.get(playerCardKey);
+  for (const setBonusData of seedData.setBonuses) {
+    const requiredPlayerCards = setBonusData.requiredPlayerCardKeys.map(
+      (playerCardKey) => {
+        const playerCard = playerCardsByKey.get(playerCardKey);
 
-          if (!playerCard) {
-            throw new Error(`Unknown PlayerCard key: ${playerCardKey}`);
-          }
+        if (!playerCard) {
+          throw new Error(`Unknown PlayerCard key: ${playerCardKey}`);
+        }
 
-          return playerCard;
-        },
-      );
-      const setBonus =
-        (await setBonusesRepository.findOneBy({ code: setBonusData.code })) ??
-        setBonusesRepository.create({ code: setBonusData.code });
+        return playerCard;
+      },
+    );
+    const setBonus =
+      (await setBonusesRepository.findOneBy({ code: setBonusData.code })) ??
+      setBonusesRepository.create({ code: setBonusData.code });
 
-      Object.assign(setBonus, {
-        name: setBonusData.name,
-        description: setBonusData.description,
-        chemistryBonus: setBonusData.chemistryBonus,
-        laningBonus: setBonusData.laningBonus,
-        teamFightBonus: setBonusData.teamFightBonus,
-        macroBonus: setBonusData.macroBonus,
-        teamPlayBonus: setBonusData.teamPlayBonus,
-      });
-      const savedSetBonus = await setBonusesRepository.save(setBonus);
+    Object.assign(setBonus, {
+      name: setBonusData.name,
+      description: setBonusData.description,
+      chemistryBonus: setBonusData.chemistryBonus,
+      laningBonus: setBonusData.laningBonus,
+      teamFightBonus: setBonusData.teamFightBonus,
+      macroBonus: setBonusData.macroBonus,
+      teamPlayBonus: setBonusData.teamPlayBonus,
+    });
+    const savedSetBonus = await setBonusesRepository.save(setBonus);
 
-      await requirementsRepository.delete({ setBonusId: savedSetBonus.id });
-      await requirementsRepository.save(
-        requiredPlayerCards.map((playerCard) =>
-          requirementsRepository.create({
-            setBonusId: savedSetBonus.id,
-            setBonus: savedSetBonus,
-            playerCardId: playerCard.id,
-            playerCard,
-          }),
-        ),
-      );
-    }
+    await requirementsRepository.delete({ setBonusId: savedSetBonus.id });
+    await requirementsRepository.save(
+      requiredPlayerCards.map((playerCard) =>
+        requirementsRepository.create({
+          setBonusId: savedSetBonus.id,
+          setBonus: savedSetBonus,
+          playerCardId: playerCard.id,
+          playerCard,
+        }),
+      ),
+    );
+  }
 
-    return seedData.setBonuses.length;
-  });
+  return seedData.setBonuses.length;
 }
 
 async function syncCareerPlayerPersonalities(careerId: number): Promise<void> {
@@ -865,15 +851,39 @@ async function seedChampionArchetypes(
 
 async function runSeed(): Promise<void> {
   const seedData = await loadSeedData();
-  const accountConfig = loadDevelopmentAccountConfig();
+  const catalogOnly = process.argv.includes('--catalog-only');
+  const accountConfig = catalogOnly ? null : loadDevelopmentAccountConfig();
+  const keys = seedData.playerCards.map((card) => card.key);
+  if (new Set(keys).size !== keys.length)
+    throw new Error('중복 playerCards.key가 있습니다.');
+  validateClubSeeds(seedData.teams, new Set(keys));
 
   await dataSource.initialize();
 
   try {
     await dataSource.runMigrations();
-    const account = await seedDevelopmentAccount(accountConfig);
-    const playerCardsByKey = await seedCatalog(seedData);
-    const setBonusCount = await seedSetBonuses(seedData, playerCardsByKey);
+    const { playerCardsByKey, setBonusCount, clubCount } =
+      await dataSource.transaction(async (manager) => {
+        const playerCardsByKey = await seedCatalog(seedData, manager);
+        const setBonusCount = await seedSetBonuses(
+          seedData,
+          playerCardsByKey,
+          manager,
+        );
+        const clubCount = await seedClubCatalog(
+          manager,
+          seedData.teams,
+          playerCardsByKey,
+        );
+        return { playerCardsByKey, setBonusCount, clubCount };
+      });
+    if (catalogOnly) {
+      console.log(
+        `Catalog ready: ${playerCardsByKey.size} PlayerCards, ${setBonusCount} SetBonuses, ${clubCount} enabled Clubs. Existing careers and accounts were not changed.`,
+      );
+      return;
+    }
+    const account = await seedDevelopmentAccount(accountConfig!);
     const seededCareer = await seedCareer(
       account.id,
       seedData,

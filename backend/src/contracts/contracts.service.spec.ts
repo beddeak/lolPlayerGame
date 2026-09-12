@@ -11,6 +11,7 @@ import { PlayerContract } from './entities/player-contract.entity';
 import { TransferRecord } from '../transfers/entities/transfer-record.entity';
 import { CareerPlayer } from '../careers/entities/career-player.entity';
 import { CareerTeam } from '../careers/entities/career-team.entity';
+import { AiClubBudgetService } from '../ai-clubs/ai-club-budget.service';
 
 describe('Contract response processing invariants', () => {
   const transfersService = {
@@ -20,6 +21,7 @@ describe('Contract response processing invariants', () => {
   const service = new ContractsService(
     {} as DataSource,
     transfersService as unknown as TransfersService,
+    {} as AiClubBudgetService,
   );
   beforeEach(() => jest.resetAllMocks());
   const event = (): CalendarEvent =>

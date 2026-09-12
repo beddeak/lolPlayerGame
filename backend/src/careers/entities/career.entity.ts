@@ -43,6 +43,10 @@ export class Career {
   @Column({ type: 'date' })
   currentDate!: string;
 
+  /** Explicit opt-in keeps legacy/custom careers and their saved fixtures intact. */
+  @Column({ type: 'boolean', default: false })
+  autoSchedule!: boolean;
+
   @Column({
     type: 'enum',
     enum: TeamStrategy,

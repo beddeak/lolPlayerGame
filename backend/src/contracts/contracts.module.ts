@@ -10,11 +10,13 @@ import { ContractsService } from './contracts.service';
 import { ContractOffer } from './entities/contract-offer.entity';
 import { PlayerContract } from './entities/player-contract.entity';
 import { TransfersModule } from '../transfers/transfers.module';
+import { AiClubSupportModule } from '../ai-clubs/ai-club-support.module';
 
 @Module({
   imports: [
     AuthModule,
     TransfersModule,
+    AiClubSupportModule,
     TypeOrmModule.forFeature([
       Career,
       CareerPlayer,

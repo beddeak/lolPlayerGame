@@ -430,6 +430,47 @@ async function seasonIntegration() {
   assert.equal(view.button("+1하루 진행").props.disabled, false);
 }
 
+async function aiClubNews() {
+  const data = fixture();
+  const news = {
+    id: 20,
+    type: "AI_CLUB_UPDATE",
+    status: "COMPLETED",
+    requiresUserAction: false,
+    scheduledDate: data.calendar.currentDate,
+    payload: { message: "GEN이 새로운 선발 명단을 등록했습니다." },
+  };
+  const view = harness(
+    "SeasonHubView.tsx",
+    {
+      career: data.career,
+      token: "test",
+      onBack() {},
+      onCareerRefresh: async () => {},
+      onOpenContracts() {},
+      onOpenLegends() {},
+    },
+    async (url, options) => {
+      assert.notEqual(
+        options?.method,
+        "POST",
+        "Reading AI news must not resolve or advance anything",
+      );
+      return url.endsWith("/calendar")
+        ? data.calendar
+        : url.endsWith("/events")
+          ? [news]
+          : [];
+    },
+  );
+  const html = await view.mount();
+  assert.match(html, /구단 소식/);
+  assert.match(html, /GEN이 새로운 선발 명단을 등록했습니다/);
+  assert.doesNotMatch(html, /진행 전에 처리해야 할 이벤트가 있습니다/);
+  assert.equal(view.button("+1하루 진행").props.disabled, false);
+  assert.equal(view.button("구단 소식 처리하기"), undefined);
+}
+
 (async () => {
   await emptyMarket();
   await offerFlow();
@@ -442,8 +483,9 @@ async function seasonIntegration() {
   await pendingOffer(true);
   await loadRetry();
   await seasonIntegration();
+  await aiClubNews();
   console.log(
-    "Legend UI checks passed: 11 scenarios (revealed-only market, contract flow, availability, races, retry, reveal acknowledgement, signing news).",
+    "Market/news UI checks passed: 12 scenarios (revealed-only market, contract flow, availability, races, retry, reveal acknowledgement, legend/AI club news).",
   );
 })().catch((error) => {
   console.error(error);

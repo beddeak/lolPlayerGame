@@ -5,7 +5,10 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, In, Repository } from 'typeorm';
+import { DataSource, EntityManager, In, Repository } from 'typeorm';
+import { buildClubCareer, readClubCatalog } from '../clubs/club-catalog';
+import { CareerInitialization } from '../clubs/career-initialization.types';
+import { CreateCareerFromClubDto } from '../clubs/dto/create-career-from-club.dto';
 import { PlayerCardResponseDto } from '../players/dto/player-card-response.dto';
 import { PlayerCard } from '../players/entities/player-card.entity';
 import { SetBonus } from '../set-bonuses/entities/set-bonus.entity';
@@ -49,6 +52,7 @@ import { Roster } from './entities/roster.entity';
 import { TrainingPeriod } from './entities/training-period.entity';
 import { RosterRole } from './enums/roster-role.enum';
 import { TeamStrategy } from './enums/team-strategy.enum';
+import { lockActiveManagerCareer } from '../manager-career/manager-access';
 
 @Injectable()
 export class CareersService {
@@ -66,208 +70,242 @@ export class CareersService {
   ): Promise<CareerResponseDto> {
     this.validateCareerSetup(dto);
 
+    const career = await this.dataSource.transaction((manager) =>
+      this.createWithManager(accountId, dto, manager),
+    );
+    return this.toResponse(career, await this.findSetBonuses());
+  }
+
+  async createFromClub(
+    accountId: number,
+    dto: CreateCareerFromClubDto,
+  ): Promise<CareerResponseDto> {
+    return this.dataSource.transaction('REPEATABLE READ', async (manager) => {
+      const clubs = await readClubCatalog(manager);
+      const setup = buildClubCareer(clubs, dto.clubCode);
+      this.validateCareerSetup(setup);
+      const career = await this.createWithManager(accountId, setup, manager);
+      const setBonuses = await manager.find(SetBonus, {
+        relations: { requirements: true },
+        order: { id: 'ASC' },
+      });
+      return this.toResponse(career, setBonuses);
+    });
+  }
+
+  private async createWithManager(
+    accountId: number,
+    dto: CareerInitialization,
+    manager: EntityManager,
+  ): Promise<Career> {
     const playerCardIds = dto.teams.flatMap((team) => [
       ...team.starters.map((starter) => starter.playerCardId),
       ...(team.benches ?? []).map((bench) => bench.playerCardId),
     ]);
 
-    const career = await this.dataSource.transaction(async (manager) => {
-      const playerCards = await manager.find(PlayerCard, {
-        where: { id: In(playerCardIds) },
-        relations: { player: true, theme: true },
-      });
-      const playerCardsById = new Map(
-        playerCards.map((playerCard) => [playerCard.id, playerCard]),
-      );
-      const missingPlayerCardIds = playerCardIds.filter(
-        (playerCardId) => !playerCardsById.has(playerCardId),
-      );
+    const playerCards = await manager.find(PlayerCard, {
+      where: { id: In(playerCardIds) },
+      relations: { player: true, theme: true },
+    });
+    const playerCardsById = new Map(
+      playerCards.map((playerCard) => [playerCard.id, playerCard]),
+    );
+    const missingPlayerCardIds = playerCardIds.filter(
+      (playerCardId) => !playerCardsById.has(playerCardId),
+    );
 
-      if (missingPlayerCardIds.length > 0) {
-        throw new NotFoundException(
-          `PlayerCards not found: ${missingPlayerCardIds.join(', ')}`,
-        );
-      }
+    if (missingPlayerCardIds.length > 0) {
+      throw new NotFoundException(
+        `PlayerCards not found: ${missingPlayerCardIds.join(', ')}`,
+      );
+    }
 
-      const newCareer = manager.create(Career, {
-        accountId,
-        startYear: dto.startYear,
-        currentYear: dto.startYear,
-        currentDate: `${dto.startYear}-01-01`,
-        currentMeta: TeamStrategy.BALANCED,
-      });
-      const savedCareer = await manager.save(Career, newCareer);
-      await manager.save(
-        TrainingPeriod,
-        manager.create(TrainingPeriod, {
-          careerId: savedCareer.id,
-          career: savedCareer,
-          periodNumber: 1,
+    const newCareer = manager.create(Career, {
+      accountId,
+      startYear: dto.startYear,
+      currentYear: dto.startYear,
+      currentDate: `${dto.startYear}-01-01`,
+      currentMeta: TeamStrategy.BALANCED,
+      autoSchedule: dto.autoSchedule ?? false,
+    });
+    const savedCareer = await manager.save(Career, newCareer);
+    await manager.save(
+      TrainingPeriod,
+      manager.create(TrainingPeriod, {
+        careerId: savedCareer.id,
+        career: savedCareer,
+        periodNumber: 1,
+      }),
+    );
+
+    const careerTeams = dto.teams.map((team) =>
+      manager.create(CareerTeam, {
+        careerId: savedCareer.id,
+        career: savedCareer,
+        code: team.code,
+        clubCode: team.clubCode ?? null,
+        logoUrl: team.logoUrl ?? null,
+        name: team.name,
+        region: team.region,
+        isUserControlled: team.code === dto.managedTeamCode,
+        teamStrategy: TeamStrategy.BALANCED,
+        chemistry: team.initialChemistry ?? TEAM_CHEMISTRY_CONFIG.initial,
+      }),
+    );
+    const savedCareerTeams = await manager.save(CareerTeam, careerTeams);
+    const strategyProficiencies = savedCareerTeams.flatMap((careerTeam) =>
+      Object.values(TeamStrategy).map((strategy) =>
+        manager.create(CareerTeamStrategyProficiency, {
+          careerTeamId: careerTeam.id,
+          careerTeam,
+          strategy,
+          proficiency: TEAM_STRATEGY_PROFICIENCY_CONFIG.initial,
         }),
-      );
+      ),
+    );
+    const savedStrategyProficiencies = await manager.save(
+      CareerTeamStrategyProficiency,
+      strategyProficiencies,
+    );
 
-      const careerTeams = dto.teams.map((team) =>
-        manager.create(CareerTeam, {
-          careerId: savedCareer.id,
-          career: savedCareer,
-          code: team.code,
-          name: team.name,
-          region: team.region,
-          isUserControlled: team.code === dto.managedTeamCode,
-          teamStrategy: TeamStrategy.BALANCED,
-          chemistry: TEAM_CHEMISTRY_CONFIG.initial,
-        }),
+    savedCareerTeams.forEach((careerTeam) => {
+      careerTeam.strategyProficiencies = savedStrategyProficiencies.filter(
+        (strategyProficiency) =>
+          strategyProficiency.careerTeamId === careerTeam.id,
       );
-      const savedCareerTeams = await manager.save(CareerTeam, careerTeams);
-      const strategyProficiencies = savedCareerTeams.flatMap((careerTeam) =>
-        Object.values(TeamStrategy).map((strategy) =>
-          manager.create(CareerTeamStrategyProficiency, {
-            careerTeamId: careerTeam.id,
-            careerTeam,
-            strategy,
-            proficiency: TEAM_STRATEGY_PROFICIENCY_CONFIG.initial,
-          }),
-        ),
-      );
-      const savedStrategyProficiencies = await manager.save(
-        CareerTeamStrategyProficiency,
-        strategyProficiencies,
-      );
-
-      savedCareerTeams.forEach((careerTeam) => {
-        careerTeam.strategyProficiencies = savedStrategyProficiencies.filter(
-          (strategyProficiency) =>
-            strategyProficiency.careerTeamId === careerTeam.id,
-        );
-      });
-
-      const rosterSetup = dto.teams.flatMap((team, teamIndex) => [
-        ...team.starters.map((starter) => ({
-          careerTeam: savedCareerTeams[teamIndex],
-          playerCard: playerCardsById.get(starter.playerCardId)!,
-          role: RosterRole.STARTER,
-          starterPosition: starter.position,
-          currentPosition: starter.position,
-        })),
-        ...(team.benches ?? []).map((bench) => {
-          const playerCard = playerCardsById.get(bench.playerCardId)!;
-
-          return {
-            careerTeam: savedCareerTeams[teamIndex],
-            playerCard,
-            role: RosterRole.BENCH,
-            starterPosition: null,
-            currentPosition: playerCard.mainPosition,
-          };
-        }),
-      ]);
-      const careerPlayers = rosterSetup.map(
-        ({ careerTeam, playerCard, currentPosition }) =>
-          manager.create(CareerPlayer, {
-            careerId: savedCareer.id,
-            career: savedCareer,
-            playerCardId: playerCard.id,
-            playerCard,
-            currentTeamId: careerTeam.id,
-            currentTeam: careerTeam,
-            currentAge: playerCard.startingAge,
-            currentPosition,
-            currentMechanics: playerCard.mechanics,
-            currentGameSense: playerCard.gameSense,
-            currentLaning: playerCard.laning,
-            currentTeamFight: playerCard.teamFight,
-            currentMacro: playerCard.macro,
-            currentTeamPlay: playerCard.teamPlay,
-            currentMental: playerCard.mental,
-            currentChampionPool: playerCard.championPool,
-            form: CAREER_PLAYER_STATE_CONFIG.initial.form,
-            condition: CAREER_PLAYER_STATE_CONFIG.initial.condition,
-            personality: playerCard.personality,
-            coachTrust: CAREER_PLAYER_STATE_CONFIG.initial.coachTrust,
-          }),
-      );
-      const savedCareerPlayers = await manager.save(
-        CareerPlayer,
-        careerPlayers,
-      );
-
-      const positionProficiencies = savedCareerPlayers.flatMap((careerPlayer) =>
-        STARTER_POSITIONS.map((position) =>
-          manager.create(CareerPlayerPositionProficiency, {
-            careerPlayerId: careerPlayer.id,
-            careerPlayer,
-            position,
-            proficiency:
-              position === careerPlayer.currentPosition
-                ? POSITION_PROFICIENCY_CONFIG.initialPrimary
-                : POSITION_PROFICIENCY_CONFIG.initialSecondary,
-          }),
-        ),
-      );
-      const savedPositionProficiencies = await manager.save(
-        CareerPlayerPositionProficiency,
-        positionProficiencies,
-      );
-
-      savedCareerPlayers.forEach((careerPlayer) => {
-        careerPlayer.positionProficiencies = savedPositionProficiencies.filter(
-          (positionProficiency) =>
-            positionProficiency.careerPlayerId === careerPlayer.id,
-        );
-      });
-
-      const roleProficiencies = rosterSetup.flatMap(
-        ({ currentPosition }, careerPlayerIndex) =>
-          PLAYER_INSTRUCTIONS_BY_POSITION[currentPosition].map((instruction) =>
-            manager.create(CareerPlayerRoleProficiency, {
-              careerPlayerId: savedCareerPlayers[careerPlayerIndex].id,
-              careerPlayer: savedCareerPlayers[careerPlayerIndex],
-              position: currentPosition,
-              instruction,
-              proficiency: ROLE_PROFICIENCY_CONFIG.initial,
-            }),
-          ),
-      );
-      const savedRoleProficiencies = await manager.save(
-        CareerPlayerRoleProficiency,
-        roleProficiencies,
-      );
-
-      savedCareerPlayers.forEach((careerPlayer) => {
-        careerPlayer.roleProficiencies = savedRoleProficiencies.filter(
-          (roleProficiency) =>
-            roleProficiency.careerPlayerId === careerPlayer.id,
-        );
-      });
-
-      const rosters = rosterSetup.map(
-        ({ role, starterPosition, careerTeam }, index) =>
-          manager.create(Roster, {
-            careerTeamId: careerTeam.id,
-            careerTeam,
-            careerPlayerId: savedCareerPlayers[index].id,
-            careerPlayer: savedCareerPlayers[index],
-            role,
-            starterPosition,
-            playerInstruction: null,
-            championArchetype: null,
-          }),
-      );
-      const savedRosters = await manager.save(Roster, rosters);
-
-      savedCareerTeams.forEach((careerTeam) => {
-        careerTeam.rosters = savedRosters.filter(
-          (roster) => roster.careerTeamId === careerTeam.id,
-        );
-      });
-      savedCareer.careerTeams = savedCareerTeams;
-
-      return savedCareer;
     });
 
-    const setBonuses = await this.findSetBonuses();
+    const rosterSetup = dto.teams.flatMap((team, teamIndex) => [
+      ...team.starters.map((starter) => ({
+        careerTeam: savedCareerTeams[teamIndex],
+        playerCard: playerCardsById.get(starter.playerCardId)!,
+        role: RosterRole.STARTER,
+        starterPosition: starter.position,
+        currentPosition: starter.position,
+        championArchetype: starter.championArchetype ?? null,
+        initialCoachTrust: starter.initialCoachTrust,
+        initialForm: starter.initialForm,
+      })),
+      ...(team.benches ?? []).map((bench) => {
+        const playerCard = playerCardsById.get(bench.playerCardId)!;
 
-    return this.toResponse(career, setBonuses);
+        return {
+          careerTeam: savedCareerTeams[teamIndex],
+          playerCard,
+          role: RosterRole.BENCH,
+          starterPosition: null,
+          currentPosition: playerCard.mainPosition,
+          championArchetype: null,
+          initialCoachTrust: bench.initialCoachTrust,
+          initialForm: bench.initialForm,
+        };
+      }),
+    ]);
+    const careerPlayers = rosterSetup.map(
+      ({
+        careerTeam,
+        playerCard,
+        currentPosition,
+        initialCoachTrust,
+        initialForm,
+      }) =>
+        manager.create(CareerPlayer, {
+          careerId: savedCareer.id,
+          career: savedCareer,
+          playerCardId: playerCard.id,
+          playerCard,
+          currentTeamId: careerTeam.id,
+          currentTeam: careerTeam,
+          currentAge: playerCard.startingAge,
+          currentPosition,
+          currentMechanics: playerCard.mechanics,
+          currentGameSense: playerCard.gameSense,
+          currentLaning: playerCard.laning,
+          currentTeamFight: playerCard.teamFight,
+          currentMacro: playerCard.macro,
+          currentTeamPlay: playerCard.teamPlay,
+          currentMental: playerCard.mental,
+          currentChampionPool: playerCard.championPool,
+          form: initialForm ?? CAREER_PLAYER_STATE_CONFIG.initial.form,
+          condition: CAREER_PLAYER_STATE_CONFIG.initial.condition,
+          personality: playerCard.personality,
+          coachTrust:
+            initialCoachTrust ?? CAREER_PLAYER_STATE_CONFIG.initial.coachTrust,
+        }),
+    );
+    const savedCareerPlayers = await manager.save(CareerPlayer, careerPlayers);
+
+    const positionProficiencies = savedCareerPlayers.flatMap((careerPlayer) =>
+      STARTER_POSITIONS.map((position) =>
+        manager.create(CareerPlayerPositionProficiency, {
+          careerPlayerId: careerPlayer.id,
+          careerPlayer,
+          position,
+          proficiency:
+            position === careerPlayer.currentPosition
+              ? POSITION_PROFICIENCY_CONFIG.initialPrimary
+              : POSITION_PROFICIENCY_CONFIG.initialSecondary,
+        }),
+      ),
+    );
+    const savedPositionProficiencies = await manager.save(
+      CareerPlayerPositionProficiency,
+      positionProficiencies,
+    );
+
+    savedCareerPlayers.forEach((careerPlayer) => {
+      careerPlayer.positionProficiencies = savedPositionProficiencies.filter(
+        (positionProficiency) =>
+          positionProficiency.careerPlayerId === careerPlayer.id,
+      );
+    });
+
+    const roleProficiencies = rosterSetup.flatMap(
+      ({ currentPosition }, careerPlayerIndex) =>
+        PLAYER_INSTRUCTIONS_BY_POSITION[currentPosition].map((instruction) =>
+          manager.create(CareerPlayerRoleProficiency, {
+            careerPlayerId: savedCareerPlayers[careerPlayerIndex].id,
+            careerPlayer: savedCareerPlayers[careerPlayerIndex],
+            position: currentPosition,
+            instruction,
+            proficiency: ROLE_PROFICIENCY_CONFIG.initial,
+          }),
+        ),
+    );
+    const savedRoleProficiencies = await manager.save(
+      CareerPlayerRoleProficiency,
+      roleProficiencies,
+    );
+
+    savedCareerPlayers.forEach((careerPlayer) => {
+      careerPlayer.roleProficiencies = savedRoleProficiencies.filter(
+        (roleProficiency) => roleProficiency.careerPlayerId === careerPlayer.id,
+      );
+    });
+
+    const rosters = rosterSetup.map(
+      ({ role, starterPosition, careerTeam, championArchetype }, index) =>
+        manager.create(Roster, {
+          careerTeamId: careerTeam.id,
+          careerTeam,
+          careerPlayerId: savedCareerPlayers[index].id,
+          careerPlayer: savedCareerPlayers[index],
+          role,
+          starterPosition,
+          playerInstruction: null,
+          championArchetype,
+        }),
+    );
+    const savedRosters = await manager.save(Roster, rosters);
+
+    savedCareerTeams.forEach((careerTeam) => {
+      careerTeam.rosters = savedRosters.filter(
+        (roster) => roster.careerTeamId === careerTeam.id,
+      );
+    });
+    savedCareer.careerTeams = savedCareerTeams;
+
+    return savedCareer;
   }
 
   async findAll(accountId: number): Promise<CareerSummaryResponseDto[]> {
@@ -336,19 +374,15 @@ export class CareersService {
     accountId: number,
     dto: UpdateCareerMetaDto,
   ): Promise<CareerMetaResponseDto> {
-    const career = await this.careersRepository.findOneBy({ id, accountId });
-
-    if (!career) {
-      throw new NotFoundException(`Career ${id} was not found`);
-    }
-
-    career.currentMeta = dto.meta;
-    const savedCareer = await this.careersRepository.save(career);
-
-    return {
-      careerId: savedCareer.id,
-      currentMeta: savedCareer.currentMeta,
-    };
+    return this.dataSource.transaction(async (manager) => {
+      const career = await lockActiveManagerCareer(manager, accountId, id);
+      career.currentMeta = dto.meta;
+      const savedCareer = await manager.save(Career, career);
+      return {
+        careerId: savedCareer.id,
+        currentMeta: savedCareer.currentMeta,
+      };
+    });
   }
 
   private validateCareerSetup(dto: CreateCareerDto): void {
@@ -421,6 +455,8 @@ export class CareersService {
       .map((careerTeam) => ({
         id: careerTeam.id,
         code: careerTeam.code,
+        clubCode: careerTeam.clubCode ?? null,
+        logoUrl: careerTeam.logoUrl ?? null,
         name: careerTeam.name,
         region: careerTeam.region,
         isUserControlled: careerTeam.isUserControlled,

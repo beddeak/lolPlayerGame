@@ -93,6 +93,13 @@ export class TransferRecord {
   @Column({ type: 'date' })
   completedDate!: string;
 
+  /** Actual managed starting lineup at the transfer boundary; legacy/AI-only records stay null. */
+  @Column({ type: 'double', nullable: true })
+  managerLineupBefore!: number | null;
+
+  @Column({ type: 'double', nullable: true })
+  managerLineupAfter!: number | null;
+
   @CreateDateColumn({
     type: 'timestamp',
     precision: 0,

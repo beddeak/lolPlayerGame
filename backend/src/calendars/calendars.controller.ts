@@ -38,4 +38,12 @@ export class CalendarsController {
   ): Promise<CalendarAdvanceResponseDto> {
     return this.calendarsService.advance(account.id, careerId, dto);
   }
+
+  @Post('start-season')
+  startSeason(
+    @CurrentAccount() account: AuthenticatedAccount,
+    @Param('careerId', ParseIntPipe) careerId: number,
+  ): Promise<CalendarResponseDto> {
+    return this.calendarsService.startSeason(account.id, careerId);
+  }
 }

@@ -36,6 +36,11 @@ describe('CareersService', () => {
     find: jest.fn(),
   };
   const entityManager = {
+    findOne: jest.fn((entity: unknown) =>
+      entity === Career
+        ? (careersRepository.findOneBy() as Promise<Career | null>)
+        : Promise.resolve(null),
+    ),
     find: jest.fn(
       (_entity: unknown, _options: unknown): Promise<PlayerCard[]> => {
         void _entity;
@@ -374,7 +379,8 @@ describe('CareersService', () => {
       careerId: 1,
       currentMeta: TeamStrategy.BOT_CARRY,
     });
-    expect(careersRepository.save).toHaveBeenCalledWith(
+    expect(entityManager.save).toHaveBeenCalledWith(
+      Career,
       expect.objectContaining({ currentMeta: TeamStrategy.BOT_CARRY }),
     );
   });

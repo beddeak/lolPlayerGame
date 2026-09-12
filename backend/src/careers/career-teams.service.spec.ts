@@ -12,6 +12,8 @@ import { Region } from './enums/region.enum';
 import { RosterRole } from './enums/roster-role.enum';
 import { TeamStrategy } from './enums/team-strategy.enum';
 import { ChampionArchetype } from './enums/champion-archetype.enum';
+import { Career } from './entities/career.entity';
+import { ManagerCareerState } from '../manager-career/entities/manager-career-state.entity';
 
 describe('CareerTeamsService', () => {
   const careerTeamsRepository = {
@@ -34,6 +36,12 @@ describe('CareerTeamsService', () => {
   const transactionManager = {
     findOne: jest.fn(),
     save: jest.fn(),
+    getRepository: (entity: unknown) =>
+      entity === CareerTeam
+        ? careerTeamsRepository
+        : entity === Roster
+          ? rostersRepository
+          : roleProficienciesRepository,
   };
   const dataSource = {
     transaction: jest.fn(
@@ -122,7 +130,15 @@ describe('CareerTeamsService', () => {
     rostersRepository.save.mockImplementation((value) =>
       Promise.resolve(value),
     );
-    transactionManager.findOne.mockResolvedValue(careerTeam);
+    transactionManager.findOne.mockImplementation((entity: unknown) =>
+      Promise.resolve(
+        entity === Career
+          ? careerTeam.career
+          : entity === ManagerCareerState
+            ? null
+            : careerTeam,
+      ),
+    );
     transactionManager.save.mockImplementation(
       (_entity: unknown, value: Roster) => Promise.resolve(value),
     );
@@ -152,6 +168,40 @@ describe('CareerTeamsService', () => {
       }),
     ).rejects.toBeInstanceOf(NotFoundException);
   });
+
+  it.each(['strategy', 'instruction', 'archetype', 'swap'] as const)(
+    'blocks %s changes after dismissal under the career lock',
+    async (action) => {
+      transactionManager.findOne.mockImplementation((entity: unknown) =>
+        Promise.resolve(
+          entity === Career ? careerTeam.career : { status: 'DISMISSED' },
+        ),
+      );
+      const operation =
+        action === 'strategy'
+          ? service.updateStrategy(7, 1, 1, { strategy: TeamStrategy.BALANCED })
+          : action === 'instruction'
+            ? service.updatePlayerInstruction(7, 1, 1, Position.ADC, {
+                instruction: PlayerInstruction.HYPER_CARRY,
+              })
+            : action === 'archetype'
+              ? service.updateChampionArchetype(7, 1, 1, Position.ADC, {
+                  archetype: ChampionArchetype.HYPER_CARRY,
+                })
+              : service.swapStarter(7, 1, 1, Position.ADC, {
+                  benchCareerPlayerId: 101,
+                });
+      await expect(operation).rejects.toThrow('경질된 감독');
+      expect(transactionManager.findOne).toHaveBeenNthCalledWith(1, Career, {
+        where: { id: 1, accountId: 7 },
+        lock: { mode: 'pessimistic_write' },
+      });
+      expect(transactionManager.save).not.toHaveBeenCalled();
+      expect(careerTeamsRepository.save).not.toHaveBeenCalled();
+      expect(rostersRepository.save).not.toHaveBeenCalled();
+      expect(roleProficienciesRepository.save).not.toHaveBeenCalled();
+    },
+  );
 
   it('sets a compatible instruction and returns its proficiency', async () => {
     const result = await service.updatePlayerInstruction(

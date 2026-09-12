@@ -6,6 +6,8 @@ import {
 import { DataSource, Repository } from 'typeorm';
 import { CareerPlayer } from '../careers/entities/career-player.entity';
 import { CareerTeam } from '../careers/entities/career-team.entity';
+import { Career } from '../careers/entities/career.entity';
+import { ManagerCareerState } from '../manager-career/entities/manager-career-state.entity';
 import { Match } from '../matches/entities/match.entity';
 import { MatchPlayerStat } from '../matches/entities/match-player-stat.entity';
 import { PlayerPersonality } from '../players/enums/player-personality.enum';
@@ -116,7 +118,15 @@ describe('MatchFeedbackService', () => {
     jest.clearAllMocks();
     series.games = [game1];
     series.bestOf = 3;
-    manager.findOne.mockResolvedValue(series);
+    manager.findOne.mockImplementation((entity: unknown) =>
+      Promise.resolve(
+        entity === Career
+          ? career
+          : entity === ManagerCareerState
+            ? null
+            : series,
+      ),
+    );
     manager.findOneBy.mockResolvedValue(null);
     manager.find.mockResolvedValue(careerPlayers);
     matchSeriesRepository.findOne.mockResolvedValue(series);
@@ -142,6 +152,21 @@ describe('MatchFeedbackService', () => {
     expect(result.effects).toHaveLength(1);
     expect(result.effects[0].formDelta).toBeGreaterThan(0);
     expect(manager.update).toHaveBeenCalledTimes(1);
+  });
+
+  it('rejects feedback after dismissal before applying effects', async () => {
+    manager.findOne.mockImplementation((entity: unknown) =>
+      Promise.resolve(entity === Career ? career : { status: 'DISMISSED' }),
+    );
+    await expect(
+      service.create(7, series.id, {
+        type: FeedbackType.INDIVIDUAL,
+        option: FeedbackOption.DEMAND_CARRY,
+        careerPlayerId: 101,
+      }),
+    ).rejects.toThrow('경질된 감독');
+    expect(manager.save).not.toHaveBeenCalled();
+    expect(manager.update).not.toHaveBeenCalled();
   });
 
   it('makes all five starters react individually to team feedback', async () => {

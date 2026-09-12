@@ -7,6 +7,8 @@ import { CalendarEventType } from './enums/calendar-event-type.enum';
 import { EventQueueService } from './event-queue.service';
 import { ContractsService } from '../contracts/contracts.service';
 import { LegendsService } from '../legends/legends.service';
+import { AiClubsService } from '../ai-clubs/ai-clubs.service';
+import { ManagerCareerService } from '../manager-career/manager-career.service';
 
 describe('EventQueueService', () => {
   const career = { id: 1, accountId: 7 } as Career;
@@ -57,6 +59,13 @@ describe('EventQueueService', () => {
         revealEvent: jest.fn(),
         processCompetition: jest.fn().mockResolvedValue([]),
       } as unknown as LegendsService,
+      {
+        processDay: jest.fn().mockResolvedValue([]),
+      } as unknown as AiClubsService,
+      {
+        initialize: jest.fn().mockResolvedValue({ status: 'ACTIVE' }),
+        processDay: jest.fn().mockResolvedValue([]),
+      } as unknown as ManagerCareerService,
     );
   });
 
@@ -81,6 +90,21 @@ describe('EventQueueService', () => {
     await expect(service.findAll(8, career.id, {})).rejects.toBeInstanceOf(
       NotFoundException,
     );
+  });
+
+  it('rejects a stale pre-lock date instead of moving automation into the previous year', async () => {
+    entityManager.findOne.mockResolvedValue({
+      ...career,
+      currentDate: '2027-01-01',
+    });
+    await expect(
+      service.processThroughDate(
+        entityManager as never,
+        career.id,
+        '2026-12-31',
+      ),
+    ).rejects.toBeInstanceOf(ConflictException);
+    expect(entityManager.save).not.toHaveBeenCalled();
   });
 
   it('hides unrevealed legend dates from the public queue', async () => {
@@ -124,6 +148,55 @@ describe('EventQueueService', () => {
 
     expect(result.status).toBe(CalendarEventStatus.COMPLETED);
     expect(result.completedAt).toBeInstanceOf(Date);
+  });
+
+  it('settles automated responses before older user events so withdrawn offers cannot become blocking again', async () => {
+    const userEvent = {
+      ...createEvent(1, true),
+      type: CalendarEventType.CONTRACT_RESPONSE,
+      payload: { contractOfferId: 11 },
+    };
+    const aiEvent = {
+      ...createEvent(2, false),
+      type: CalendarEventType.CONTRACT_RESPONSE,
+      payload: { contractOfferId: 12 },
+    };
+    let withdrawn = false;
+    const order: number[] = [];
+    const processing = new EventQueueService(
+      dataSource as never,
+      careersRepository as never,
+      eventsRepository as never,
+      {
+        closeExpiredTransferNegotiations: jest.fn(),
+        processResponseEvent: jest.fn(
+          (_manager: unknown, event: CalendarEvent) => {
+            order.push(event.id);
+            if (event.id === 2) withdrawn = true;
+            else event.requiresUserAction = !withdrawn;
+          },
+        ),
+      } as never,
+      {
+        prepareSeason: jest.fn(),
+        processCompetition: jest.fn().mockResolvedValue([]),
+      } as never,
+      { processDay: jest.fn().mockResolvedValue([]) } as never,
+      {
+        initialize: jest.fn().mockResolvedValue({ status: 'ACTIVE' }),
+        processDay: jest.fn().mockResolvedValue([]),
+      } as never,
+    );
+    entityManager.find.mockResolvedValue([userEvent, aiEvent]);
+    const result = await processing.processThroughDate(
+      entityManager as never,
+      career.id,
+      '2026-11-23',
+    );
+    expect(order).toEqual([2, 1]);
+    expect(result.blockingEvents).toEqual([]);
+    expect(userEvent.status).toBe(CalendarEventStatus.COMPLETED);
+    expect(userEvent.requiresUserAction).toBe(false);
   });
 
   it('does not reveal the existence of a hidden legend event through resolve', async () => {

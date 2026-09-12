@@ -86,8 +86,9 @@ function harness() {
     },
   };
   const fallback = async (url, options = {}) => {
-    if (url === "/careers" && options.method === "POST") return career(3);
-    if (url === "/careers" || url === "/player-cards") return [];
+    if (url === "/careers/from-club" && options.method === "POST")
+      return career(3);
+    if (url === "/careers") return [];
     if (url === "/auth/logout" || options.method === "PATCH") return {};
     if (/^\/careers\/\d+$/.test(url))
       return career(Number(url.split("/").at(-1)));
@@ -120,6 +121,7 @@ function harness() {
   ).outputText;
   const module = { exports: {} };
   const views = {
+    "./ClubSelectionView": { default: function ClubSelectionView() {} },
     "./SeasonHubView": { default: function SeasonHubView() {} },
     "./ContractsView": { default: function ContractsView() {} },
     "./LegendEventsView": { default: function LegendEventsView() {} },
@@ -167,6 +169,9 @@ function harness() {
   };
   return {
     calls,
+    unmount() {
+      slots.forEach((slot) => slot?.cleanup?.());
+    },
     render,
     nodes,
     component,
@@ -305,7 +310,7 @@ async function failedCreateList() {
       throw new Error("Temporary list refresh failure");
     return fallback(url, options);
   });
-  await app.component("CreateCareerScreen").onSubmit({});
+  await app.component("ClubSelectionView").onSubmit({ clubCode: "T1" });
   assert.equal(
     app.activeId(),
     3,
@@ -338,10 +343,10 @@ async function failedCreatePost() {
     return fallback(url, options);
   });
   await assert.rejects(
-    app.component("CreateCareerScreen").onSubmit({}),
+    app.component("ClubSelectionView").onSubmit({ clubCode: "T1" }),
     /Invalid setup/,
   );
-  app.component("CreateCareerScreen");
+  app.component("ClubSelectionView");
   assert.equal(app.component("AppHeader").hasActiveCareer, false);
 }
 
@@ -353,9 +358,9 @@ async function duplicateCreateClick() {
   app.intercept((url, options, fallback) =>
     options.method === "POST" ? post.promise : fallback(url, options),
   );
-  const submit = app.component("CreateCareerScreen").onSubmit;
-  const pending = submit({});
-  await submit({});
+  const submit = app.component("ClubSelectionView").onSubmit;
+  const pending = submit({ clubCode: "T1" });
+  await submit({ clubCode: "T1" });
   assert.equal(
     app.calls.filter((call) => call.options?.method === "POST").length,
     1,
@@ -373,7 +378,9 @@ async function staleCreate() {
   app.intercept((url, options, fallback) =>
     options.method === "POST" ? post.promise : fallback(url, options),
   );
-  const pending = app.component("CreateCareerScreen").onSubmit({});
+  const pending = app
+    .component("ClubSelectionView")
+    .onSubmit({ clubCode: "T1" });
   await app.open(2);
   post.resolve(career(3));
   await pending;
@@ -633,7 +640,9 @@ async function createListThenRefresh() {
         : Promise.resolve([{ id: 3, currentDate: "2026-12-22" }]);
     return fallback(url, options);
   });
-  const creating = app.component("CreateCareerScreen").onSubmit({});
+  const creating = app
+    .component("ClubSelectionView")
+    .onSubmit({ clubCode: "T1" });
   await settle();
   await app.refresh();
   oldList.reject(new Error("Old create list failed"));
@@ -658,6 +667,80 @@ async function legendNavigation() {
   app.component("AppHeader").onSeason();
   app.component("SeasonHubView").onOpenLegends();
   assert.equal(app.component("LegendEventsView").career.id, 1);
+}
+
+async function clubCreationContract() {
+  const app = harness();
+  await app.login();
+  await app.createScreen();
+  assert.equal(app.component("ClubSelectionView").token, "token-1");
+  await app.component("ClubSelectionView").onSubmit({ clubCode: "T1" });
+  const post = app.calls.find((call) => call.options?.method === "POST");
+  assert.equal(post.url, "/careers/from-club");
+  assert.deepEqual(post.options.body, { clubCode: "T1" });
+  assert.equal(post.options.token, "token-1");
+  assert.equal(
+    app.calls.some((call) => call.url === "/player-cards"),
+    false,
+  );
+}
+
+async function createAfterGoingBack() {
+  const app = harness();
+  await app.login();
+  await app.createScreen();
+  const post = deferred();
+  app.intercept((url, options, fallback) =>
+    options.method === "POST" ? post.promise : fallback(url, options),
+  );
+  const pending = app
+    .component("ClubSelectionView")
+    .onSubmit({ clubCode: "T1" });
+  app.component("ClubSelectionView").onBack();
+  post.resolve(career(3));
+  await pending;
+  assert.equal(app.component("SaveSelectScreen").careers[0].id, 3);
+}
+
+async function createAcrossSessions() {
+  const app = harness();
+  await app.login();
+  await app.createScreen();
+  const post = deferred();
+  app.intercept((url, options, fallback) =>
+    url === "/careers/from-club" ? post.promise : fallback(url, options),
+  );
+  const pending = app
+    .component("ClubSelectionView")
+    .onSubmit({ clubCode: "T1" });
+  await app.logout();
+  await app.login(2);
+  post.resolve(career(3));
+  await pending;
+  assert.equal(app.component("SaveSelectScreen").careers.length, 0);
+  assert.equal(app.storedToken(), "token-2");
+}
+
+async function unmountedCreate() {
+  const app = harness();
+  await app.login();
+  await app.createScreen();
+  const post = deferred();
+  app.intercept((url, options, fallback) =>
+    options.method === "POST" ? post.promise : fallback(url, options),
+  );
+  const pending = app
+    .component("ClubSelectionView")
+    .onSubmit({ clubCode: "T1" });
+  app.unmount();
+  const callCount = app.calls.length;
+  post.resolve(career(3));
+  await pending;
+  assert.equal(
+    app.calls.length,
+    callCount,
+    "Unmounted create must not issue follow-up requests",
+  );
 }
 
 (async () => {
@@ -687,8 +770,12 @@ async function legendNavigation() {
   await sameSaveOpenThenRefresh();
   await createListThenRefresh();
   await legendNavigation();
+  await clubCreationContract();
+  await createAfterGoingBack();
+  await createAcrossSessions();
+  await unmountedCreate();
   console.log(
-    "App request regression checks passed: 26 scenarios (save/session races, request ordering, mutation failures, create/list failures, legend navigation).",
+    "App request regression checks passed: 30 scenarios (save/session races, request ordering, mutation failures, create/list failures, legend navigation).",
   );
 })().catch((error) => {
   console.error(error);

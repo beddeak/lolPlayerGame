@@ -14,6 +14,12 @@ import { Career } from '../careers/entities/career.entity';
 import { CareerTeam } from '../careers/entities/career-team.entity';
 import { Region } from '../careers/enums/region.enum';
 import { getLeagueFixtureDate } from '../calendars/config/season-calendar.config';
+import { getLeagueStageRoundBudgets } from './league-calendar';
+import {
+  assertManagerActive,
+  lockActiveManagerCareer,
+} from '../manager-career/manager-access';
+import { ManagerCareerService } from '../manager-career/manager-career.service';
 import { EventQueueService } from '../event-queue/event-queue.service';
 import { getSeriesWinsRequired } from '../match-series/config/bo3-series.config';
 import { MatchSeries } from '../match-series/entities/match-series.entity';
@@ -83,6 +89,7 @@ export class LeaguesService {
     private readonly leagueSplitsRepository: Repository<LeagueSplit>,
     private readonly matchSeriesService: MatchSeriesService,
     private readonly eventQueueService: EventQueueService,
+    private readonly managerCareerService: ManagerCareerService,
   ) {}
 
   async createSplit(
@@ -90,18 +97,70 @@ export class LeaguesService {
     careerId: number,
     dto: CreateLeagueSplitDto,
   ): Promise<LeagueSplitResponseDto> {
-    const career = await this.careersRepository.findOne({
-      where: { id: careerId, accountId },
-      relations: { careerTeams: true },
+    return this.dataSource.transaction(async (manager) => {
+      const career = await manager.findOne(Career, {
+        where: { id: careerId, accountId },
+        relations: { careerTeams: true },
+        lock: { mode: 'pessimistic_write' },
+      });
+
+      if (!career) {
+        throw new NotFoundException(`Career ${careerId} was not found`);
+      }
+
+      await assertManagerActive(manager, careerId);
+
+      return this.createManagedSplit(manager, career, dto, false);
+    });
+  }
+
+  /** The caller must hold the career write lock in this manager's transaction. */
+  async ensureCalendarSplit(
+    manager: EntityManager,
+    career: Career,
+    region: Region,
+    splitNumber: number,
+  ): Promise<LeagueSplitResponseDto> {
+    return this.createManagedSplit(
+      manager,
+      career,
+      { region, splitNumber },
+      true,
+    );
+  }
+
+  private async createManagedSplit(
+    manager: EntityManager,
+    career: Career,
+    dto: CreateLeagueSplitDto,
+    reuseExisting: boolean,
+  ): Promise<LeagueSplitResponseDto> {
+    const careerId = career.id;
+    const splitsRepository = manager.getRepository(LeagueSplit);
+    const existingSplit = await splitsRepository.findOneBy({
+      careerId,
+      year: career.currentYear,
+      region: dto.region,
+      splitNumber: dto.splitNumber,
     });
 
-    if (!career) {
-      throw new NotFoundException(`Career ${careerId} was not found`);
+    if (existingSplit) {
+      if (reuseExisting) {
+        const split = await splitsRepository.findOneOrFail({
+          where: { id: existingSplit.id, careerId },
+          relations: this.splitRelations,
+        });
+        return this.toResponse(split);
+      }
+      throw new ConflictException(
+        `${dto.region} Split ${dto.splitNumber} already exists in ${career.currentYear}`,
+      );
     }
 
-    const regionalTeams = career.careerTeams.filter(
-      (team) => team.region === dto.region,
-    );
+    const teams =
+      career.careerTeams ??
+      (await manager.find(CareerTeam, { where: { careerId } }));
+    const regionalTeams = teams.filter((team) => team.region === dto.region);
 
     if (regionalTeams.length < LEAGUE_CONFIG.minTeams) {
       throw new ConflictException(
@@ -110,81 +169,66 @@ export class LeaguesService {
     }
 
     const format = getRegionalLeagueFormat(dto.region, dto.splitNumber);
-    const existingSplit = await this.leagueSplitsRepository.findOneBy({
-      careerId,
-      year: career.currentYear,
-      region: dto.region,
-      splitNumber: dto.splitNumber,
-    });
-
-    if (existingSplit) {
-      throw new ConflictException(
-        `${dto.region} Split ${dto.splitNumber} already exists in ${career.currentYear}`,
-      );
-    }
-
     const orderedTeams = await this.orderInitialTeams(
       careerId,
       career.currentYear,
       dto.region,
       dto.splitNumber,
       regionalTeams,
+      manager,
     );
 
     try {
-      return await this.dataSource.transaction(async (manager) => {
-        const split = await manager.save(
-          LeagueSplit,
-          manager.create(LeagueSplit, {
-            careerId,
-            career,
-            year: career.currentYear,
-            region: dto.region,
-            splitNumber: dto.splitNumber,
-            fixtures: [],
-            stages: [],
-          }),
-        );
-        const stages = format.stages.map((template, index) =>
-          manager.create(LeagueStage, {
-            leagueSplitId: split.id,
-            leagueSplit: split,
-            sequence: index + 1,
-            code: template.code,
-            name: template.name,
-            format: template.format,
-            status:
-              index === 0
-                ? LeagueStageStatus.ACTIVE
-                : LeagueStageStatus.PLANNED,
-            bestOf: template.bestOf,
-            currentRound: 1,
-            settings: template.settings,
-            participants: [],
-            fixtures: [],
-          }),
-        );
+      const split = await manager.save(
+        LeagueSplit,
+        manager.create(LeagueSplit, {
+          careerId,
+          career,
+          year: career.currentYear,
+          region: dto.region,
+          splitNumber: dto.splitNumber,
+          fixtures: [],
+          stages: [],
+        }),
+      );
+      const stages = format.stages.map((template, index) =>
+        manager.create(LeagueStage, {
+          leagueSplitId: split.id,
+          leagueSplit: split,
+          sequence: index + 1,
+          code: template.code,
+          name: template.name,
+          format: template.format,
+          status:
+            index === 0 ? LeagueStageStatus.ACTIVE : LeagueStageStatus.PLANNED,
+          bestOf: template.bestOf,
+          currentRound: 1,
+          settings: template.settings,
+          participants: [],
+          fixtures: [],
+        }),
+      );
 
-        split.stages = await manager.save(LeagueStage, stages);
-        const firstStage = split.stages[0];
-        const teamsById = new Map(orderedTeams.map((team) => [team.id, team]));
-        const groupCodes = this.assignGroupCodes(
-          split,
-          firstStage,
-          orderedTeams.map((team) => team.id),
-        );
+      split.stages = await manager.save(LeagueStage, stages);
+      const firstStage = split.stages[0];
+      const teamsById = new Map(orderedTeams.map((team) => [team.id, team]));
+      const groupCodes = this.assignGroupCodes(
+        split,
+        firstStage,
+        orderedTeams.map((team) => team.id),
+      );
 
-        firstStage.participants = await this.saveParticipants(
-          manager,
-          firstStage,
-          orderedTeams.map((team) => team.id),
-          teamsById,
-          groupCodes,
-        );
-        await this.createInitialStageFixtures(manager, split, firstStage);
+      firstStage.participants = await this.saveParticipants(
+        manager,
+        firstStage,
+        orderedTeams.map((team) => team.id),
+        teamsById,
+        groupCodes,
+      );
+      await this.createInitialStageFixtures(manager, split, firstStage);
+      await this.managerCareerService.prepareLeague(manager, career, split.id);
 
-        return this.toResponse(split);
-      });
+      return this.toResponse(split);
     } catch (error) {
       if (this.isDuplicateEntryError(error)) {
         throw new ConflictException(
@@ -240,6 +284,12 @@ export class LeaguesService {
     await this.assertNoBlockingEvents(accountId, careerId);
 
     const gameContext = await this.dataSource.transaction(async (manager) => {
+      const career = await lockActiveManagerCareer(
+        manager,
+        accountId,
+        careerId,
+      );
+      await this.managerCareerService.prepareLeague(manager, career, splitId);
       const fixture = await manager.findOne(LeagueFixture, {
         where: {
           id: fixtureId,
@@ -389,16 +439,21 @@ export class LeaguesService {
 
     const blockingEvents = await this.dataSource.transaction(
       async (manager) => {
+        const currentCareer = await lockActiveManagerCareer(
+          manager,
+          accountId,
+          careerId,
+        );
         await this.eventQueueService.processThroughDate(
           manager,
           careerId,
-          career.currentDate,
+          currentCareer.currentDate,
         );
 
         return this.eventQueueService.findBlockingEvents(
           manager,
           careerId,
-          career.currentDate,
+          currentCareer.currentDate,
         );
       },
     );
@@ -418,14 +473,44 @@ export class LeaguesService {
     region: Region,
     splitNumber: number,
     teams: CareerTeam[],
+    manager: EntityManager,
   ): Promise<CareerTeam[]> {
     const fallback = [...teams].sort((left, right) => left.id - right.id);
+
+    if (splitNumber === 1) {
+      const priorSeason = await manager.getRepository(LeagueSplit).findOne({
+        where: { careerId, year: year - 1, region, splitNumber: 3 },
+        relations: this.splitRelations,
+      });
+      if (
+        priorSeason &&
+        this.toResponse(priorSeason).status === LeagueSplitStatus.COMPLETED
+      ) {
+        const rankedIds = [
+          ...new Set(
+            this.sortedStages(priorSeason)
+              .reverse()
+              .flatMap((stage) =>
+                this.calculateStageStandings(stage).map((row) => row.teamId),
+              ),
+          ),
+        ];
+        const rank = new Map(rankedIds.map((id, index) => [id, index]));
+        return fallback.sort(
+          (left, right) =>
+            (rank.get(left.id) ?? Number.MAX_SAFE_INTEGER) -
+              (rank.get(right.id) ?? Number.MAX_SAFE_INTEGER) ||
+            left.id - right.id,
+        );
+      }
+      return fallback;
+    }
 
     if (splitNumber !== 3 || ![Region.LCK, Region.LPL].includes(region)) {
       return fallback;
     }
 
-    const previousSplit = await this.leagueSplitsRepository.findOne({
+    const previousSplit = await manager.getRepository(LeagueSplit).findOne({
       where: { careerId, year, region, splitNumber: 2 },
       relations: this.splitRelations,
     });
@@ -478,6 +563,12 @@ export class LeaguesService {
     splitId: number,
   ): Promise<void> {
     await this.dataSource.transaction(async (manager) => {
+      const career = await manager.findOne(Career, {
+        where: { id: careerId, accountId },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (!career)
+        throw new NotFoundException(`Career ${careerId} was not found`);
       const split = await manager.findOne(LeagueSplit, {
         where: { id: splitId, careerId, career: { accountId } },
         relations: this.splitRelations,
@@ -495,15 +586,16 @@ export class LeaguesService {
         (candidate) => candidate.status === LeagueStageStatus.ACTIVE,
       );
 
-      if (!stage || !this.isCurrentRoundCompleted(stage)) {
-        return;
+      if (stage && this.isCurrentRoundCompleted(stage)) {
+        if (!(await this.scheduleNextRound(manager, split, stage))) {
+          await this.completeStageAndActivateNext(manager, split, stage);
+        }
       }
-
-      if (await this.scheduleNextRound(manager, split, stage)) {
-        return;
-      }
-
-      await this.completeStageAndActivateNext(manager, split, stage);
+      await this.managerCareerService.reviewLeague(
+        manager,
+        career,
+        this.toResponse(split),
+      );
     });
   }
 
@@ -659,13 +751,6 @@ export class LeaguesService {
 
     const teamIds = this.selectTeamsForStage(split, nextStage);
 
-    if (teamIds.length < LEAGUE_CONFIG.minTeams) {
-      nextStage.status = LeagueStageStatus.COMPLETED;
-      await manager.save(LeagueStage, nextStage);
-      await this.completeStageAndActivateNext(manager, split, nextStage);
-      return;
-    }
-
     const allParticipants = this.sortedStages(split).flatMap(
       (candidate) => candidate.participants,
     );
@@ -687,6 +772,12 @@ export class LeaguesService {
       teamsById,
       groupCodes,
     );
+    if (teamIds.length < LEAGUE_CONFIG.minTeams) {
+      // Keep a lone qualifier as an actual bye for the next stage. Dropping
+      // participants here would erase a valid play-in qualifier in small saves.
+      await this.completeStageAndActivateNext(manager, split, nextStage);
+      return;
+    }
     await this.createInitialStageFixtures(manager, split, nextStage);
   }
 
@@ -950,6 +1041,12 @@ export class LeaguesService {
       );
     }
 
+    if (slots.length === 0) {
+      // Single-team groups have no games. Advance their seed/bye participants
+      // without manufacturing results or leaving an unplayable ACTIVE stage.
+      await this.completeStageAndActivateNext(manager, split, stage);
+      return;
+    }
     await this.appendFixtures(manager, split, stage, slots);
   }
 
@@ -1011,7 +1108,14 @@ export class LeaguesService {
         participant.team,
       ]),
     );
-    let previousScheduledDate = [...stage.fixtures]
+    const stages = this.sortedStages(split);
+    const roundBudgets = getLeagueStageRoundBudgets(
+      stages,
+      stages[0]?.participants.length ?? 0,
+    );
+    let previousScheduledDate = stages
+      .filter((candidate) => candidate.sequence <= stage.sequence)
+      .flatMap((candidate) => candidate.fixtures)
       .map((fixture) => fixture.scheduledDate)
       .filter((date): date is string => Boolean(date))
       .sort()
@@ -1029,6 +1133,7 @@ export class LeaguesService {
           slot.roundNumber,
           split.career?.currentDate ?? `${split.year}-01-01`,
           previousScheduledDate,
+          roundBudgets,
         );
         scheduledDatesByRound.set(slot.roundNumber, scheduledDate);
         previousScheduledDate = scheduledDate;

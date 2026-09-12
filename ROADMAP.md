@@ -3123,6 +3123,8 @@ AI Club
 
 Easy부터 구현
 
+구현 범위 및 사용법: [PHASE 23 AI 구단 운영](docs/PHASE23-AI-CLUBS.md)
+
 
 --------------------------------
 
@@ -3130,6 +3132,8 @@ Easy부터 구현
 PHASE 24
 
 Full Season Calendar
+
+구현 범위 및 사용법: [PHASE 24 연간 시즌 달력](docs/PHASE24-FULL-SEASON-CALENDAR.md)
 
 
 --------------------------------
@@ -3140,3 +3144,7 @@ PHASE 25
 Fan Approval
 Board Confidence
 Firing
+
+구현 범위 및 사용법: [PHASE 25 팬 지지·이사회 신뢰·경질](docs/PHASE25-MANAGER-CAREER.md)
+
+정식 커리어 시작 및 데이터 입력: [구단 선택·구단/선수 카탈로그](docs/CLUB-CATALOG.md)

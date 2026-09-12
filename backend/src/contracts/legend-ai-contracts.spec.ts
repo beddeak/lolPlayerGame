@@ -18,6 +18,7 @@ import {
 import { ContractOffer } from './entities/contract-offer.entity';
 import { PlayerContract } from './entities/player-contract.entity';
 import { ContractsService } from './contracts.service';
+import { AiClubBudgetService } from '../ai-clubs/ai-club-budget.service';
 
 describe('Legend AI contract signing', () => {
   const terms = {
@@ -50,6 +51,7 @@ describe('Legend AI contract signing', () => {
       careerTeamId: 1,
       careerPlayerId: 9,
       responseEventId: 50,
+      transferAgreementId: null,
       status: ContractOfferStatus.PLAYER_ACCEPTED,
       revision: 1,
       history: [],
@@ -105,14 +107,20 @@ describe('Legend AI contract signing', () => {
       isContractOfferEligible: jest.fn().mockResolvedValue(true),
       completeAcquisition: jest.fn().mockResolvedValue(null),
     };
+    const budget = {
+      canAfford: jest.fn().mockResolvedValue(true),
+      recordTransferFee: jest.fn().mockResolvedValue(undefined),
+    };
     const service = new ContractsService(
       { manager } as unknown as DataSource,
       transfers as unknown as TransfersService,
+      budget as unknown as AiClubBudgetService,
     );
     return {
       manager,
       service,
       transfers,
+      budget,
       player,
       career,
       team,
@@ -184,14 +192,17 @@ describe('Legend AI contract signing', () => {
     'unwilling',
     'ineligible',
     'managed-team',
+    'budget',
   ])('does not mutate when %s', async (reason) => {
-    const { manager, service, transfers, career, team, player } = setup();
+    const { manager, service, transfers, budget, career, team, player } =
+      setup();
     if (reason === 'closed') career.currentDate = '2027-01-01';
     if (reason === 'ordinary-player') manager.findOneBy.mockResolvedValue(null);
     if (reason === 'full-bench') manager.countBy.mockResolvedValue(5);
     if (reason === 'owned') player.currentTeamId = 1;
     if (reason === 'ineligible')
       transfers.isContractOfferEligible.mockResolvedValue(false);
+    if (reason === 'budget') budget.canAfford.mockResolvedValue(false);
     if (reason === 'managed-team')
       manager.findOne.mockImplementation((entity: unknown) =>
         Promise.resolve(entity === CareerTeam ? null : player),

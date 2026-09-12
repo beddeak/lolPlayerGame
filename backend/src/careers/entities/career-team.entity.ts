@@ -39,6 +39,12 @@ export class CareerTeam {
   @Column({ type: 'varchar', length: 32 })
   code!: string;
 
+  @Column({ type: 'varchar', length: 32, nullable: true })
+  clubCode?: string | null;
+
+  @Column({ type: 'varchar', length: 500, nullable: true })
+  logoUrl?: string | null;
+
   @Column({ type: 'varchar', length: 100 })
   name!: string;
 

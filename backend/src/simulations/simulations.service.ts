@@ -12,6 +12,7 @@ import {
 } from '../calendars/calendar-date';
 import { CalendarResponseDto } from '../calendars/dto/calendar-response.dto';
 import { CalendarAdvanceMode } from '../calendars/enums/calendar-advance-mode.enum';
+import { CalendarStopReason } from '../calendars/enums/calendar-stop-reason.enum';
 import { CareerTeam } from '../careers/entities/career-team.entity';
 import { Career } from '../careers/entities/career.entity';
 import { CalendarEventResponseDto } from '../event-queue/dto/calendar-event-response.dto';
@@ -30,6 +31,7 @@ import {
 } from './dto/simulation-response.dto';
 import { FastSimStopReason } from './enums/fast-sim-stop-reason.enum';
 import { SimulationMode } from './enums/simulation-mode.enum';
+import { assertManagerActive } from '../manager-career/manager-access';
 
 interface PreparedSimulationDate {
   career: Career;
@@ -107,6 +109,16 @@ export class SimulationsService {
     }
 
     while (true) {
+      if (calendar.manager?.status === 'DISMISSED') {
+        return this.toFastSimResponse(
+          previousDate,
+          targetDate,
+          fixtureLimit,
+          FastSimStopReason.MANAGER_DISMISSED,
+          simulatedFixtures,
+          calendar,
+        );
+      }
       if (calendar.blockingEvents.length > 0) {
         const closedCalendar = await this.advancePastClosingTransferBlockers(
           accountId,
@@ -190,15 +202,30 @@ export class SimulationsService {
       }
 
       const wasWindowOpen = calendar.transferWindow.isOpen;
-      calendar = await this.calendarsService.advance(accountId, careerId, {
-        mode: CalendarAdvanceMode.ONE_DAY,
-      });
+      const advanced = await this.calendarsService.advance(
+        accountId,
+        careerId,
+        {
+          mode: CalendarAdvanceMode.ONE_DAY,
+        },
+      );
+      calendar = advanced;
       if (calendar.transferWindow.isOpen !== wasWindowOpen) {
         return this.toFastSimResponse(
           previousDate,
           targetDate,
           fixtureLimit,
           FastSimStopReason.TRANSFER_WINDOW_BOUNDARY,
+          simulatedFixtures,
+          calendar,
+        );
+      }
+      if (advanced.stopReason === CalendarStopReason.SEASON_BOUNDARY) {
+        return this.toFastSimResponse(
+          previousDate,
+          targetDate,
+          fixtureLimit,
+          FastSimStopReason.SEASON_BOUNDARY,
           simulatedFixtures,
           calendar,
         );
@@ -297,6 +324,8 @@ export class SimulationsService {
       if (!career) {
         throw new NotFoundException(`Career ${careerId} was not found`);
       }
+
+      await assertManagerActive(manager, careerId);
 
       await this.eventQueueService.processThroughDate(
         manager,

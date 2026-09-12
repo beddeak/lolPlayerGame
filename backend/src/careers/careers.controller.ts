@@ -11,6 +11,8 @@ import {
 import type { AuthenticatedAccount } from '../auth/authenticated-account.interface';
 import { CurrentAccount } from '../auth/current-account.decorator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { CatalogAdminGuard } from '../auth/catalog-admin.guard';
+import { CreateCareerFromClubDto } from '../clubs/dto/create-career-from-club.dto';
 import {
   CareerResponseDto,
   CareerSummaryResponseDto,
@@ -28,11 +30,20 @@ export class CareersController {
   constructor(private readonly careersService: CareersService) {}
 
   @Post()
+  @UseGuards(CatalogAdminGuard)
   create(
     @CurrentAccount() account: AuthenticatedAccount,
     @Body() dto: CreateCareerDto,
   ): Promise<CareerResponseDto> {
     return this.careersService.create(account.id, dto);
+  }
+
+  @Post('from-club')
+  createFromClub(
+    @CurrentAccount() account: AuthenticatedAccount,
+    @Body() dto: CreateCareerFromClubDto,
+  ): Promise<CareerResponseDto> {
+    return this.careersService.createFromClub(account.id, dto);
   }
 
   @Get()

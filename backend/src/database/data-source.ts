@@ -2,6 +2,9 @@ import { existsSync } from 'node:fs';
 import { loadEnvFile } from 'node:process';
 import { DataSource } from 'typeorm';
 import { Account } from '../auth/entities/account.entity';
+import { Club } from '../clubs/entities/club.entity';
+import { ClubRoster } from '../clubs/entities/club-roster.entity';
+import { CreateClubCatalog1788991200000 } from './migrations/1788991200000-create-club-catalog';
 import { CareerPlayer } from '../careers/entities/career-player.entity';
 import { CareerPlayerPositionProficiency } from '../careers/entities/career-player-position-proficiency.entity';
 import { CareerPlayerRoleProficiency } from '../careers/entities/career-player-role-proficiency.entity';
@@ -58,6 +61,12 @@ import { CreateLegendEvents1788645600000 } from './migrations/1788645600000-crea
 import { LegendSeason } from '../legends/entities/legend-season.entity';
 import { LegendEvent } from '../legends/entities/legend-event.entity';
 import { LegendEventPlayer } from '../legends/entities/legend-event-player.entity';
+import { AiClubState } from '../ai-clubs/entities/ai-club-state.entity';
+import { CreateAiClubs1788732000000 } from './migrations/1788732000000-create-ai-clubs';
+import { AddFullSeasonCalendar1788818400000 } from './migrations/1788818400000-add-full-season-calendar';
+import { CreateManagerCareer1788904800000 } from './migrations/1788904800000-create-manager-career';
+import { ManagerCareerState } from '../manager-career/entities/manager-career-state.entity';
+import { ManagerReview } from '../manager-career/entities/manager-review.entity';
 
 if (existsSync('.env')) {
   loadEnvFile('.env');
@@ -75,6 +84,8 @@ const dataSource = new DataSource({
   database: environment.DB_DATABASE,
   entities: [
     Account,
+    Club,
+    ClubRoster,
     Player,
     Theme,
     PlayerCard,
@@ -106,6 +117,9 @@ const dataSource = new DataSource({
     LegendSeason,
     LegendEvent,
     LegendEventPlayer,
+    AiClubState,
+    ManagerCareerState,
+    ManagerReview,
   ],
   migrations: [
     CreatePlayerCatalog1787237754573,
@@ -132,6 +146,10 @@ const dataSource = new DataSource({
     CreateContracts1788472800000,
     CreateTransfers1788559200000,
     CreateLegendEvents1788645600000,
+    CreateAiClubs1788732000000,
+    AddFullSeasonCalendar1788818400000,
+    CreateManagerCareer1788904800000,
+    CreateClubCatalog1788991200000,
   ],
   migrationsTableName: 'migrations',
   ssl: useSsl ? { rejectUnauthorized: true } : undefined,

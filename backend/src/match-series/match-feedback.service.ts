@@ -9,6 +9,7 @@ import { DataSource, In, QueryFailedError, Repository } from 'typeorm';
 import { STARTER_POSITIONS } from '../careers/constants/career.constants';
 import { CareerPlayer } from '../careers/entities/career-player.entity';
 import { CareerTeam } from '../careers/entities/career-team.entity';
+import { lockActiveManagerCareer } from '../manager-career/manager-access';
 import { FEEDBACK_OPTION_CONFIG } from './config/feedback.config';
 import { CreateFeedbackDto } from './dto/create-feedback.dto';
 import {
@@ -42,8 +43,17 @@ export class MatchFeedbackService {
   ): Promise<FeedbackResponseDto> {
     this.validateDto(dto);
 
+    const ownedSeries = await this.matchSeriesRepository.findOne({
+      where: { id: seriesId, career: { accountId } },
+      relations: { career: true },
+    });
+    if (!ownedSeries) {
+      throw new NotFoundException(`MatchSeries ${seriesId} not found`);
+    }
+
     try {
       return await this.dataSource.transaction(async (manager) => {
+        await lockActiveManagerCareer(manager, accountId, ownedSeries.careerId);
         const series = await manager.findOne(MatchSeries, {
           where: { id: seriesId, career: { accountId } },
           relations: {

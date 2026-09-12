@@ -3,7 +3,8 @@ import {
   ConflictException,
   NotFoundException,
 } from '@nestjs/common';
-import { Repository } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
+import { Career } from '../careers/entities/career.entity';
 import { CareerTeam } from '../careers/entities/career-team.entity';
 import { TeamStrategy } from '../careers/enums/team-strategy.enum';
 import { LeagueFixture } from '../leagues/entities/league-fixture.entity';
@@ -61,6 +62,15 @@ describe('MatchSeriesService', () => {
     findOne: jest.fn(),
   };
   const leagueFixturesRepository = { findOneBy: jest.fn() };
+  const manager = {
+    findOne: jest.fn(),
+    getRepository: (entity: unknown) =>
+      entity === CareerTeam ? careerTeamsRepository : matchSeriesRepository,
+  };
+  const dataSource = {
+    transaction: (work: (value: typeof manager) => Promise<unknown>) =>
+      work(manager),
+  };
 
   let service: MatchSeriesService;
   let winners: number[];
@@ -74,6 +84,9 @@ describe('MatchSeriesService', () => {
     simulatedSeeds = [];
     leagueFixturesRepository.findOneBy.mockResolvedValue(null);
     careerTeamsRepository.find.mockResolvedValue([teamA, teamB]);
+    manager.findOne.mockImplementation((entity: unknown) =>
+      Promise.resolve(entity === Career ? career : null),
+    );
     matchSeriesRepository.findOne.mockResolvedValue(series);
     matchesService.findOne.mockImplementation(
       (_accountId: number, matchId: number) => {
@@ -111,6 +124,7 @@ describe('MatchSeriesService', () => {
       careerTeamsRepository as unknown as Repository<CareerTeam>,
       matchesService as unknown as MatchesService,
       leagueFixturesRepository as unknown as Repository<LeagueFixture>,
+      dataSource as unknown as DataSource,
     );
   });
 
@@ -153,6 +167,21 @@ describe('MatchSeriesService', () => {
     expect(result.winsRequired).toBe(2);
     expect(result.nextGameNumber).toBe(1);
     expect(result.games).toEqual([]);
+  });
+
+  it('does not create a series for a dismissed manager', async () => {
+    manager.findOne.mockImplementation((entity: unknown) =>
+      Promise.resolve(entity === Career ? career : { status: 'DISMISSED' }),
+    );
+    await expect(
+      service.create(7, {
+        careerId: 1,
+        teamAId: teamA.id,
+        teamBId: teamB.id,
+        seed: 100,
+      }),
+    ).rejects.toThrow('경질된 감독');
+    expect(matchSeriesRepository.save).not.toHaveBeenCalled();
   });
 
   it('plays Game 1, adjustment break, Game 2 and Game 3 until two wins', async () => {

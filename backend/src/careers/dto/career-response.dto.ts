@@ -59,6 +59,8 @@ export class RosterResponseDto {
 export class CareerTeamResponseDto {
   id!: number;
   code!: string;
+  clubCode?: string | null;
+  logoUrl?: string | null;
   name!: string;
   region!: Region;
   isUserControlled!: boolean;

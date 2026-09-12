@@ -18,6 +18,7 @@ import { Position } from '../players/enums/position.enum';
 import { SetBonus } from '../set-bonuses/entities/set-bonus.entity';
 import { Match } from './entities/match.entity';
 import { MatchesService } from './matches.service';
+import { Career } from '../careers/entities/career.entity';
 import { MatchStatsSimulationService } from './simulation/match-stats-simulation.service';
 import { SimpleMatchSimulationService } from './simulation/simple-match-simulation.service';
 
@@ -34,6 +35,7 @@ describe('MatchesService', () => {
     find: jest.fn(),
   };
   const entityManager = {
+    findOne: jest.fn(),
     create: jest.fn((_entity: unknown, value: Record<string, unknown>) => ({
       ...value,
     })),
@@ -151,6 +153,9 @@ describe('MatchesService', () => {
       rosterEntry.careerPlayer.roleProficiencies = [];
     }
     careerTeamsRepository.find.mockResolvedValue([teamA, teamB]);
+    entityManager.findOne.mockImplementation((entity: unknown) =>
+      Promise.resolve(entity === Career ? teamA.career : null),
+    );
     setBonusesRepository.find.mockResolvedValue([]);
     teamA.chemistry = 50;
     teamB.chemistry = 50;
@@ -190,6 +195,24 @@ describe('MatchesService', () => {
     );
     expect(entityManager.update).toHaveBeenCalledTimes(10);
     expect([teamA.id, teamB.id]).toContain(result.winnerTeamId);
+  });
+
+  it('rechecks dismissal before persisting a match or player state', async () => {
+    entityManager.findOne.mockImplementation((entity: unknown) =>
+      Promise.resolve(
+        entity === Career ? teamA.career : { status: 'DISMISSED' },
+      ),
+    );
+    await expect(
+      service.simulate(7, {
+        careerId: 1,
+        teamAId: teamA.id,
+        teamBId: teamB.id,
+        seed: 12345,
+      }),
+    ).rejects.toThrow('경질된 감독');
+    expect(entityManager.save).not.toHaveBeenCalled();
+    expect(entityManager.update).not.toHaveBeenCalled();
   });
 
   it('activates a data-driven set bonus only for the matching roster', async () => {

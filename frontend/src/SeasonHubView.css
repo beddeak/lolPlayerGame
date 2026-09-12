@@ -19,6 +19,396 @@
   cursor: not-allowed;
 }
 
+.manager-review-panel {
+  margin: 1.2rem 0;
+  padding: clamp(1rem, 2.5vw, 1.8rem);
+  border: 1px solid #cedce7;
+  background: #fff;
+  color: var(--season-ink);
+}
+
+.manager-review-heading {
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.manager-status-label {
+  padding: 0.6rem 0.85rem;
+  background: #e9f5ef;
+  color: #176044;
+  font-size: 0.8rem;
+}
+
+.manager-WARNING .manager-status-label {
+  background: #fff1d8;
+  color: #865005;
+}
+
+.manager-DISMISSED .manager-status-label {
+  background: #ffe7e3;
+  color: #a22b23;
+}
+
+.manager-confidence-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+  margin: 1rem 0;
+}
+
+.manager-confidence {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 1rem;
+  background: #f1f7fc;
+}
+
+.manager-confidence > span {
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.manager-confidence > strong {
+  font-size: 1.7rem;
+  color: #145b9f;
+}
+
+.manager-confidence small {
+  color: #657789;
+  font-size: 0.7rem;
+}
+
+.manager-confidence-track {
+  grid-column: 1 / -1;
+  height: 0.5rem;
+  background: #d9e4ec;
+  overflow: hidden;
+}
+
+.manager-confidence-track > i {
+  display: block;
+  height: 100%;
+  background: #2277bd;
+}
+
+.board-confidence {
+  background: #eef8f5;
+}
+
+.board-confidence > strong {
+  color: #187357;
+}
+
+.board-confidence .manager-confidence-track > i {
+  background: #23846a;
+}
+
+.manager-season-record {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.manager-season-record > div {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.manager-season-record span,
+.manager-tracking-note {
+  color: #657382;
+  font-size: 0.75rem;
+}
+
+.manager-season-record strong {
+  font-size: 0.95rem;
+}
+
+.manager-evaluation-copy,
+.manager-warning-note p,
+.manager-dismissed-note p,
+.manager-review-history p {
+  margin: 0.55rem 0;
+  font-size: 0.8rem;
+  line-height: 1.7;
+}
+
+.manager-evaluation-copy {
+  margin-top: 1rem;
+  color: #435a6e;
+}
+
+.manager-warning-note,
+.manager-dismissed-note {
+  padding: 1rem;
+  margin-top: 1rem;
+  border-left: 4px solid #d6972e;
+  background: #fff7e8;
+  color: #724812;
+  font-size: 0.9rem;
+}
+
+.manager-dismissed-note {
+  border-color: #c35b4f;
+  background: #fff0ed;
+  color: #8c362e;
+}
+
+.manager-review-history h3 {
+  margin: 1.2rem 0 0.7rem;
+  font-size: 0.9rem;
+}
+
+.manager-review-history ol {
+  display: grid;
+  gap: 0.6rem;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.manager-review-history li {
+  padding: 0.85rem 1rem;
+  border: 1px solid #e0e8ee;
+  background: #fbfcfd;
+}
+
+.manager-review-title,
+.manager-review-deltas {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  font-size: 0.8rem;
+}
+
+.manager-review-title time {
+  color: #667889;
+  font-size: 0.7rem;
+}
+
+.manager-review-deltas {
+  justify-content: flex-start;
+  gap: 1rem;
+  color: #4d667c;
+  font-size: 0.7rem;
+}
+
+@media (max-width: 600px) {
+  .manager-confidence-grid,
+  .manager-season-record {
+    grid-template-columns: 1fr;
+  }
+}
+
+.annual-season-panel {
+  margin: 1.2rem 0;
+  padding: clamp(1rem, 2.5vw, 1.8rem);
+  border: 1px solid #cedce7;
+  background: #fff;
+}
+
+.annual-season-heading {
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.schedule-connect-button {
+  padding: 0.9rem 1.2rem;
+  color: #fff;
+  background: var(--season-blue);
+}
+
+.schedule-connect-button:disabled {
+  opacity: 0.55;
+}
+
+.schedule-connected {
+  padding: 0.65rem 0.8rem;
+  color: #176044;
+  background: #e7f6ee;
+  font-size: 0.78rem;
+}
+
+.schedule-mode-copy {
+  margin: 0.8rem 0 1.3rem;
+  color: #566574;
+  font-size: 0.8rem;
+  line-height: 1.7;
+}
+
+.season-period-summary {
+  display: grid;
+  margin-bottom: 1.1rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1px;
+  background: #d6e2ec;
+  border: 1px solid #d6e2ec;
+}
+
+.season-period-summary > div {
+  display: grid;
+  padding: 1rem;
+  gap: 0.35rem;
+  background: #f4f8fc;
+}
+
+.season-period-summary > div:first-child {
+  background: #e9f4fd;
+}
+
+.season-period-summary span {
+  color: #496987;
+  font-size: 0.75rem;
+}
+
+.season-period-summary strong {
+  color: var(--season-blue-dark);
+  font-size: 1.2rem;
+}
+
+.season-period-summary small {
+  color: #596b7c;
+  font-size: 0.72rem;
+}
+
+.season-year-timeline {
+  display: grid;
+  padding: 0;
+  margin: 0;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 0.5rem;
+  list-style: none;
+}
+
+.season-period {
+  display: flex;
+  min-width: 0;
+  padding: 0.75rem;
+  border: 1px solid #dde4ea;
+  border-top: 3px solid #bdcbd8;
+  flex-direction: column;
+  gap: 0.4rem;
+  background: #fff;
+}
+
+.season-period.period-BREAK {
+  background: #f6f8fa;
+}
+
+.season-period.period-INTERNATIONAL {
+  border-top-color: #cd9b42;
+}
+
+.season-period.period-CURRENT {
+  border: 2px solid var(--season-blue);
+  border-top-width: 3px;
+  background: #eaf5ff;
+}
+
+.season-period.period-COMPLETED {
+  color: #617080;
+  background: #f5f7f8;
+}
+
+.period-status {
+  color: #5d6c79;
+  font-size: 0.63rem;
+}
+
+.period-CURRENT .period-status {
+  color: var(--season-blue);
+  font-weight: 900;
+}
+
+.season-period strong {
+  overflow-wrap: anywhere;
+  font-size: 0.8rem;
+}
+
+.season-period small {
+  color: #617080;
+  font-size: 0.64rem;
+  line-height: 1.6;
+}
+
+.season-period em {
+  color: #77531c;
+  font-size: 0.63rem;
+  font-style: normal;
+  line-height: 1.5;
+}
+
+.season-current-activities,
+.season-readiness-note,
+.season-schedule-warnings {
+  margin-top: 1rem;
+  padding: 1rem;
+  color: #43586a;
+  background: #f4f8fc;
+  font-size: 0.78rem;
+  line-height: 1.7;
+}
+
+.season-current-activities ul,
+.season-readiness-note ul,
+.season-schedule-warnings ul {
+  margin: 0.5rem 0 0;
+  padding-left: 1.2rem;
+}
+
+.season-readiness-note,
+.season-schedule-warnings {
+  color: #78572c;
+  background: #fff7e9;
+}
+
+.season-schedule-warnings summary {
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.season-schedule-warnings li > span {
+  display: block;
+}
+
+.season-boundary-banner {
+  display: flex;
+  margin: 1rem 0;
+  padding: 1rem 1.2rem;
+  color: #154d78;
+  border-left: 4px solid var(--season-blue);
+  background: #e7f3fd;
+  align-items: center;
+  gap: 1rem;
+  font-size: 0.82rem;
+}
+
+@media (max-width: 1100px) {
+  .season-year-timeline {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .season-year-timeline,
+  .season-period-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .season-boundary-banner {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 0.3rem;
+  }
+
+  .schedule-connect-button {
+    width: 100%;
+  }
+}
+
 .season-navline {
   display: flex;
   min-height: 2.7rem;

@@ -3,6 +3,16 @@ import { CalendarAdvanceMode } from '../enums/calendar-advance-mode.enum';
 import { CalendarStopReason } from '../enums/calendar-stop-reason.enum';
 import { CalendarEventResponseDto } from '../../event-queue/dto/calendar-event-response.dto';
 import type { TransferWindowState } from '../../transfers/transfer-window';
+import type { FullSeasonCalendar } from '../config/full-season-calendar';
+import type { ManagerOverview } from '../../manager-career/manager-overview';
+
+export interface ScheduleWarning {
+  fixtureId: number;
+  leagueSplitId: number;
+  scheduledDate: string;
+  expectedEndDate: string;
+  message: string;
+}
 
 export class CalendarTeamResponseDto {
   id!: number;
@@ -29,6 +39,21 @@ export class CalendarResponseDto {
   careerId!: number;
   currentDate!: string;
   currentYear!: number;
+  manager!: ManagerOverview;
+  autoSchedule!: boolean;
+  season!: FullSeasonCalendar;
+  scheduleWarnings!: ScheduleWarning[];
+  seasonReadiness!: Array<{
+    region: Region;
+    teamCount: number;
+    status:
+      | 'READY'
+      | 'INSUFFICIENT_TEAMS'
+      | 'WAITING_FOR_PREVIOUS_SPLIT'
+      | 'NO_REMAINING_SPLIT';
+    splitNumber: number | null;
+    message: string;
+  }>;
   transferWindow!: TransferWindowState;
   canCloseTransferWindow!: boolean;
   nextMatch!: CalendarFixtureResponseDto | null;

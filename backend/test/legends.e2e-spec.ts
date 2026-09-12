@@ -538,9 +538,10 @@ describe('Legend Event lifecycle and competition (e2e)', () => {
         true,
       );
       expect(
-        await dataSource
-          .getRepository(PlayerContract)
-          .countBy({ careerId: career.id }),
+        await dataSource.getRepository(PlayerContract).countBy({
+          careerId: career.id,
+          careerPlayerId: In(entrants.map((entrant) => entrant.careerPlayerId)),
+        }),
       ).toBe(0);
       expect(
         await dataSource
@@ -564,6 +565,9 @@ describe('Legend Event lifecycle and competition (e2e)', () => {
       january = await advance(career.id, 'THREE_DAYS');
       expect(january.blockingEvents).toEqual([]);
     }
+    // The Jan 12 season boundary consumes a shorter THREE_DAYS jump.
+    expect(january.currentDate).toBe('2027-01-15');
+    january = await advance(career.id, 'ONE_DAY');
     expect(january.currentDate).toBe('2027-01-16');
     const processed = await dataSource
       .getRepository(LegendEventPlayer)
@@ -722,7 +726,8 @@ describe('Legend Event lifecycle and competition (e2e)', () => {
       .getRepository(Roster)
       .findOneByOrFail({ careerPlayerId: target.careerPlayerId });
     expect(roster.careerTeamId).toBe(ai.id);
-    expect(roster.role).toBe(RosterRole.BENCH);
+    // PHASE 23 immediately promotes the stronger natural-position recruit.
+    expect(roster.role).toBe(RosterRole.STARTER);
     const offers = json<ContractOffer[]>(
       await api()
         .get(`${base(career.id)}/contracts/offers`)
@@ -730,12 +735,17 @@ describe('Legend Event lifecycle and competition (e2e)', () => {
         .expect(200),
     );
     expect(offers.map((candidate) => candidate.id)).toEqual([created.id]);
-    expect(
-      await dataSource.getRepository(CalendarEvent).countBy({
+    const expirationEvents = await dataSource
+      .getRepository(CalendarEvent)
+      .findBy({
         careerId: career.id,
         type: CalendarEventType.CONTRACT_EXPIRATION,
-      }),
-    ).toBe(1);
+      });
+    expect(
+      expirationEvents.filter(
+        (event) => event.payload?.playerContractId === contract.id,
+      ),
+    ).toHaveLength(1);
     const history = await dataSource
       .getRepository(TransferRecord)
       .findBy({ careerId: career.id, careerPlayerId: target.careerPlayerId });

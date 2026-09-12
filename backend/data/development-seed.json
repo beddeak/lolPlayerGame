@@ -977,6 +977,8 @@
     {
       "code": "DEV_BLUE",
       "name": "Development Blue",
+      "enabled": false,
+      "logoUrl": null,
       "region": "LCK",
       "starters": [
         {
@@ -1019,6 +1021,8 @@
     {
       "code": "DEV_RED",
       "name": "Development Red",
+      "enabled": false,
+      "logoUrl": null,
       "region": "LPL",
       "starters": [
         {
@@ -1061,6 +1065,8 @@
     {
       "code": "HLE",
       "name": "Hanwha Life Esports",
+      "enabled": true,
+      "logoUrl": null,
       "region": "LCK",
       "initialChemistry": 98,
       "starters": [
@@ -1100,6 +1106,8 @@
     {
       "code": "GEN",
       "name": "Gen.G",
+      "enabled": true,
+      "logoUrl": null,
       "region": "LCK",
       "initialChemistry": 100,
       "starters": [
@@ -1139,6 +1147,8 @@
     {
       "code": "BLG",
       "name": "Bilibili Gaming",
+      "enabled": true,
+      "logoUrl": null,
       "region": "LPL",
       "initialChemistry": 99,
       "starters": [
@@ -1178,6 +1188,8 @@
     {
       "code": "AL",
       "name": "Anyone's Legend",
+      "enabled": true,
+      "logoUrl": null,
       "region": "LPL",
       "initialChemistry": 100,
       "starters": [
@@ -1217,6 +1229,8 @@
     {
       "code": "G2",
       "name": "G2 Esports",
+      "enabled": true,
+      "logoUrl": null,
       "region": "LEC",
       "initialChemistry": 100,
       "starters": [
@@ -1256,6 +1270,8 @@
     {
       "code": "FNC",
       "name": "Fnatic",
+      "enabled": true,
+      "logoUrl": null,
       "region": "LEC",
       "initialChemistry": 95,
       "starters": [
@@ -1295,6 +1311,8 @@
     {
       "code": "LYON",
       "name": "LYON",
+      "enabled": true,
+      "logoUrl": null,
       "region": "LCS",
       "initialChemistry": 100,
       "starters": [
@@ -1334,6 +1352,8 @@
     {
       "code": "FLY",
       "name": "FlyQuest",
+      "enabled": true,
+      "logoUrl": null,
       "region": "LCS",
       "initialChemistry": 98,
       "starters": [

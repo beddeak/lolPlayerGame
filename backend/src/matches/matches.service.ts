@@ -13,6 +13,7 @@ import { PlayerInstruction } from '../careers/enums/player-instruction.enum';
 import { ChampionArchetype } from '../careers/enums/champion-archetype.enum';
 import { RosterRole } from '../careers/enums/roster-role.enum';
 import { MatchSeries } from '../match-series/entities/match-series.entity';
+import { lockActiveManagerCareer } from '../manager-career/manager-access';
 import { Position } from '../players/enums/position.enum';
 import { SetBonus } from '../set-bonuses/entities/set-bonus.entity';
 import {
@@ -155,6 +156,7 @@ export class MatchesService {
       dto.seed,
     );
     const matchId = await this.persistMatch(
+      accountId,
       dto,
       result,
       statsResult,
@@ -297,6 +299,7 @@ export class MatchesService {
   }
 
   private persistMatch(
+    accountId: number,
     dto: SimulateMatchDto,
     result: SimpleMatchSimulationResult,
     statsResult: MatchStatsSimulationResult,
@@ -305,6 +308,8 @@ export class MatchesService {
     seriesContext?: MatchSeriesGameContext,
   ): Promise<number> {
     return this.dataSource.transaction(async (manager) => {
+      // Recheck at the actual write boundary, not only against the earlier snapshot.
+      await lockActiveManagerCareer(manager, accountId, dto.careerId);
       const teamAResult = this.findTeamResult(result, teamA.id);
       const teamBResult = this.findTeamResult(result, teamB.id);
       const match = manager.create(Match, {

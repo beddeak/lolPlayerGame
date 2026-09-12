@@ -1,0 +1,577 @@
+.club-selection-page {
+  --club-lime: #d6fb55;
+  --club-line: #dce2e7;
+  width: min(1440px, calc(100% - 3rem));
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 1.8rem 0 3rem;
+}
+.club-selection-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+  margin: 1.6rem 0 2rem;
+}
+.club-selection-heading .eyebrow {
+  color: #60717c;
+  letter-spacing: 0.18em;
+}
+.club-selection-heading h1 {
+  margin: 0.4rem 0 0.8rem;
+  font-size: clamp(1.8rem, 3vw, 2.7rem);
+  font-weight: 900;
+  letter-spacing: -0.07em;
+}
+.club-selection-heading p:last-child {
+  margin: 0;
+  color: #697482;
+  font-size: 0.88rem;
+}
+.club-season-label {
+  display: grid;
+  gap: 0.4rem;
+  padding-left: 1.3rem;
+  border-left: 4px solid var(--club-lime);
+  color: #7b8690;
+  font:
+    700 0.9rem "Barlow Condensed",
+    sans-serif;
+  letter-spacing: 0.13em;
+  white-space: nowrap;
+}
+.club-season-label strong {
+  color: #1e2b35;
+  font-size: 1.6rem;
+}
+.club-selection-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.55fr) minmax(320px, 1fr);
+  gap: 1.5rem;
+  align-items: start;
+}
+.club-browser,
+.club-preview {
+  min-width: 0;
+  border: 1px solid var(--club-line);
+  background: #fff;
+  box-shadow: 0 10px 36px #18354708;
+}
+.club-browser {
+  padding: 1.6rem;
+}
+.club-browser-title,
+.club-preview-heading,
+.club-lineup-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.club-browser-title h2 {
+  margin: 0;
+  font-size: 1.15rem;
+  letter-spacing: -0.04em;
+}
+.club-browser-title > span,
+.club-preview-heading {
+  color: #75818b;
+  font:
+    700 0.85rem "Barlow Condensed",
+    sans-serif;
+  letter-spacing: 0.1em;
+}
+.club-league-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin: 1.4rem 0 1.6rem;
+}
+.club-league-tabs button {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.65rem 0.85rem;
+  border: 1px solid var(--club-line);
+  border-radius: 0;
+  background: #f6f8f9;
+  color: #68727c;
+  font-size: 0.78rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+.club-league-tabs button[aria-selected="true"] {
+  border-color: #243340;
+  background: #243340;
+  color: #fff;
+}
+.club-league-tabs button span {
+  font:
+    600 0.82rem "Barlow Condensed",
+    sans-serif;
+  opacity: 0.7;
+}
+.club-tile-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.85rem;
+}
+.club-tile {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  min-height: 184px;
+  flex-direction: column;
+  align-items: center;
+  padding: 1.15rem 0.6rem 0.9rem;
+  border: 1px solid var(--club-line);
+  border-radius: 0;
+  background: #f8fafb;
+  color: #233340;
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    border-color 0.15s,
+    transform 0.15s;
+}
+.club-tile:hover:not(:disabled) {
+  transform: translateY(-2px);
+  border-color: #7f9832;
+}
+.club-tile.is-selected {
+  background: var(--club-lime);
+  border-color: #b6dc39;
+  box-shadow: inset 0 0 0 1px #b6dc39;
+}
+.club-tile-league {
+  align-self: flex-start;
+  color: #7c8791;
+  font:
+    700 0.66rem "Barlow Condensed",
+    sans-serif;
+  letter-spacing: 0.1em;
+}
+.club-tile.is-selected .club-tile-league {
+  color: #4c6027;
+}
+.club-logo {
+  display: grid;
+  width: 76px;
+  height: 76px;
+  flex-shrink: 0;
+  place-items: center;
+}
+.club-logo img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.club-logo-initials {
+  display: grid;
+  width: 70px;
+  height: 66px;
+  place-items: center;
+  clip-path: polygon(12% 0, 88% 0, 100% 18%, 87% 77%, 50% 100%, 13% 77%, 0 18%);
+  background: linear-gradient(135deg, #415869, #1a2c3a);
+  color: #fff;
+  font:
+    800 1.7rem "Barlow Condensed",
+    sans-serif;
+  letter-spacing: -0.025em;
+}
+.club-tile > strong {
+  margin-top: 0.35rem;
+  font:
+    800 1.2rem "Barlow Condensed",
+    sans-serif;
+  letter-spacing: 0.03em;
+}
+.club-tile-name {
+  width: 100%;
+  margin-top: 0.2rem;
+  color: #687482;
+  font-size: 0.65rem;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.club-tile.is-selected .club-tile-name {
+  color: #405326;
+}
+.club-selected-mark {
+  position: absolute;
+  top: 0.65rem;
+  right: 0.65rem;
+  display: none;
+  width: 1.2rem;
+  height: 1.2rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: #243340;
+  color: var(--club-lime);
+  font-size: 0.7rem;
+}
+.club-tile.is-selected .club-selected-mark {
+  display: flex;
+}
+.club-tile:disabled {
+  cursor: not-allowed;
+  opacity: 0.62;
+}
+.club-tile-unavailable {
+  margin-top: 0.45rem;
+  color: #8f5722;
+  font-size: 0.62rem;
+}
+.club-world-note {
+  display: flex;
+  gap: 0.8rem;
+  margin-top: 1.5rem;
+  padding-top: 1.3rem;
+  border-top: 1px solid var(--club-line);
+}
+.club-world-note > span {
+  color: #738048;
+  font-size: 1.5rem;
+}
+.club-world-note p {
+  margin: 0.1rem 0 0;
+  color: #40515c;
+  font-size: 0.77rem;
+  line-height: 1.7;
+}
+.club-world-note small {
+  display: block;
+  margin-top: 0.25rem;
+  color: #83909b;
+  font-size: 0.69rem;
+}
+.club-preview {
+  padding: 1.6rem 1.7rem 1.25rem;
+  border-top: 4px solid var(--club-lime);
+}
+.club-preview-heading strong {
+  color: #344651;
+}
+.club-preview-identity {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 1.5rem 0 1.25rem;
+  text-align: center;
+}
+.club-preview-identity .club-logo {
+  width: 126px;
+  height: 126px;
+}
+.club-preview-identity .club-logo-initials {
+  width: 116px;
+  height: 112px;
+  font-size: 2.9rem;
+}
+.club-preview-identity p {
+  margin: 0.7rem 0 0.2rem;
+  color: #81909c;
+  font:
+    700 0.82rem "Barlow Condensed",
+    sans-serif;
+  letter-spacing: 0.24em;
+}
+.club-preview-identity h2 {
+  margin: 0.15rem 0 0;
+  color: #1a2d3b;
+  font-size: clamp(1.25rem, 2.2vw, 1.85rem);
+  font-weight: 900;
+  line-height: 1.3;
+  letter-spacing: -0.05em;
+  overflow-wrap: anywhere;
+}
+.club-preview-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0;
+  margin: 0 0 1.5rem;
+  padding: 1rem 0;
+  border-block: 1px solid var(--club-line);
+  text-align: center;
+}
+.club-preview-stats > div + div {
+  border-left: 1px solid var(--club-line);
+}
+.club-preview-stats dt {
+  color: #84909a;
+  font-size: 0.65rem;
+}
+.club-preview-stats dd {
+  margin: 0.3rem 0 0;
+  color: #223745;
+  font:
+    700 1.5rem "Barlow Condensed",
+    sans-serif;
+}
+.club-preview-stats dd small {
+  margin-left: 0.25rem;
+  color: #8c969e;
+  font-size: 0.65rem;
+}
+.club-lineup-title h3 {
+  margin: 0;
+  color: #40515d;
+  font:
+    800 0.9rem "Barlow Condensed",
+    sans-serif;
+  letter-spacing: 0.1em;
+}
+.club-lineup-title span {
+  color: #8b959d;
+  font-size: 0.65rem;
+}
+.club-preview-roster {
+  margin: 0.8rem 0 0.9rem;
+}
+.club-preview-player {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  min-height: 53px;
+  border-bottom: 1px solid #edf0f2;
+}
+.club-player-position {
+  width: 2rem;
+  flex-shrink: 0;
+  color: #7b8993;
+  font:
+    700 0.72rem "Barlow Condensed",
+    sans-serif;
+}
+.club-player-portrait {
+  display: grid;
+  width: 35px;
+  height: 38px;
+  flex-shrink: 0;
+  place-items: center;
+  overflow: hidden;
+  background: #eef2f4;
+  color: #71828f;
+  font:
+    700 0.85rem "Barlow Condensed",
+    sans-serif;
+}
+.club-player-portrait img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 20%;
+}
+.club-preview-player > div {
+  min-width: 0;
+}
+.club-preview-player > div strong {
+  display: block;
+  overflow-wrap: anywhere;
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+.club-preview-player > div small {
+  display: block;
+  margin-top: 0.1rem;
+  color: #98a0a7;
+  font-size: 0.58rem;
+}
+.club-player-overall {
+  display: flex;
+  gap: 0.25rem;
+  align-items: baseline;
+  margin-left: auto;
+  color: #314751;
+  font:
+    800 1.2rem "Barlow Condensed",
+    sans-serif;
+}
+.club-player-overall small {
+  color: #9aa3aa;
+  font-size: 0.55rem;
+}
+.club-missing-player {
+  color: #9b856d;
+  font-size: 0.77rem;
+}
+.club-bench-summary {
+  display: flex;
+  gap: 0.8rem;
+  margin-bottom: 1.25rem;
+  color: #84909b;
+  font-size: 0.65rem;
+  line-height: 1.8;
+}
+.club-bench-summary strong {
+  flex-shrink: 0;
+  color: #536673;
+}
+.club-bench-summary span {
+  overflow-wrap: anywhere;
+}
+.club-start-button {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  min-height: 3.3rem;
+  padding: 0.8rem 1rem;
+  border: 1px solid #b8d950;
+  background: var(--club-lime);
+  color: #273817;
+  font-size: 0.85rem;
+  font-weight: 900;
+  cursor: pointer;
+}
+.club-start-button:hover:not(:disabled) {
+  background: #c8f335;
+}
+.club-start-button:disabled {
+  opacity: 1;
+  border-color: #e0e4e7;
+  color: #8a939b;
+  background: #eef1f3;
+  cursor: not-allowed;
+}
+.club-start-button span {
+  font-size: 1.3rem;
+}
+.club-start-note {
+  margin: 0.7rem 0 0;
+  color: #9aa2a9;
+  font-size: 0.6rem;
+  line-height: 1.6;
+  text-align: center;
+}
+.club-start-error {
+  padding: 0.75rem;
+  color: #a34839;
+  background: #fff3f0;
+  font-size: 0.75rem;
+  line-height: 1.7;
+}
+.club-world-warning {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  flex-wrap: wrap;
+  padding: 0.9rem 1.1rem;
+  margin: 0 0 1rem;
+  border: 1px solid #e6d8ac;
+  background: #fffbec;
+  color: #87682c;
+  font-size: 0.77rem;
+  line-height: 1.7;
+}
+.club-world-warning strong {
+  flex-shrink: 0;
+}
+.club-world-warning span {
+  flex: 1;
+  min-width: 15rem;
+}
+.club-world-warning .text-button {
+  flex-shrink: 0;
+  color: #78662c;
+  font-size: 0.73rem;
+}
+.club-state-panel {
+  display: grid;
+  min-height: 340px;
+  place-content: center;
+  justify-items: center;
+  gap: 0.8rem;
+  padding: 2rem;
+  border: 1px solid var(--club-line);
+  background: #fff;
+  text-align: center;
+}
+.club-state-panel h2 {
+  margin: 0;
+  font-size: 1.2rem;
+}
+.club-state-panel p {
+  max-width: 40rem;
+  margin: 0 0 0.5rem;
+  color: #7d8892;
+  font-size: 0.85rem;
+  line-height: 1.8;
+}
+.club-preview-empty,
+.club-filter-empty {
+  padding: 2rem 0;
+  color: #82909a;
+  font-size: 0.85rem;
+}
+.club-selection-page button:focus-visible,
+.club-selection-page [role="tabpanel"]:focus-visible {
+  outline: 3px solid #5e7a12;
+  outline-offset: 3px;
+}
+@media (min-width: 1280px) {
+  .club-tile-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+@media (max-width: 900px) {
+  .club-selection-layout {
+    grid-template-columns: minmax(0, 1.1fr) minmax(300px, 1fr);
+    gap: 1rem;
+  }
+  .club-browser,
+  .club-preview {
+    padding: 1.2rem;
+  }
+  .club-tile-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 700px) {
+  .club-selection-page {
+    width: calc(100% - 2rem);
+    padding-top: 1rem;
+  }
+  .club-selection-heading {
+    align-items: flex-start;
+    margin-block: 1rem 1.5rem;
+  }
+  .club-season-label {
+    display: none;
+  }
+  .club-selection-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .club-tile-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.6rem;
+  }
+  .club-tile {
+    min-height: 170px;
+  }
+  .club-preview {
+    padding: 1.3rem;
+  }
+  .club-preview-identity {
+    padding-block: 1.2rem;
+  }
+}
+@media (max-width: 390px) {
+  .club-browser {
+    padding: 0.9rem;
+  }
+  .club-tile-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .club-world-warning span {
+    min-width: 0;
+    flex-basis: 100%;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .club-tile {
+    transition: none;
+  }
+}

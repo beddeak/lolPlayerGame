@@ -1,7 +1,9 @@
 import { ConflictException, NotFoundException } from '@nestjs/common';
-import { DataSource, Repository } from 'typeorm';
+import { DataSource, EntityManager, Repository } from 'typeorm';
 import { Career } from '../careers/entities/career.entity';
 import { CareerTeam } from '../careers/entities/career-team.entity';
+import { addCalendarDays } from '../calendars/calendar-date';
+import { getLeagueSplitWindow } from '../calendars/config/season-calendar.config';
 import { Region } from '../careers/enums/region.enum';
 import { EventQueueService } from '../event-queue/event-queue.service';
 import { MatchSeriesResponseDto } from '../match-series/dto/match-series-response.dto';
@@ -17,6 +19,7 @@ import { LeagueFixtureStatus } from './enums/league-fixture-status.enum';
 import { LeagueStageFormat } from './enums/league-stage-format.enum';
 import { LeagueStageStatus } from './enums/league-stage-status.enum';
 import { LeaguesService } from './leagues.service';
+import { ManagerCareerService } from '../manager-career/manager-career.service';
 
 describe('LeaguesService', () => {
   const lckTeams = createTeams(10, Region.LCK, 1);
@@ -32,6 +35,7 @@ describe('LeaguesService', () => {
     create: jest.fn((_: unknown, value: unknown) => value),
     save: jest.fn(),
     findOne: jest.fn(),
+    getRepository: jest.fn(),
   };
   const dataSource = {
     transaction: jest.fn(
@@ -48,6 +52,7 @@ describe('LeaguesService', () => {
     findOneBy: jest.fn(),
     findOne: jest.fn(),
     find: jest.fn(),
+    findOneOrFail: jest.fn(),
   };
   const matchSeriesService = {
     simulateNextGame: jest.fn(),
@@ -70,6 +75,13 @@ describe('LeaguesService', () => {
     careersRepository.findOne.mockResolvedValue(career);
     careersRepository.findOneBy.mockResolvedValue(career);
     careersRepository.existsBy.mockResolvedValue(true);
+    entityManager.findOne.mockImplementation((entity, options) =>
+      entity === Career
+        ? (careersRepository.findOne(options) as Promise<Career | null>)
+        : null,
+    );
+    entityManager.getRepository.mockReturnValue(leagueSplitsRepository);
+    leagueSplitsRepository.findOneOrFail.mockImplementation(() => savedSplit);
     eventQueueService.processThroughDate.mockResolvedValue({
       processedEvents: [],
       blockingEvents: [],
@@ -119,6 +131,10 @@ describe('LeaguesService', () => {
       leagueSplitsRepository as unknown as Repository<LeagueSplit>,
       matchSeriesService as unknown as MatchSeriesService,
       eventQueueService as unknown as EventQueueService,
+      {
+        prepareLeague: jest.fn(),
+        reviewLeague: jest.fn(),
+      } as unknown as ManagerCareerService,
     );
   });
 
@@ -150,7 +166,223 @@ describe('LeaguesService', () => {
           )?.groupCode,
       ),
     ).toBe(true);
+    expect(entityManager.findOne).toHaveBeenCalledWith(Career, {
+      where: { id: career.id, accountId: 7 },
+      relations: { careerTeams: true },
+      lock: { mode: 'pessimistic_write' },
+    });
   });
+
+  it('reuses a calendar split without rewriting existing dates or results', async () => {
+    const created = await service.createSplit(7, career.id, {
+      region: Region.LCK,
+      splitNumber: 1,
+    });
+    leagueSplitsRepository.findOneBy.mockResolvedValue(savedSplit);
+    entityManager.save.mockClear();
+    dataSource.transaction.mockClear();
+    const reused = await service.ensureCalendarSplit(
+      entityManager as unknown as EntityManager,
+      career,
+      Region.LCK,
+      1,
+    );
+    expect(reused).toEqual(created);
+    expect(entityManager.save).not.toHaveBeenCalled();
+    expect(dataSource.transaction).not.toHaveBeenCalled();
+  });
+
+  it('processes the post-lock date if another request advanced New Year first', async () => {
+    careersRepository.findOneBy.mockResolvedValue({
+      ...career,
+      currentDate: '2026-12-31',
+    });
+    entityManager.findOne.mockImplementation((entity) =>
+      Promise.resolve(
+        entity === Career
+          ? { ...career, currentYear: 2027, currentDate: '2027-01-01' }
+          : null,
+      ),
+    );
+    await (
+      service as unknown as {
+        assertNoBlockingEvents(
+          accountId: number,
+          careerId: number,
+        ): Promise<void>;
+      }
+    ).assertNoBlockingEvents(7, career.id);
+    expect(eventQueueService.processThroughDate).toHaveBeenCalledWith(
+      entityManager,
+      career.id,
+      '2027-01-01',
+    );
+    expect(eventQueueService.findBlockingEvents).toHaveBeenCalledWith(
+      entityManager,
+      career.id,
+      '2027-01-01',
+    );
+  });
+
+  it('seeds a new Split 1 from the previous completed season only', async () => {
+    career.careerTeams = lckTeams.slice(0, 2);
+    await service.createSplit(7, career.id, {
+      region: Region.LCK,
+      splitNumber: 1,
+    });
+    const priorSeason = savedSplit!;
+    priorSeason.year = 2025;
+    priorSeason.splitNumber = 3;
+    priorSeason.stages.forEach((stage) => {
+      stage.status = LeagueStageStatus.COMPLETED;
+    });
+    const final = priorSeason.stages[0].fixtures[0];
+    final.seriesId = 99;
+    final.series = {
+      games: [{ winnerTeamId: final.teamBId }, { winnerTeamId: final.teamBId }],
+    } as MatchSeries;
+    leagueSplitsRepository.findOne.mockImplementation(
+      ({ where }: { where: { year: number; splitNumber: number } }) =>
+        Promise.resolve(
+          where.year === 2025 && where.splitNumber === 3 ? priorSeason : null,
+        ),
+    );
+
+    const result = await service.createSplit(7, career.id, {
+      region: Region.LCK,
+      splitNumber: 1,
+    });
+    expect(result.stages[0].participants[0].teamId).toBe(final.teamBId);
+    expect(leagueSplitsRepository.findOne).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        where: {
+          careerId: career.id,
+          year: 2025,
+          region: Region.LCK,
+          splitNumber: 3,
+        },
+      }),
+    );
+    priorSeason.stages[0].status = LeagueStageStatus.ACTIVE;
+    const fallback = await service.createSplit(7, career.id, {
+      region: Region.LCK,
+      splitNumber: 1,
+    });
+    expect(fallback.stages[0].participants.map((row) => row.teamId)).toEqual([
+      1, 2,
+    ]);
+  });
+
+  it.each([
+    [Region.LCK, 2],
+    [Region.LCK, 10],
+    [Region.LPL, 2],
+    [Region.LPL, 16],
+    [Region.LEC, 2],
+    [Region.LEC, 10],
+    [Region.LCS, 2],
+    [Region.LCS, 8],
+  ] as const)(
+    'finishes real dynamic %s brackets for %i teams within all three windows',
+    async (region, teamCount) => {
+      career.careerTeams = createTeams(teamCount, region, 1);
+      const completedSplits: LeagueSplit[] = [];
+      leagueSplitsRepository.findOne.mockImplementation(
+        ({ where }: { where: { year?: number; splitNumber?: number } }) =>
+          Promise.resolve(
+            completedSplits.find(
+              (split) =>
+                split.year === where.year &&
+                split.splitNumber === where.splitNumber,
+            ) ?? null,
+          ),
+      );
+      entityManager.findOne.mockImplementation((entity) =>
+        Promise.resolve(entity === Career ? career : savedSplit),
+      );
+
+      for (const splitNumber of [1, 2, 3]) {
+        const window = getLeagueSplitWindow(2026, splitNumber);
+        career.currentDate = addCalendarDays(window.startsAt, -1);
+        await service.createSplit(7, career.id, { region, splitNumber });
+        const split = savedSplit!;
+        let rounds = 0;
+        while (
+          split.stages.some(
+            (stage) => stage.status === LeagueStageStatus.ACTIVE,
+          )
+        ) {
+          expect(rounds++).toBeLessThan(100);
+          const activeStage = split.stages.find(
+            (stage) => stage.status === LeagueStageStatus.ACTIVE,
+          )!;
+          const due = activeStage.fixtures.filter(
+            (fixture) => fixture.roundNumber === activeStage.currentRound,
+          );
+          expect(due.length).toBeGreaterThan(0);
+          career.currentDate = due
+            .map((fixture) => fixture.scheduledDate)
+            .sort()
+            .at(-1)!;
+          for (const fixture of due) {
+            fixture.seriesId = fixture.id;
+            fixture.series = {
+              games: Array.from(
+                { length: Math.ceil(fixture.bestOf / 2) },
+                () => ({
+                  // Both upper/lower bracket winners occur across successive rounds.
+                  winnerTeamId:
+                    rounds % 2 === 0 ? fixture.teamAId : fixture.teamBId,
+                }),
+              ),
+            } as MatchSeries;
+          }
+          await service['progressLeague'](7, career.id, split.id);
+        }
+        expect(
+          split.stages.every(
+            (stage) => stage.status === LeagueStageStatus.COMPLETED,
+          ),
+        ).toBe(true);
+        if (region === Region.LCK && teamCount === 2 && splitNumber === 3) {
+          const playIn = split.stages.find(
+            (stage) => stage.code === 'PLAY_IN',
+          )!;
+          const final = split.stages.find(
+            (stage) => stage.code === 'PLAYOFFS',
+          )!;
+          expect(split.stages[0].fixtures).toHaveLength(0);
+          expect(playIn.participants).toHaveLength(1);
+          expect(playIn.fixtures).toHaveLength(0);
+          expect(final.participants).toHaveLength(2);
+          expect(final.fixtures.length).toBeGreaterThanOrEqual(2);
+        }
+        expect(
+          split.fixtures.every(
+            (fixture) =>
+              fixture.scheduledDate >= window.startsAt &&
+              fixture.scheduledDate <= window.endsAt,
+          ),
+        ).toBe(true);
+        for (let index = 1; index < split.stages.length; index++) {
+          const previousDates = split.stages
+            .slice(0, index)
+            .flatMap((stage) =>
+              stage.fixtures.map((fixture) => fixture.scheduledDate),
+            );
+          const stageDates = split.stages[index].fixtures.map(
+            (fixture) => fixture.scheduledDate,
+          );
+          if (stageDates.length > 0 && previousDates.length > 0) {
+            expect(stageDates.sort()[0] > previousDates.sort().at(-1)!).toBe(
+              true,
+            );
+          }
+        }
+        completedSplits.push(split);
+      }
+    },
+  );
 
   it('returns all twelve regional split format definitions', async () => {
     const formats = await service.findFormats(7, career.id);

@@ -1,10 +1,11 @@
+import { assertManagerActive } from '../manager-career/manager-access';
 import {
   BadRequestException,
   ConflictException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { DataSource, EntityManager, In, LessThan } from 'typeorm';
+import { Between, DataSource, EntityManager, In, LessThan } from 'typeorm';
 import {
   assertTransferWindow,
   getTransferWindow,
@@ -41,6 +42,7 @@ import { Roster } from '../careers/entities/roster.entity';
 import { RosterRole } from '../careers/enums/roster-role.enum';
 import { MAX_BENCH_PLAYERS } from '../careers/constants/career.constants';
 import { LegendEventPlayer } from '../legends/entities/legend-event-player.entity';
+import { AiClubBudgetService } from '../ai-clubs/ai-club-budget.service';
 
 const OPEN_STATUSES = [
   ContractOfferStatus.WAITING_PLAYER_RESPONSE,
@@ -54,6 +56,7 @@ export class ContractsService {
   constructor(
     private readonly dataSource: DataSource,
     private readonly transfersService: TransfersService,
+    private readonly aiBudget: AiClubBudgetService,
   ) {}
 
   async findContracts(
@@ -112,6 +115,7 @@ export class ContractsService {
       const openOffer = await manager.findOne(ContractOffer, {
         where: {
           careerId,
+          careerTeamId: team.id,
           careerPlayerId: dto.careerPlayerId,
           status: In(OPEN_STATUSES),
         },
@@ -150,6 +154,144 @@ export class ContractsService {
       await this.scheduleResponse(manager, offer, career.currentDate);
       return manager.save(ContractOffer, offer);
     });
+  }
+
+  /** Creates a delayed, non-blocking AI negotiation inside the calendar transaction. */
+  async createAiOffer(
+    manager: EntityManager,
+    career: Career,
+    teamId: number,
+    careerPlayerId: number,
+    terms: ContractTerms,
+  ): Promise<ContractOffer | null> {
+    validateContractTerms(terms);
+    contractEndDate(career.currentDate, terms.years);
+    const team = await manager.findOne(CareerTeam, {
+      where: { id: teamId, careerId: career.id, isUserControlled: false },
+      lock: { mode: 'pessimistic_write' },
+    });
+    const player = await manager.findOne(CareerPlayer, {
+      where: { id: careerPlayerId, careerId: career.id },
+      lock: { mode: 'pessimistic_write' },
+    });
+    if (!team || team.isUserControlled || !player) return null;
+    const renewal = player.currentTeamId === team.id;
+    if (!renewal && !getTransferWindow(career.currentDate).isOpen) return null;
+    if (
+      renewal &&
+      (await this.hasAcceptedAiSale(manager, career, team.id, player.id))
+    )
+      return null;
+    if (
+      await manager.findOne(ContractOffer, {
+        where: {
+          careerId: career.id,
+          careerTeamId: team.id,
+          careerPlayerId,
+          status: In(OPEN_STATUSES),
+        },
+        lock: { mode: 'pessimistic_write' },
+      })
+    )
+      return null;
+    if (!renewal) {
+      if (
+        (await manager.countBy(Roster, {
+          careerTeamId: team.id,
+          role: RosterRole.BENCH,
+        })) >= MAX_BENCH_PLAYERS
+      )
+        return null;
+      if (player.currentTeamId === null) {
+        const legend = await manager.findOneBy(LegendEventPlayer, {
+          careerId: career.id,
+          careerPlayerId,
+        });
+        if (
+          legend &&
+          (legend.aiProcessedDate === null ||
+            legend.aiProcessedDate >= career.currentDate)
+        )
+          return null;
+      }
+    }
+
+    const candidate = manager.create(ContractOffer, {
+      careerId: career.id,
+      careerTeamId: team.id,
+      careerPlayerId,
+      offerType: renewal
+        ? ContractOfferType.RENEWAL
+        : player.currentTeamId === null
+          ? ContractOfferType.FREE_AGENT
+          : ContractOfferType.TRANSFER,
+      sourceCareerTeamId: player.currentTeamId,
+      transferAgreementId: null,
+    });
+    let transferFee = 0;
+    if (candidate.offerType === ContractOfferType.TRANSFER) {
+      const quote = await this.transfersService.quoteAiTransfer(
+        manager,
+        career,
+        team,
+        careerPlayerId,
+      );
+      if (!quote) return null;
+      transferFee = quote.requiredFee;
+    } else if (
+      !(await this.transfersService.isContractOfferEligible(
+        manager,
+        candidate,
+        team,
+      ))
+    ) {
+      return null;
+    }
+    if (
+      !(await this.aiBudget.canAfford(
+        manager,
+        career,
+        team.id,
+        player.id,
+        terms.annualSalary,
+        transferFee,
+      ))
+    )
+      return null;
+    if (candidate.offerType === ContractOfferType.TRANSFER) {
+      const agreement = await this.transfersService.createAiAgreement(
+        manager,
+        career,
+        team,
+        player.id,
+        transferFee,
+      );
+      if (!agreement) return null;
+      candidate.transferAgreementId = agreement.id;
+    }
+    Object.assign(candidate, {
+      status: ContractOfferStatus.WAITING_PLAYER_RESPONSE,
+      revision: 1,
+      offeredDate: career.currentDate,
+      responseDate: career.currentDate,
+      responseEventId: null,
+      terms: structuredClone(terms),
+      counterTerms: null,
+      response: null,
+      extensionsUsed: 0,
+      history: [
+        {
+          action: 'AI_OFFER',
+          date: career.currentDate,
+          revision: 1,
+          terms: structuredClone(terms),
+        },
+      ],
+    });
+    // After the first agreement/offer write, unexpected errors must roll back the caller transaction.
+    await manager.save(ContractOffer, candidate);
+    await this.scheduleResponse(manager, candidate, career.currentDate, false);
+    return manager.save(ContractOffer, candidate);
   }
 
   async respond(
@@ -395,7 +537,6 @@ export class ContractsService {
     const eligible =
       player &&
       team &&
-      team.isUserControlled &&
       (await this.transfersService.isContractOfferEligible(
         manager,
         offer,
@@ -404,7 +545,13 @@ export class ContractsService {
     if (!eligible) {
       offer.status = ContractOfferStatus.WITHDRAWN;
       event.requiresUserAction = false;
+      if (team && !team.isUserControlled)
+        await this.cancelAiAgreement(manager, offer, date);
       await manager.save(ContractOffer, offer);
+      return;
+    }
+    if (!team.isUserControlled) {
+      await this.processAiResponse(manager, event, offer, team, player, date);
       return;
     }
     if (offer.status !== ContractOfferStatus.WAITING_PLAYER_RESPONSE) {
@@ -457,6 +604,176 @@ export class ContractsService {
     };
     this.recordDecision(offer, `PLAYER_${result.kind}`, date);
     await manager.save(ContractOffer, offer);
+  }
+
+  private async processAiResponse(
+    manager: EntityManager,
+    event: CalendarEvent,
+    offer: ContractOffer,
+    team: CareerTeam,
+    player: CareerPlayer,
+    date: string,
+  ): Promise<void> {
+    event.requiresUserAction = false;
+    const savedCareer = await manager.findOneBy(Career, { id: offer.careerId });
+    if (!savedCareer)
+      throw new NotFoundException(`Career ${offer.careerId} was not found`);
+    const career = {
+      ...savedCareer,
+      currentDate: date,
+      currentYear: Number(date.slice(0, 4)),
+    };
+    const window = getTransferWindow(date);
+    if (
+      offer.status !== ContractOfferStatus.WAITING_PLAYER_RESPONSE ||
+      (offer.offerType === ContractOfferType.RENEWAL &&
+        (await this.hasAcceptedAiSale(manager, career, team.id, player.id))) ||
+      (offer.offerType !== ContractOfferType.RENEWAL &&
+        (!window.isOpen ||
+          offer.offeredDate < window.opensAt ||
+          offer.offeredDate > date)) ||
+      (offer.offerType !== ContractOfferType.RENEWAL &&
+        (await manager.countBy(Roster, {
+          careerTeamId: team.id,
+          role: RosterRole.BENCH,
+        })) >= MAX_BENCH_PLAYERS)
+    ) {
+      offer.status = ContractOfferStatus.WITHDRAWN;
+      this.recordDecision(offer, 'AI_NEGOTIATION_INVALIDATED', date);
+      await this.cancelAiAgreement(manager, offer, date);
+      await manager.save(ContractOffer, offer);
+      return;
+    }
+    const teammates = await manager.findBy(CareerPlayer, {
+      careerId: offer.careerId,
+      currentTeamId: team.id,
+    });
+    const contract = await manager.findOneBy(PlayerContract, {
+      careerId: offer.careerId,
+      careerPlayerId: player.id,
+    });
+    const result = evaluateContractOffer(offer.terms, {
+      ability: this.playerAbility(player),
+      teamStrength:
+        teammates.reduce(
+          (total, member) => total + this.playerAbility(member),
+          0,
+        ) / Math.max(teammates.length, 1),
+      coachTrust:
+        offer.offerType === ContractOfferType.RENEWAL
+          ? player.coachTrust
+          : CONTRACT_CONFIG.negotiation.trustNeutral,
+      personality: player.personality,
+      currentAnnualSalary:
+        contract?.status === PlayerContractStatus.ACTIVE
+          ? contract.terms.annualSalary
+          : null,
+    });
+    offer.response = {
+      kind: result.kind,
+      reason: result.reason,
+      evaluatedDate: date,
+    };
+    offer.counterTerms = result.counterTerms;
+    this.recordDecision(offer, `PLAYER_${result.kind}`, date);
+    const agreement =
+      offer.transferAgreementId === null
+        ? null
+        : await manager.findOneBy(TransferAgreement, {
+            id: offer.transferAgreementId,
+            careerId: offer.careerId,
+          });
+    const fee = agreement?.offeredFee ?? 0;
+    if (
+      result.kind !== 'ACCEPTED' ||
+      !(await this.aiBudget.canAfford(
+        manager,
+        career,
+        team.id,
+        player.id,
+        offer.terms.annualSalary,
+        fee,
+        offer.id,
+      ))
+    ) {
+      // REJECTED is reopenable for users; AI uses WITHDRAWN as its terminal state.
+      offer.status = ContractOfferStatus.WITHDRAWN;
+      this.recordDecision(
+        offer,
+        result.kind === 'ACCEPTED'
+          ? 'AI_BUDGET_DECLINED'
+          : 'AI_NEGOTIATION_ENDED',
+        date,
+      );
+      await this.cancelAiAgreement(manager, offer, date);
+      await manager.save(ContractOffer, offer);
+      return;
+    }
+    await this.signContract(manager, career, offer, offer.terms);
+    offer.status = ContractOfferStatus.SIGNED;
+    this.recordDecision(offer, 'AI_SIGNED', date);
+    await this.aiBudget.recordTransferFee(manager, career, team.id, fee);
+    await manager.save(ContractOffer, offer);
+    const signedPlayer = await manager.findOne(CareerPlayer, {
+      where: { id: player.id, careerId: career.id },
+      relations: { playerCard: { player: true } },
+    });
+    const nickname =
+      signedPlayer?.playerCard?.player?.nickname ?? `선수 #${player.id}`;
+    event.type = CalendarEventType.AI_CLUB_UPDATE;
+    event.payload = {
+      ...event.payload,
+      kind: 'AI_CONTRACT_SIGNED',
+      careerTeamId: team.id,
+      careerPlayerId: player.id,
+      offerType: offer.offerType,
+      transferFee: fee,
+      message: `${team.name} 구단이 ${nickname} 선수와 ${offer.offerType === ContractOfferType.RENEWAL ? '재계약' : '계약'}했습니다.`,
+    };
+  }
+
+  private async cancelAiAgreement(
+    manager: EntityManager,
+    offer: ContractOffer,
+    date: string,
+  ): Promise<void> {
+    if (offer.transferAgreementId === null) return;
+    await manager.update(
+      TransferAgreement,
+      {
+        id: offer.transferAgreementId,
+        careerId: offer.careerId,
+        buyerCareerTeamId: offer.careerTeamId,
+        status: TransferAgreementStatus.ACCEPTED,
+      },
+      {
+        status: TransferAgreementStatus.CANCELLED,
+        resolvedDate: date,
+        reason: '선수 계약 협상이 종료되어 이적 합의가 취소되었습니다.',
+      },
+    );
+  }
+
+  /** EASY renewals must not overturn a sale that this AI seller already accepted. */
+  private async hasAcceptedAiSale(
+    manager: EntityManager,
+    career: Career,
+    teamId: number,
+    careerPlayerId: number,
+  ): Promise<boolean> {
+    const window = getTransferWindow(career.currentDate);
+    if (!window.isOpen) return false;
+    const agreement = await manager.findOne(TransferAgreement, {
+      where: {
+        careerId: career.id,
+        sellerCareerTeamId: teamId,
+        careerPlayerId,
+        status: TransferAgreementStatus.ACCEPTED,
+        offeredDate: Between(window.opensAt, career.currentDate),
+      },
+      lock: { mode: 'pessimistic_write' },
+    });
+    return agreement !== null;
   }
 
   /** Only Legend Event entrants participate in this Phase 22 AI acquisition path. */
@@ -520,6 +837,17 @@ export class ContractsService {
       currentAnnualSalary: null,
     });
     if (result.kind !== 'ACCEPTED') return false;
+    if (
+      !(await this.aiBudget.canAfford(
+        manager,
+        career,
+        team.id,
+        player.id,
+        terms.annualSalary,
+        0,
+      ))
+    )
+      return false;
 
     Object.assign(candidate, {
       status: ContractOfferStatus.SIGNED,
@@ -546,21 +874,31 @@ export class ContractsService {
     });
     await manager.save(ContractOffer, candidate);
     await this.signContract(manager, career, candidate, terms);
+    await this.aiBudget.recordTransferFee(manager, career, team.id, 0);
+    return true;
+  }
 
+  private async cancelCompetingOffers(
+    manager: EntityManager,
+    signedOffer: ContractOffer,
+    date: string,
+  ): Promise<void> {
     const supersededOffers = await manager.find(ContractOffer, {
       where: {
-        careerId: career.id,
-        careerPlayerId: player.id,
+        careerId: signedOffer.careerId,
+        careerPlayerId: signedOffer.careerPlayerId,
         status: In(OPEN_STATUSES),
       },
       lock: { mode: 'pessimistic_write' },
     });
     for (const offer of supersededOffers) {
+      if (offer.id === signedOffer.id) continue;
       offer.status = ContractOfferStatus.WITHDRAWN;
-      this.recordDecision(offer, 'SIGNED_WITH_OTHER_CLUB', career.currentDate);
+      this.recordDecision(offer, 'SIGNED_WITH_OTHER_CLUB', date);
+      await this.cancelAiAgreement(manager, offer, date);
       if (offer.responseEventId !== null) {
         const event = await manager.findOne(CalendarEvent, {
-          where: { id: offer.responseEventId, careerId: career.id },
+          where: { id: offer.responseEventId, careerId: signedOffer.careerId },
           lock: { mode: 'pessimistic_write' },
         });
         if (event) {
@@ -574,7 +912,6 @@ export class ContractsService {
       }
       await manager.save(ContractOffer, offer);
     }
-    return true;
   }
 
   private async signContract(
@@ -620,6 +957,7 @@ export class ContractsService {
     }));
     const savedContract = await manager.save(PlayerContract, contract);
     await this.scheduleExpiration(manager, savedContract);
+    await this.cancelCompetingOffers(manager, offer, career.currentDate);
   }
 
   async processExpirationEvent(
@@ -668,6 +1006,7 @@ export class ContractsService {
     manager: EntityManager,
     offer: ContractOffer,
     date: string,
+    requiresUserAction = true,
   ): Promise<void> {
     offer.responseDate = addCalendarDays(
       date,
@@ -678,7 +1017,7 @@ export class ContractsService {
       scheduledDate: offer.responseDate,
       type: CalendarEventType.CONTRACT_RESPONSE,
       status: CalendarEventStatus.SCHEDULED,
-      requiresUserAction: true,
+      requiresUserAction,
       payload: {
         contractOfferId: offer.id,
         revision: offer.revision,
@@ -761,6 +1100,7 @@ export class ContractsService {
     });
     if (!career)
       throw new NotFoundException(`Career ${careerId} was not found`);
+    if (lock) await assertManagerActive(manager, careerId);
     return career;
   }
 

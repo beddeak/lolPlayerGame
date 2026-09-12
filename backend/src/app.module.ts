@@ -5,6 +5,7 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
 import { CareersModule } from './careers/careers.module';
+import { ClubsModule } from './clubs/clubs.module';
 import { validateEnvironment } from './config/environment.validation';
 import { MatchesModule } from './matches/matches.module';
 import { MatchSeriesModule } from './match-series/match-series.module';
@@ -17,6 +18,8 @@ import { SimulationsModule } from './simulations/simulations.module';
 import { ContractsModule } from './contracts/contracts.module';
 import { TransfersModule } from './transfers/transfers.module';
 import { LegendsModule } from './legends/legends.module';
+import { AiClubsModule } from './ai-clubs/ai-clubs.module';
+import { ManagerCareerModule } from './manager-career/manager-career.module';
 
 @Module({
   imports: [
@@ -49,6 +52,7 @@ import { LegendsModule } from './legends/legends.module';
     PlayersModule,
     SetBonusesModule,
     CareersModule,
+    ClubsModule,
     MatchesModule,
     MatchSeriesModule,
     LeaguesModule,
@@ -58,6 +62,8 @@ import { LegendsModule } from './legends/legends.module';
     TransfersModule,
     ContractsModule,
     LegendsModule,
+    AiClubsModule,
+    ManagerCareerModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -13,6 +13,8 @@ import { CalendarEventStatus } from '../event-queue/enums/calendar-event-status.
 import { CalendarEventType } from '../event-queue/enums/calendar-event-type.enum';
 import { EventQueueService } from '../event-queue/event-queue.service';
 import { CalendarsService } from './calendars.service';
+import { SeasonScheduleService } from './season-schedule.service';
+import { ManagerCareerService } from '../manager-career/manager-career.service';
 import { CalendarAdvanceMode } from './enums/calendar-advance-mode.enum';
 import { CalendarStopReason } from './enums/calendar-stop-reason.enum';
 
@@ -48,6 +50,10 @@ describe('CalendarsService', () => {
     findNextScheduledEvent: jest.fn(),
     canAdvancePastTransferWindowClose: jest.fn(),
   };
+  const seasonScheduleService = {
+    prepare: jest.fn(),
+    describe: jest.fn(),
+  };
 
   let service: CalendarsService;
   let fixture: LeagueFixture;
@@ -56,6 +62,9 @@ describe('CalendarsService', () => {
     jest.clearAllMocks();
     career.currentDate = '2026-01-01';
     career.currentYear = 2026;
+    career.autoSchedule = false;
+    seasonScheduleService.prepare.mockResolvedValue(undefined);
+    seasonScheduleService.describe.mockResolvedValue([]);
     fixture = createFixture(10, '2026-01-12');
     careersRepository.findOneBy.mockResolvedValue(career);
     entityManager.findOne.mockResolvedValue(career);
@@ -74,6 +83,12 @@ describe('CalendarsService', () => {
       careersRepository as unknown as Repository<Career>,
       fixturesRepository as unknown as Repository<LeagueFixture>,
       eventQueueService as unknown as EventQueueService,
+      seasonScheduleService as unknown as SeasonScheduleService,
+      {
+        describe: jest
+          .fn()
+          .mockResolvedValue({ status: 'ACTIVE', canManage: true }),
+      } as unknown as ManagerCareerService,
     );
   });
 
@@ -337,6 +352,83 @@ describe('CalendarsService', () => {
     await expect(service.findOne(8, career.id)).rejects.toBeInstanceOf(
       NotFoundException,
     );
+  });
+
+  it('shows annual metadata without mutating a legacy save on GET', async () => {
+    const result = await service.findOne(7, career.id);
+    expect(result.autoSchedule).toBe(false);
+    expect(result.season.currentPhase.code).toBe('PRESEASON');
+    expect(result.season.periods).toHaveLength(14);
+    expect(seasonScheduleService.prepare).not.toHaveBeenCalled();
+    expect(entityManager.save).not.toHaveBeenCalled();
+  });
+
+  it('enables automatic league scheduling only on explicit start', async () => {
+    const result = await service.startSeason(7, career.id);
+    expect(result.autoSchedule).toBe(true);
+    expect(result.currentDate).toBe('2026-01-01');
+    expect(seasonScheduleService.prepare).toHaveBeenCalledWith(
+      entityManager,
+      career,
+    );
+    expect(eventQueueService.processThroughDate).not.toHaveBeenCalled();
+  });
+
+  it('keeps season-start ownership checks inside the career lock', async () => {
+    entityManager.findOne.mockResolvedValue(null);
+    await expect(service.startSeason(8, career.id)).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
+    expect(seasonScheduleService.prepare).not.toHaveBeenCalled();
+  });
+
+  it('stops NEXT_EVENT at a season boundary when the event queue is empty', async () => {
+    fixturesRepository.find.mockResolvedValue([]);
+    const result = await service.advance(7, career.id, {
+      mode: CalendarAdvanceMode.NEXT_EVENT,
+    });
+    expect(result.currentDate).toBe('2026-01-12');
+    expect(result.stopReason).toBe(CalendarStopReason.SEASON_BOUNDARY);
+  });
+
+  it('does not skip the summer split boundary when advancing three days', async () => {
+    career.currentDate = '2026-07-28';
+    fixturesRepository.find.mockResolvedValue([]);
+    const result = await service.advance(7, career.id, {
+      mode: CalendarAdvanceMode.THREE_DAYS,
+    });
+    expect(result.currentDate).toBe('2026-07-29');
+    expect(result.season.currentPhase.code).toBe('SPLIT_3');
+    expect(result.stopReason).toBe(CalendarStopReason.SEASON_BOUNDARY);
+  });
+
+  it('refreshes fixtures after automatic provisioning and retains match-day priority', async () => {
+    career.autoSchedule = true;
+    career.currentDate = '2026-01-11';
+    fixturesRepository.find.mockResolvedValue([]);
+    seasonScheduleService.prepare.mockImplementation(
+      (_manager: unknown, datedCareer: Career) => {
+        if (datedCareer.currentDate === '2026-01-12')
+          fixturesRepository.find.mockResolvedValue([fixture]);
+      },
+    );
+    const result = await service.advance(7, career.id, {
+      mode: CalendarAdvanceMode.THREE_DAYS,
+    });
+    expect(result.currentDate).toBe('2026-01-12');
+    expect(result.dueMatches[0].id).toBe(fixture.id);
+    expect(result.stopReason).toBe(CalendarStopReason.MATCH_DAY);
+  });
+
+  it('preserves a late legacy fixture and exposes its schedule warning', async () => {
+    fixture.scheduledDate = '2026-03-19';
+    const result = await service.findOne(7, career.id);
+    expect(result.nextMatch?.scheduledDate).toBe('2026-03-19');
+    expect(result.scheduleWarnings[0]).toMatchObject({
+      fixtureId: fixture.id,
+      expectedEndDate: '2026-03-08',
+    });
+    expect(entityManager.save).not.toHaveBeenCalled();
   });
 });
 

@@ -1,3 +1,4 @@
+import { assertManagerActive } from '../manager-career/manager-access';
 import {
   BadRequestException,
   ConflictException,
@@ -290,6 +291,7 @@ export class TrainingService {
     if (!career) {
       throw new NotFoundException(`Career ${careerId} was not found`);
     }
+    await assertManagerActive(manager, careerId);
 
     const managedTeam = await manager
       .getRepository(CareerTeam)

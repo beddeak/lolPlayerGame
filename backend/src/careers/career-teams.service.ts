@@ -32,6 +32,7 @@ import { CareerTeam } from './entities/career-team.entity';
 import { CareerPlayerRoleProficiency } from './entities/career-player-role-proficiency.entity';
 import { Roster } from './entities/roster.entity';
 import { RosterRole } from './enums/roster-role.enum';
+import { lockActiveManagerCareer } from '../manager-career/manager-access';
 
 @Injectable()
 export class CareerTeamsService {
@@ -51,28 +52,33 @@ export class CareerTeamsService {
     careerTeamId: number,
     dto: UpdateTeamStrategyDto,
   ): Promise<TeamStrategyResponseDto> {
-    const careerTeam = await this.careerTeamsRepository.findOne({
-      where: {
-        id: careerTeamId,
+    return this.dataSource.transaction(async (manager) => {
+      await lockActiveManagerCareer(manager, accountId, careerId);
+      const careerTeam = await manager.getRepository(CareerTeam).findOne({
+        where: {
+          id: careerTeamId,
+          careerId,
+          career: { accountId },
+        },
+      });
+
+      if (!careerTeam) {
+        throw new NotFoundException(
+          `CareerTeam ${careerTeamId} was not found in Career ${careerId}`,
+        );
+      }
+
+      careerTeam.teamStrategy = dto.strategy;
+      const savedCareerTeam = await manager
+        .getRepository(CareerTeam)
+        .save(careerTeam);
+
+      return {
         careerId,
-        career: { accountId },
-      },
+        careerTeamId: savedCareerTeam.id,
+        strategy: savedCareerTeam.teamStrategy,
+      };
     });
-
-    if (!careerTeam) {
-      throw new NotFoundException(
-        `CareerTeam ${careerTeamId} was not found in Career ${careerId}`,
-      );
-    }
-
-    careerTeam.teamStrategy = dto.strategy;
-    const savedCareerTeam = await this.careerTeamsRepository.save(careerTeam);
-
-    return {
-      careerId,
-      careerTeamId: savedCareerTeam.id,
-      strategy: savedCareerTeam.teamStrategy,
-    };
   }
 
   async updatePlayerInstruction(
@@ -92,54 +98,60 @@ export class CareerTeamsService {
       );
     }
 
-    const roster = await this.rostersRepository.findOne({
-      where: {
-        careerTeamId,
-        role: RosterRole.STARTER,
-        starterPosition: position,
-      },
-      relations: { careerTeam: { career: true } },
-    });
+    return this.dataSource.transaction(async (manager) => {
+      await lockActiveManagerCareer(manager, accountId, careerId);
+      const roster = await manager.getRepository(Roster).findOne({
+        where: {
+          careerTeamId,
+          role: RosterRole.STARTER,
+          starterPosition: position,
+        },
+        relations: { careerTeam: { career: true } },
+      });
 
-    if (
-      !roster ||
-      roster.careerTeam.careerId !== careerId ||
-      roster.careerTeam.career.accountId !== accountId
-    ) {
-      throw new NotFoundException(
-        `${position} starter was not found in CareerTeam ${careerTeamId}`,
+      if (
+        !roster ||
+        roster.careerTeam.careerId !== careerId ||
+        roster.careerTeam.career.accountId !== accountId
+      ) {
+        throw new NotFoundException(
+          `${position} starter was not found in CareerTeam ${careerTeamId}`,
+        );
+      }
+
+      const roleProficienciesRepository = manager.getRepository(
+        CareerPlayerRoleProficiency,
       );
-    }
-
-    let roleProficiency = await this.roleProficienciesRepository.findOneBy({
-      careerPlayerId: roster.careerPlayerId,
-      position,
-      instruction: dto.instruction,
-    });
-
-    if (!roleProficiency) {
-      roleProficiency = this.roleProficienciesRepository.create({
+      let roleProficiency = await roleProficienciesRepository.findOneBy({
         careerPlayerId: roster.careerPlayerId,
         position,
         instruction: dto.instruction,
-        proficiency: ROLE_PROFICIENCY_CONFIG.initial,
       });
-      roleProficiency =
-        await this.roleProficienciesRepository.save(roleProficiency);
-    }
 
-    roster.playerInstruction = dto.instruction;
-    const savedRoster = await this.rostersRepository.save(roster);
+      if (!roleProficiency) {
+        roleProficiency = roleProficienciesRepository.create({
+          careerPlayerId: roster.careerPlayerId,
+          position,
+          instruction: dto.instruction,
+          proficiency: ROLE_PROFICIENCY_CONFIG.initial,
+        });
+        roleProficiency =
+          await roleProficienciesRepository.save(roleProficiency);
+      }
 
-    return {
-      careerId,
-      careerTeamId,
-      rosterId: savedRoster.id,
-      careerPlayerId: savedRoster.careerPlayerId,
-      position,
-      instruction: dto.instruction,
-      roleProficiency: roleProficiency.proficiency,
-    };
+      roster.playerInstruction = dto.instruction;
+      const savedRoster = await manager.getRepository(Roster).save(roster);
+
+      return {
+        careerId,
+        careerTeamId,
+        rosterId: savedRoster.id,
+        careerPlayerId: savedRoster.careerPlayerId,
+        position,
+        instruction: dto.instruction,
+        roleProficiency: roleProficiency.proficiency,
+      };
+    });
   }
 
   async updateChampionArchetype(
@@ -155,36 +167,39 @@ export class CareerTeamsService {
       );
     }
 
-    const roster = await this.rostersRepository.findOne({
-      where: {
+    return this.dataSource.transaction(async (manager) => {
+      await lockActiveManagerCareer(manager, accountId, careerId);
+      const roster = await manager.getRepository(Roster).findOne({
+        where: {
+          careerTeamId,
+          role: RosterRole.STARTER,
+          starterPosition: position,
+        },
+        relations: { careerTeam: { career: true } },
+      });
+
+      if (
+        !roster ||
+        roster.careerTeam.careerId !== careerId ||
+        roster.careerTeam.career.accountId !== accountId
+      ) {
+        throw new NotFoundException(
+          `${position} starter was not found in CareerTeam ${careerTeamId}`,
+        );
+      }
+
+      roster.championArchetype = dto.archetype;
+      const savedRoster = await manager.getRepository(Roster).save(roster);
+
+      return {
+        careerId,
         careerTeamId,
-        role: RosterRole.STARTER,
-        starterPosition: position,
-      },
-      relations: { careerTeam: { career: true } },
+        rosterId: savedRoster.id,
+        careerPlayerId: savedRoster.careerPlayerId,
+        position,
+        archetype: dto.archetype,
+      };
     });
-
-    if (
-      !roster ||
-      roster.careerTeam.careerId !== careerId ||
-      roster.careerTeam.career.accountId !== accountId
-    ) {
-      throw new NotFoundException(
-        `${position} starter was not found in CareerTeam ${careerTeamId}`,
-      );
-    }
-
-    roster.championArchetype = dto.archetype;
-    const savedRoster = await this.rostersRepository.save(roster);
-
-    return {
-      careerId,
-      careerTeamId,
-      rosterId: savedRoster.id,
-      careerPlayerId: savedRoster.careerPlayerId,
-      position,
-      archetype: dto.archetype,
-    };
   }
 
   async swapStarter(
@@ -195,6 +210,7 @@ export class CareerTeamsService {
     dto: SwapStarterDto,
   ): Promise<SwapStarterResponseDto> {
     return this.dataSource.transaction(async (manager) => {
+      await lockActiveManagerCareer(manager, accountId, careerId);
       const careerTeam = await manager.findOne(CareerTeam, {
         where: {
           id: careerTeamId,

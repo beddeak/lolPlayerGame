@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
+import ClubSelectionView from "./ClubSelectionView";
 import "./App.css";
 import ContractsView from "./ContractsView";
 import LegendEventsView from "./LegendEventsView";
@@ -12,29 +13,20 @@ import {
   storeAccessToken,
 } from "./api";
 import {
-  POSITIONS,
   type Account,
   type AuthResponse,
   type Career,
   type CareerPlayer,
   type CareerSummary,
-  type CreateCareerPayload,
+  type CreateCareerFromClubPayload,
   type PlayerCard,
   type Position,
-  type Region,
   type SwapStarterResponse,
 } from "./types";
 
 type AppView =
   "saves" | "create" | "career" | "squad" | "season" | "contracts" | "legends";
 type AuthMode = "login" | "register";
-
-interface TeamDraft {
-  code: string;
-  name: string;
-  region: Region;
-  selections: Record<Position, string>;
-}
 
 const POSITION_LABELS: Record<Position, string> = {
   TOP: "TOP",
@@ -43,8 +35,6 @@ const POSITION_LABELS: Record<Position, string> = {
   ADC: "ADC",
   SUPPORT: "SUP",
 };
-
-const LOCKED_START_YEAR = 2026;
 
 const PLAYER_STAT_LABELS = [
   ["mechanics", "메카닉"],
@@ -86,7 +76,6 @@ function App() {
   const [account, setAccount] = useState<Account | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [careers, setCareers] = useState<CareerSummary[]>([]);
-  const [playerCards, setPlayerCards] = useState<PlayerCard[]>([]);
   const [activeCareer, setActiveCareer] = useState<Career | null>(null);
   const [view, setView] = useState<AppView>("saves");
   const [selectedContractOfferId, setSelectedContractOfferId] = useState<
@@ -130,6 +119,16 @@ function App() {
       careerRequestVersion.current === request
     );
   }
+
+  useEffect(
+    () => () => {
+      sessionVersion.current++;
+      sessionToken.current = null;
+      careerSelection.current++;
+      pendingCreation.current = null;
+    },
+    [],
+  );
 
   useEffect(() => {
     const savedToken = getStoredAccessToken();
@@ -228,25 +227,20 @@ function App() {
     }
   }
 
-  async function openCreateCareer() {
+  function openCreateCareer() {
     if (!token || token !== sessionToken.current) return;
-    const session = sessionVersion.current;
-    const selection = ++careerSelection.current;
+    careerSelection.current++;
     setPageError("");
     setView("create");
-
-    if (playerCards.length > 0) return;
-
-    try {
-      const cards = await apiRequest<PlayerCard[]>("/player-cards");
-      if (isCurrentSelection(token, session, selection)) setPlayerCards(cards);
-    } catch (error) {
-      if (isCurrentSelection(token, session, selection))
-        setPageError(toMessage(error));
-    }
   }
 
-  async function createCareer(payload: CreateCareerPayload) {
+  function navigate(nextView: AppView) {
+    if (view === "create" && nextView !== "create") careerSelection.current++;
+    setPageError("");
+    setView(nextView);
+  }
+
+  async function createCareer(payload: CreateCareerFromClubPayload) {
     if (
       !token ||
       token !== sessionToken.current ||
@@ -258,7 +252,7 @@ function App() {
     pendingCreation.current = session;
     setPageError("");
     try {
-      const career = await apiRequest<Career>("/careers", {
+      const career = await apiRequest<Career>("/careers/from-club", {
         method: "POST",
         token,
         body: payload,
@@ -394,7 +388,7 @@ function App() {
 
   function openContracts(offerId?: number) {
     setSelectedContractOfferId(offerId ?? null);
-    setView("contracts");
+    navigate("contracts");
   }
 
   if (booting) return <LoadingScreen />;
@@ -406,12 +400,12 @@ function App() {
       <AppHeader
         account={account}
         view={view}
-        onHome={() => setView("saves")}
+        onHome={() => navigate("saves")}
         onCreate={() => void openCreateCareer()}
-        onSeason={() => setView("season")}
-        onSquad={() => setView("squad")}
+        onSeason={() => navigate("season")}
+        onSquad={() => navigate("squad")}
         onContracts={() => openContracts()}
-        onLegends={() => setView("legends")}
+        onLegends={() => navigate("legends")}
         hasActiveCareer={activeCareer !== null}
         onLogout={() => void logout()}
       />
@@ -429,20 +423,21 @@ function App() {
         )}
 
         {view === "create" && (
-          <CreateCareerScreen
-            key={playerCards.length}
-            playerCards={playerCards}
-            onBack={() => setView("saves")}
+          <ClubSelectionView
+            key={token}
+            token={token}
+            onBack={() => navigate("saves")}
             onSubmit={createCareer}
+            onSessionError={handleAuthenticatedError}
           />
         )}
 
         {view === "career" && activeCareer && (
           <CareerDashboard
             career={activeCareer}
-            onBack={() => setView("saves")}
-            onOpenSeason={() => setView("season")}
-            onOpenSquad={() => setView("squad")}
+            onBack={() => navigate("saves")}
+            onOpenSeason={() => navigate("season")}
+            onOpenSquad={() => navigate("squad")}
             onOpenContracts={() => openContracts()}
           />
         )}
@@ -451,10 +446,10 @@ function App() {
           <SeasonHubView
             career={activeCareer}
             token={token}
-            onBack={() => setView("career")}
+            onBack={() => navigate("career")}
             onCareerRefresh={refreshActiveCareer}
             onOpenContracts={openContracts}
-            onOpenLegends={() => setView("legends")}
+            onOpenLegends={() => navigate("legends")}
           />
         )}
 
@@ -464,8 +459,8 @@ function App() {
             career={activeCareer}
             token={token}
             initialOfferId={selectedContractOfferId}
-            onBack={() => setView("career")}
-            onOpenSeason={() => setView("season")}
+            onBack={() => navigate("career")}
+            onOpenSeason={() => navigate("season")}
             onCareerRefresh={refreshActiveCareer}
           />
         )}
@@ -475,8 +470,8 @@ function App() {
             key={activeCareer.id}
             career={activeCareer}
             token={token}
-            onBack={() => setView("career")}
-            onOpenSeason={() => setView("season")}
+            onBack={() => navigate("career")}
+            onOpenSeason={() => navigate("season")}
             onCareerUpdated={refreshActiveCareer}
             onOpenContractOffer={openContracts}
           />
@@ -485,7 +480,7 @@ function App() {
         {view === "squad" && activeCareer && (
           <SquadView
             career={activeCareer}
-            onBack={() => setView("career")}
+            onBack={() => navigate("career")}
             onSwapStarter={swapStarter}
           />
         )}
@@ -566,8 +561,8 @@ function AuthScreen({
           <img src="/player-cards/dev-blue-top.svg" alt="" />
         </div>
         <div className="hero-stat">
-          <strong>10</strong>
-          <span>STARTING PLAYERS</span>
+          <strong>2026</strong>
+          <span>YOUR NEXT SEASON</span>
         </div>
       </section>
 
@@ -828,7 +823,7 @@ function SaveSelectScreen({
           <span className="plus-mark">+</span>
           <strong>새 커리어</strong>
           <small>
-            두 팀과 선발 로스터를 구성해
+            운영할 구단을 선택해
             <br />
             새로운 시즌을 시작합니다.
           </small>
@@ -837,300 +832,10 @@ function SaveSelectScreen({
 
       {careers.length === 0 && (
         <div className="empty-hint">
-          아직 저장된 커리어가 없습니다. 첫 번째 팀을 만들어 보세요.
+          아직 저장된 커리어가 없습니다. 첫 번째 구단을 선택해 보세요.
         </div>
       )}
     </section>
-  );
-}
-
-function CreateCareerScreen({
-  playerCards,
-  onBack,
-  onSubmit,
-}: {
-  playerCards: PlayerCard[];
-  onBack: () => void;
-  onSubmit: (payload: CreateCareerPayload) => Promise<void>;
-}) {
-  const defaults = useMemo(
-    () => createDefaultSelections(playerCards),
-    [playerCards],
-  );
-  const [managedTeam, setManagedTeam] = useState(0);
-  const [teams, setTeams] = useState<[TeamDraft, TeamDraft]>([
-    {
-      code: "SVG",
-      name: "Seoul Vanguard",
-      region: "LCK",
-      selections: defaults[0],
-    },
-    {
-      code: "BSB",
-      name: "Busan Breakers",
-      region: "LCK",
-      selections: defaults[1],
-    },
-  ]);
-  const [error, setError] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-  const [detailCard, setDetailCard] = useState<PlayerCard | null>(null);
-
-  function updateSelection(
-    teamIndex: number,
-    position: Position,
-    cardId: string,
-  ) {
-    setTeams(
-      (current) =>
-        current.map((team, index) =>
-          index === teamIndex
-            ? {
-                ...team,
-                selections: { ...team.selections, [position]: cardId },
-              }
-            : team,
-        ) as [TeamDraft, TeamDraft],
-    );
-  }
-
-  async function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setError("");
-
-    const codes = teams.map((team) => normalizeTeamCode(team.code));
-    const allCardIds = teams.flatMap((team) =>
-      POSITIONS.map((position) => Number(team.selections[position])),
-    );
-
-    if (codes[0] === codes[1]) {
-      setError("두 팀의 코드는 서로 달라야 합니다.");
-      return;
-    }
-    if (
-      allCardIds.some((id) => !id) ||
-      new Set(allCardIds).size !== allCardIds.length
-    ) {
-      setError("10명의 선발 선수는 중복 없이 모두 선택해야 합니다.");
-      return;
-    }
-
-    setSubmitting(true);
-    try {
-      await onSubmit({
-        startYear: LOCKED_START_YEAR,
-        managedTeamCode: codes[managedTeam],
-        teams: teams.map((team, index) => ({
-          code: codes[index],
-          name: team.name.trim(),
-          region: team.region,
-          starters: POSITIONS.map((position) => ({
-            playerCardId: Number(team.selections[position]),
-            position,
-          })),
-        })),
-      });
-    } catch (submitError) {
-      setError(toMessage(submitError));
-    } finally {
-      setSubmitting(false);
-    }
-  }
-
-  if (playerCards.length === 0) {
-    return (
-      <section className="center-panel">
-        <div className="loading-line" />
-        <p>선수 카드를 불러오는 중입니다.</p>
-        <button className="text-button" onClick={onBack}>
-          돌아가기
-        </button>
-      </section>
-    );
-  }
-
-  return (
-    <section className="page-section create-page">
-      <button className="back-button" onClick={onBack}>
-        ← 커리어 목록
-      </button>
-      <div className="page-heading">
-        <p className="eyebrow">NEW CAREER</p>
-        <h1>
-          리그의 새로운 역사를
-          <br />
-          설계하세요.
-        </h1>
-        <p>
-          두 구단과 각 포지션의 선발 선수를 확정하면 첫 시즌이 서버에
-          생성됩니다.
-        </p>
-      </div>
-
-      <form onSubmit={submit}>
-        <div className="career-settings">
-          <div className="locked-setting">
-            <span>시작 연도</span>
-            <strong>{LOCKED_START_YEAR}</strong>
-            <small>고정</small>
-          </div>
-          <div className="managed-team-field">
-            <span>내가 운영할 팀</span>
-            <div className="segmented-control">
-              {teams.map((team, index) => (
-                <button
-                  type="button"
-                  className={managedTeam === index ? "active" : ""}
-                  key={index}
-                  onClick={() => setManagedTeam(index)}
-                >
-                  TEAM {index + 1} · {team.code || "---"}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        <div className="team-builder-grid">
-          {teams.map((team, index) => (
-            <TeamBuilder
-              key={index}
-              index={index}
-              team={team}
-              playerCards={playerCards}
-              isManaged={managedTeam === index}
-              onSelect={(position, cardId) =>
-                updateSelection(index, position, cardId)
-              }
-              onOpenDetail={setDetailCard}
-            />
-          ))}
-        </div>
-
-        {error && <div className="inline-error form-wide-error">{error}</div>}
-        <div className="create-actions">
-          <div>
-            <strong>생성 즉시 저장</strong>
-            <small>계정 소유권과 함께 MySQL에 기록됩니다.</small>
-          </div>
-          <button className="primary-button large-button" disabled={submitting}>
-            {submitting ? "리그 생성 중..." : "새 시즌 시작하기"} <span>→</span>
-          </button>
-        </div>
-      </form>
-      {detailCard && (
-        <PlayerDetailModal
-          card={detailCard}
-          onClose={() => setDetailCard(null)}
-        />
-      )}
-    </section>
-  );
-}
-
-function TeamBuilder({
-  index,
-  team,
-  playerCards,
-  isManaged,
-  onSelect,
-  onOpenDetail,
-}: {
-  index: number;
-  team: TeamDraft;
-  playerCards: PlayerCard[];
-  isManaged: boolean;
-  onSelect: (position: Position, cardId: string) => void;
-  onOpenDetail: (card: PlayerCard) => void;
-}) {
-  return (
-    <fieldset className={`team-builder team-${index + 1}`}>
-      <legend>
-        <span>TEAM {index + 1}</span>
-        {isManaged && <em>MY CLUB</em>}
-      </legend>
-      <div className="locked-team-data">
-        <div className="locked-team-name">
-          <span>구단</span>
-          <strong>{team.name}</strong>
-        </div>
-        <div>
-          <span>코드</span>
-          <strong>{team.code}</strong>
-        </div>
-        <div>
-          <span>지역</span>
-          <strong>{team.region}</strong>
-        </div>
-        <small>리그 기본 설정 · 변경 불가</small>
-      </div>
-      <div className="lineup-title">
-        <strong>STARTING FIVE</strong>
-        <span>OVR과 주요 능력치를 비교해 선발을 정하세요.</span>
-      </div>
-      <div className="starter-table-head" aria-hidden="true">
-        <span>POS</span>
-        <span>PLAYER</span>
-        <span>OVR</span>
-        <span>MEC</span>
-        <span>LAN</span>
-        <span>FIGHT</span>
-        <span />
-      </div>
-      <div className="starter-list">
-        {POSITIONS.map((position) => {
-          const candidates = playerCards.filter(
-            (card) => card.mainPosition === position,
-          );
-          const selected = candidates.find(
-            (card) => String(card.id) === team.selections[position],
-          );
-          return (
-            <article className="starter-row" key={position}>
-              <span className="position-chip">{POSITION_LABELS[position]}</span>
-              <div className="starter-player-control">
-                {selected && <img src={cardImage(selected, index)} alt="" />}
-                <div>
-                  <select
-                    required
-                    aria-label={`${POSITION_LABELS[position]} 선발 선수`}
-                    value={team.selections[position]}
-                    onChange={(event) => onSelect(position, event.target.value)}
-                  >
-                    <option value="">선수 선택</option>
-                    {candidates.map((card) => (
-                      <option value={card.id} key={card.id}>
-                        {card.player.nickname} · OVR{" "}
-                        {calculateCardOverall(card)}
-                      </option>
-                    ))}
-                  </select>
-                  <small>
-                    {selected
-                      ? `${selected.player.nationality} · ${selected.theme.name}`
-                      : "선수를 선택하세요"}
-                  </small>
-                </div>
-              </div>
-              <strong className="starter-ovr">
-                {selected ? calculateCardOverall(selected) : "-"}
-              </strong>
-              <span className="starter-stat">{selected?.mechanics ?? "-"}</span>
-              <span className="starter-stat">{selected?.laning ?? "-"}</span>
-              <span className="starter-stat">{selected?.teamFight ?? "-"}</span>
-              <button
-                className="detail-button"
-                type="button"
-                disabled={!selected}
-                onClick={() => selected && onOpenDetail(selected)}
-              >
-                상세
-              </button>
-            </article>
-          );
-        })}
-      </div>
-    </fieldset>
   );
 }
 
@@ -1589,30 +1294,6 @@ function calculatePlayerOverall(player: CareerPlayer) {
 
 function cardImage(card: PlayerCard, index: number) {
   return card.imageUrl || FALLBACK_IMAGES[card.mainPosition][index % 2];
-}
-
-function emptySelections(): Record<Position, string> {
-  return { TOP: "", JUNGLE: "", MID: "", ADC: "", SUPPORT: "" };
-}
-
-function createDefaultSelections(
-  cards: PlayerCard[],
-): [Record<Position, string>, Record<Position, string>] {
-  const first = emptySelections();
-  const second = emptySelections();
-  for (const position of POSITIONS) {
-    const candidates = cards.filter((card) => card.mainPosition === position);
-    first[position] = candidates[0] ? String(candidates[0].id) : "";
-    second[position] = candidates[1] ? String(candidates[1].id) : "";
-  }
-  return [first, second];
-}
-
-function normalizeTeamCode(value: string) {
-  return value
-    .toUpperCase()
-    .replace(/[^A-Z0-9_]/g, "")
-    .slice(0, 32);
 }
 
 function toMessage(error: unknown) {
