@@ -1,6 +1,8 @@
 # Development player-card images
 
-These SVG files are placeholders used by `backend/data/development-seed.json`.
-Replace them with licensed player images while keeping the same file names, or
-change each card's `imageUrl` in the seed data.
+These SVG files are legacy placeholders retained for old saves and image fallbacks.
+The main seed now contains only the existing real-club roster data and no longer
+registers the development players that used these images.
 
+Add licensed player images here and set each real card's `imageUrl` in
+`backend/data/development-seed.json`, for example `/player-cards/zeus-2026.png`.
