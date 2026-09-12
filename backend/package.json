@@ -24,7 +24,8 @@
     "migration:run": "npm run typeorm -- migration:run",
     "migration:revert": "npm run typeorm -- migration:revert",
     "schema:verify": "ts-node test/verify-schema-sync.ts",
-    "seed": "ts-node src/database/seeds/development.seed.ts"
+    "seed": "ts-node src/database/seeds/development.seed.ts",
+    "seed:legends": "ts-node src/database/seeds/legend.seed.ts"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",

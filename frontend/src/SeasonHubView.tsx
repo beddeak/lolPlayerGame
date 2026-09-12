@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { ApiError, apiRequest } from "./api";
 import "./SeasonHubView.css";
 import type {
@@ -19,6 +19,7 @@ const EVENT_LABELS: Record<CalendarEvent["type"], string> = {
   SCHEDULED_GAME: "경기 일정",
   CONTRACT_RESPONSE: "계약 응답",
   LEGEND_REVEAL: "레전드 공개",
+  LEGEND_SIGNING: "레전드 계약 소식",
   PLAYER_MEETING: "선수 면담",
   INTERNATIONAL_ROSTER_REGISTRATION: "국제대회 로스터 등록",
   SEASON_REVIEW: "시즌 리뷰",
@@ -45,6 +46,7 @@ interface SeasonHubViewProps {
   onBack: () => void;
   onCareerRefresh: () => Promise<void>;
   onOpenContracts: (offerId?: number) => void;
+  onOpenLegends: () => void;
 }
 
 export default function SeasonHubView({
@@ -53,6 +55,7 @@ export default function SeasonHubView({
   onBack,
   onCareerRefresh,
   onOpenContracts,
+  onOpenLegends,
 }: SeasonHubViewProps) {
   const managedTeam =
     career.teams.find((team) => team.isUserControlled) ?? career.teams[0];
@@ -77,7 +80,12 @@ export default function SeasonHubView({
 
     setCalendar(nextCalendar);
     setSplits(nextSplits);
-    setEvents(nextEvents);
+    setEvents(
+      nextEvents.filter(
+        (event) =>
+          event.type !== "LEGEND_REVEAL" || event.status !== "SCHEDULED",
+      ),
+    );
     setSelectedSplitId((current) => {
       if (current && nextSplits.some((split) => split.id === current)) {
         return current;
@@ -195,6 +203,10 @@ export default function SeasonHubView({
   }
 
   function resolveEvent(event: CalendarEvent) {
+    if (event.type === "LEGEND_REVEAL") {
+      onOpenLegends();
+      return;
+    }
     if (
       event.type === "CONTRACT_RESPONSE" &&
       typeof event.payload?.contractOfferId === "number"
@@ -202,6 +214,10 @@ export default function SeasonHubView({
       onOpenContracts(event.payload.contractOfferId);
       return;
     }
+    acknowledgeEvent(event);
+  }
+
+  function acknowledgeEvent(event: CalendarEvent) {
     void performAction(`event-${event.id}`, async () => {
       await apiRequest<CalendarEvent>(
         `/careers/${career.id}/events/${event.id}/resolve`,
@@ -368,13 +384,24 @@ export default function SeasonHubView({
           </div>
           <div className="decision-actions">
             {calendar.blockingEvents.map((event) => (
-              <button
-                key={event.id}
-                disabled={Boolean(busyAction)}
-                onClick={() => resolveEvent(event)}
-              >
-                {EVENT_LABELS[event.type]} 처리하기
-              </button>
+              <Fragment key={event.id}>
+                <button
+                  disabled={Boolean(busyAction)}
+                  onClick={() => resolveEvent(event)}
+                >
+                  {event.type === "LEGEND_REVEAL"
+                    ? "레전드 이벤트 확인"
+                    : `${EVENT_LABELS[event.type]} 처리하기`}
+                </button>
+                {event.type === "LEGEND_REVEAL" && (
+                  <button
+                    disabled={Boolean(busyAction)}
+                    onClick={() => acknowledgeEvent(event)}
+                  >
+                    확인 완료 · 일정 계속하기
+                  </button>
+                )}
+              </Fragment>
             ))}
             {calendar.canCloseTransferWindow && (
               <button
@@ -521,6 +548,7 @@ export default function SeasonHubView({
               events={events}
               busy={Boolean(busyAction)}
               onResolve={resolveEvent}
+              onAcknowledge={acknowledgeEvent}
             />
           </section>
 
@@ -750,13 +778,29 @@ function EventFeed({
   events,
   busy,
   onResolve,
+  onAcknowledge,
 }: {
   events: CalendarEvent[];
   busy: boolean;
   onResolve: (event: CalendarEvent) => void;
+  onAcknowledge: (event: CalendarEvent) => void;
 }) {
   const visibleEvents = events
-    .filter((event) => event.status !== "COMPLETED")
+    .filter(
+      (event) =>
+        event.status !== "COMPLETED" || event.type === "LEGEND_SIGNING",
+    )
+    .sort((left, right) => {
+      const priority = (event: CalendarEvent) =>
+        event.status === "READY" ? 0 : event.type === "LEGEND_SIGNING" ? 1 : 2;
+      return (
+        priority(left) - priority(right) ||
+        (priority(left) === 1
+          ? right.scheduledDate.localeCompare(left.scheduledDate)
+          : left.scheduledDate.localeCompare(right.scheduledDate)) ||
+        left.id - right.id
+      );
+    })
     .slice(0, 5);
 
   if (visibleEvents.length === 0) {
@@ -772,13 +816,25 @@ function EventFeed({
             <span>{formatCompactDate(event.scheduledDate)}</span>
             <strong>{EVENT_LABELS[event.type]}</strong>
             <small>
-              {event.status === "READY" ? "감독 결정 대기" : "예정"}
+              {event.type === "LEGEND_SIGNING" &&
+              typeof event.payload?.message === "string"
+                ? event.payload.message
+                : event.status === "READY"
+                  ? "감독 결정 대기"
+                  : "예정"}
             </small>
           </div>
           {event.status === "READY" && (
-            <button disabled={busy} onClick={() => onResolve(event)}>
-              처리
-            </button>
+            <div className="event-feed-actions">
+              <button disabled={busy} onClick={() => onResolve(event)}>
+                {event.type === "LEGEND_REVEAL" ? "이벤트 확인" : "처리"}
+              </button>
+              {event.type === "LEGEND_REVEAL" && (
+                <button disabled={busy} onClick={() => onAcknowledge(event)}>
+                  확인 완료
+                </button>
+              )}
+            </div>
           )}
         </article>
       ))}

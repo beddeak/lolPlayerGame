@@ -37,6 +37,10 @@ import type { ContractOfferResponseDto } from './dto/contract-offer-response.dto
 import { ContractOffer } from './entities/contract-offer.entity';
 import { PlayerContract } from './entities/player-contract.entity';
 import { TransfersService } from '../transfers/transfers.service';
+import { Roster } from '../careers/entities/roster.entity';
+import { RosterRole } from '../careers/enums/roster-role.enum';
+import { MAX_BENCH_PLAYERS } from '../careers/constants/career.constants';
+import { LegendEventPlayer } from '../legends/entities/legend-event-player.entity';
 
 const OPEN_STATUSES = [
   ContractOfferStatus.WAITING_PLAYER_RESPONSE,
@@ -68,8 +72,9 @@ export class ContractsService {
     careerId: number,
   ): Promise<ContractOfferResponseDto[]> {
     await this.assertOwnedCareer(this.dataSource.manager, accountId, careerId);
+    const team = await this.findManagedTeam(this.dataSource.manager, careerId);
     const offers = await this.dataSource.manager.find(ContractOffer, {
-      where: { careerId },
+      where: { careerId, careerTeamId: team.id },
       relations: { careerPlayer: { playerCard: { player: true } } },
       order: { id: 'DESC' },
     });
@@ -452,6 +457,124 @@ export class ContractsService {
     };
     this.recordDecision(offer, `PLAYER_${result.kind}`, date);
     await manager.save(ContractOffer, offer);
+  }
+
+  /** Only Legend Event entrants participate in this Phase 22 AI acquisition path. */
+  async signLegendFreeAgentForAi(
+    manager: EntityManager,
+    career: Career,
+    teamId: number,
+    careerPlayerId: number,
+    terms: ContractTerms,
+  ): Promise<boolean> {
+    validateContractTerms(terms);
+    if (!getTransferWindow(career.currentDate).isOpen) return false;
+    const entrant = await manager.findOneBy(LegendEventPlayer, {
+      careerId: career.id,
+      careerPlayerId,
+    });
+    if (!entrant) return false;
+    const team = await manager.findOne(CareerTeam, {
+      where: { id: teamId, careerId: career.id, isUserControlled: false },
+      lock: { mode: 'pessimistic_write' },
+    });
+    const player = await manager.findOne(CareerPlayer, {
+      where: { id: careerPlayerId, careerId: career.id },
+      lock: { mode: 'pessimistic_write' },
+    });
+    if (!team || !player || player.currentTeamId !== null) return false;
+    const candidate = manager.create(ContractOffer, {
+      careerId: career.id,
+      careerTeamId: team.id,
+      careerPlayerId: player.id,
+      offerType: ContractOfferType.FREE_AGENT,
+      sourceCareerTeamId: null,
+      transferAgreementId: null,
+    });
+    if (
+      !(await this.transfersService.isContractOfferEligible(
+        manager,
+        candidate,
+        team,
+      )) ||
+      (await manager.countBy(Roster, {
+        careerTeamId: team.id,
+        role: RosterRole.BENCH,
+      })) >= MAX_BENCH_PLAYERS
+    )
+      return false;
+
+    const teammates = await manager.findBy(CareerPlayer, {
+      careerId: career.id,
+      currentTeamId: team.id,
+    });
+    const result = evaluateContractOffer(terms, {
+      ability: this.playerAbility(player),
+      teamStrength:
+        teammates.reduce(
+          (total, member) => total + this.playerAbility(member),
+          0,
+        ) / Math.max(teammates.length, 1),
+      coachTrust: CONTRACT_CONFIG.negotiation.trustNeutral,
+      personality: player.personality,
+      currentAnnualSalary: null,
+    });
+    if (result.kind !== 'ACCEPTED') return false;
+
+    Object.assign(candidate, {
+      status: ContractOfferStatus.SIGNED,
+      revision: 1,
+      offeredDate: career.currentDate,
+      responseDate: career.currentDate,
+      responseEventId: null,
+      terms: structuredClone(terms),
+      counterTerms: null,
+      response: {
+        kind: result.kind,
+        reason: result.reason,
+        evaluatedDate: career.currentDate,
+      },
+      extensionsUsed: 0,
+      history: [
+        {
+          action: 'LEGEND_AI_SIGNING',
+          date: career.currentDate,
+          revision: 1,
+          terms: structuredClone(terms),
+        },
+      ],
+    });
+    await manager.save(ContractOffer, candidate);
+    await this.signContract(manager, career, candidate, terms);
+
+    const supersededOffers = await manager.find(ContractOffer, {
+      where: {
+        careerId: career.id,
+        careerPlayerId: player.id,
+        status: In(OPEN_STATUSES),
+      },
+      lock: { mode: 'pessimistic_write' },
+    });
+    for (const offer of supersededOffers) {
+      offer.status = ContractOfferStatus.WITHDRAWN;
+      this.recordDecision(offer, 'SIGNED_WITH_OTHER_CLUB', career.currentDate);
+      if (offer.responseEventId !== null) {
+        const event = await manager.findOne(CalendarEvent, {
+          where: { id: offer.responseEventId, careerId: career.id },
+          lock: { mode: 'pessimistic_write' },
+        });
+        if (event) {
+          event.requiresUserAction = false;
+          event.payload = {
+            ...event.payload,
+            reason: '선수가 다른 구단과 계약했습니다.',
+          };
+          await this.completeEvent(manager, event);
+        }
+      }
+      await manager.save(ContractOffer, offer);
+    }
+    return true;
   }
 
   private async signContract(

@@ -28,6 +28,7 @@ export class ThemesService {
     const theme = this.themesRepository.create({
       ...dto,
       description: dto.description ?? null,
+      legendEnabled: dto.legendEnabled ?? false,
     });
 
     try {

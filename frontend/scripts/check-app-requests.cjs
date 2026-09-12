@@ -122,6 +122,7 @@ function harness() {
   const views = {
     "./SeasonHubView": { default: function SeasonHubView() {} },
     "./ContractsView": { default: function ContractsView() {} },
+    "./LegendEventsView": { default: function LegendEventsView() {} },
     "./SquadView": { default: function SquadView() {} },
   };
   new Function("require", "module", "exports", output)(
@@ -401,6 +402,264 @@ async function currentMutationRefresh(swap = false) {
   );
 }
 
+function rosterCareer(starterId) {
+  const result = career(1);
+  result.teams[0].starters = [{ careerPlayer: { id: starterId } }];
+  return result;
+}
+
+function assertStarter(app, view, id) {
+  assert.equal(
+    app.component(view).career.teams[0].starters[0].careerPlayer.id,
+    id,
+  );
+}
+
+function assertNoPageError(app) {
+  app.render();
+  assert.equal(
+    app.nodes().some((node) => node.props.className === "notice error-notice"),
+    false,
+  );
+  assert.equal(app.storedToken(), "token-1");
+}
+
+async function sameSaveRefreshThenSwap(errorStatus) {
+  const app = harness();
+  await app.login();
+  await app.open(1);
+  const old = deferred();
+  let reads = 0;
+  app.intercept((url, options, fallback) =>
+    url === "/careers/1"
+      ? ++reads === 1
+        ? old.promise
+        : Promise.resolve(rosterCareer(99))
+      : fallback(url, options),
+  );
+  const pending = app.refresh();
+  await app.swap();
+  assertStarter(app, "SquadView", 99);
+  if (errorStatus)
+    old.reject(new ApiError(errorStatus, "Old season request failed"));
+  else old.resolve(rosterCareer(10));
+  await pending;
+  assertStarter(app, "SquadView", 99);
+  assertNoPageError(app);
+  assert.equal(
+    app.calls.filter((call) => call.options?.method === "PATCH").length,
+    1,
+  );
+}
+
+async function sameSaveRefreshOrdering() {
+  const app = harness();
+  await app.login();
+  await app.open(1);
+  const old = deferred();
+  let reads = 0;
+  let lists = 0;
+  app.intercept((url, options, fallback) => {
+    if (url === "/careers/1")
+      return ++reads === 1 ? old.promise : Promise.resolve(rosterCareer(99));
+    if (url === "/careers")
+      return Promise.resolve([
+        { id: 1, currentDate: ++lists === 1 ? "2026-12-21" : "2026-12-22" },
+      ]);
+    return fallback(url, options);
+  });
+  const pending = app.refresh();
+  await app.refresh();
+  assertStarter(app, "SeasonHubView", 99);
+  old.resolve(rosterCareer(10));
+  await pending;
+  assertStarter(app, "SeasonHubView", 99);
+  app.component("AppHeader").onHome();
+  assert.equal(
+    app.component("SaveSelectScreen").careers[0].currentDate,
+    "2026-12-22",
+  );
+}
+
+async function sameSaveSwapThenRefresh(fail = false) {
+  const app = harness();
+  await app.login();
+  await app.open(1);
+  const old = deferred();
+  let reads = 0;
+  app.intercept((url, options, fallback) =>
+    url === "/careers/1"
+      ? ++reads === 1
+        ? old.promise
+        : Promise.resolve(rosterCareer(99))
+      : fallback(url, options),
+  );
+  const pending = app.swap();
+  await settle();
+  await app.refresh();
+  if (fail) old.reject(new ApiError(500, "Old swap refresh failed"));
+  else old.resolve(rosterCareer(10));
+  await pending;
+  assertStarter(app, "SeasonHubView", 99);
+  assertNoPageError(app);
+}
+
+async function readDuringSwap(readCompletesEarly) {
+  const app = harness();
+  await app.login();
+  await app.open(1);
+  const patch = deferred();
+  const during = deferred();
+  let reads = 0;
+  app.intercept((url, options, fallback) => {
+    if (options.method === "PATCH") return patch.promise;
+    if (url === "/careers/1")
+      return ++reads === 1 ? during.promise : Promise.resolve(rosterCareer(99));
+    return fallback(url, options);
+  });
+  const swapping = app.swap();
+  const reading = app.refresh();
+  if (readCompletesEarly) {
+    during.resolve(rosterCareer(10));
+    await reading;
+  }
+  patch.resolve({});
+  await swapping;
+  assert.equal(
+    reads,
+    2,
+    "A read started during PATCH must not prevent the post-write refresh",
+  );
+  assertStarter(app, "SeasonHubView", 99);
+  if (!readCompletesEarly) {
+    during.resolve(rosterCareer(10));
+    await reading;
+    assertStarter(app, "SeasonHubView", 99);
+  }
+}
+
+async function failedSwapAfterNewerRead() {
+  const app = harness();
+  await app.login();
+  await app.open(1);
+  const patch = deferred();
+  app.intercept((url, options, fallback) => {
+    if (options.method === "PATCH") return patch.promise;
+    if (url === "/careers/1") return Promise.resolve(rosterCareer(10));
+    return fallback(url, options);
+  });
+  const swapping = app.swap();
+  const rejected = assert.rejects(
+    swapping,
+    (error) => error instanceof ApiError && error.status === 409,
+  );
+  await app.refresh();
+  patch.reject(new ApiError(409, "Player can no longer be promoted"));
+  await rejected;
+  assertStarter(app, "SeasonHubView", 10);
+  assertNoPageError(app);
+  assert.equal(
+    app.calls.filter((call) => call.url === "/careers/1").length,
+    2,
+    "A rejected PATCH must not issue a post-write GET or resolve as a successful swap",
+  );
+}
+
+async function overlappingSwaps(reverseCompletion) {
+  const app = harness();
+  await app.login();
+  await app.open(1);
+  const patches = [deferred(), deferred()];
+  const firstRead = deferred();
+  let writes = 0;
+  let reads = 0;
+  app.intercept((url, options, fallback) => {
+    if (options.method === "PATCH") return patches[writes++].promise;
+    if (url === "/careers/1")
+      return ++reads === 1
+        ? firstRead.promise
+        : Promise.resolve(rosterCareer(99));
+    return fallback(url, options);
+  });
+  app.component("AppHeader").onSquad();
+  const swap = app.component("SquadView").onSwapStarter;
+  const first = swap(10, "TOP", 99);
+  const second = swap(10, "MID", 100);
+  patches[reverseCompletion ? 1 : 0].resolve({});
+  await settle();
+  patches[reverseCompletion ? 0 : 1].resolve({});
+  await settle();
+  assertStarter(app, "SquadView", 99);
+  firstRead.resolve(rosterCareer(10));
+  await Promise.all([first, second]);
+  assert.equal(
+    reads,
+    2,
+    "Each successful mutation still performs its final read, regardless of start order",
+  );
+  assertStarter(app, "SquadView", 99);
+}
+
+async function sameSaveOpenThenRefresh() {
+  const app = harness();
+  await app.login();
+  await app.open(1);
+  const old = deferred();
+  let reads = 0;
+  app.intercept((url, options, fallback) =>
+    url === "/careers/1"
+      ? ++reads === 1
+        ? old.promise
+        : Promise.resolve(rosterCareer(99))
+      : fallback(url, options),
+  );
+  const opening = app.open(1);
+  await app.refresh();
+  old.resolve(rosterCareer(10));
+  await opening;
+  assertStarter(app, "SeasonHubView", 99);
+}
+
+async function createListThenRefresh() {
+  const app = harness();
+  await app.login();
+  await app.createScreen();
+  const oldList = deferred();
+  let lists = 0;
+  app.intercept((url, options, fallback) => {
+    if (url === "/careers" && options.method !== "POST")
+      return ++lists === 1
+        ? oldList.promise
+        : Promise.resolve([{ id: 3, currentDate: "2026-12-22" }]);
+    return fallback(url, options);
+  });
+  const creating = app.component("CreateCareerScreen").onSubmit({});
+  await settle();
+  await app.refresh();
+  oldList.reject(new Error("Old create list failed"));
+  await creating;
+  assertNoPageError(app);
+  app.component("AppHeader").onHome();
+  assert.equal(
+    app.component("SaveSelectScreen").careers[0].currentDate,
+    "2026-12-22",
+  );
+}
+
+async function legendNavigation() {
+  const app = harness();
+  await app.login();
+  await app.open(1);
+  app.component("AppHeader").onLegends();
+  const market = app.component("LegendEventsView");
+  assert.equal(market.career.id, 1);
+  market.onOpenContractOffer(77);
+  assert.equal(app.component("ContractsView").initialOfferId, 77);
+  app.component("AppHeader").onSeason();
+  app.component("SeasonHubView").onOpenLegends();
+  assert.equal(app.component("LegendEventsView").career.id, 1);
+}
+
 (async () => {
   await staleRefresh();
   await staleRefresh(true);
@@ -414,8 +673,22 @@ async function currentMutationRefresh(swap = false) {
   await staleCreate();
   await currentMutationRefresh();
   await currentMutationRefresh(true);
+  await sameSaveRefreshThenSwap();
+  await sameSaveRefreshThenSwap(401);
+  await sameSaveRefreshThenSwap(500);
+  await sameSaveRefreshOrdering();
+  await sameSaveSwapThenRefresh();
+  await sameSaveSwapThenRefresh(true);
+  await readDuringSwap(false);
+  await readDuringSwap(true);
+  await failedSwapAfterNewerRead();
+  await overlappingSwaps(false);
+  await overlappingSwaps(true);
+  await sameSaveOpenThenRefresh();
+  await createListThenRefresh();
+  await legendNavigation();
   console.log(
-    "App request regression checks passed: 12 scenarios (save/session races, stale errors, create/list failures, duplicate submission, current-save updates).",
+    "App request regression checks passed: 26 scenarios (save/session races, request ordering, mutation failures, create/list failures, legend navigation).",
   );
 })().catch((error) => {
   console.error(error);

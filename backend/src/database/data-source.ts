@@ -54,6 +54,10 @@ import { CreateContracts1788472800000 } from './migrations/1788472800000-create-
 import { TransferAgreement } from '../transfers/entities/transfer-agreement.entity';
 import { TransferRecord } from '../transfers/entities/transfer-record.entity';
 import { CreateTransfers1788559200000 } from './migrations/1788559200000-create-transfers';
+import { CreateLegendEvents1788645600000 } from './migrations/1788645600000-create-legend-events';
+import { LegendSeason } from '../legends/entities/legend-season.entity';
+import { LegendEvent } from '../legends/entities/legend-event.entity';
+import { LegendEventPlayer } from '../legends/entities/legend-event-player.entity';
 
 if (existsSync('.env')) {
   loadEnvFile('.env');
@@ -99,6 +103,9 @@ const dataSource = new DataSource({
     PlayerContract,
     TransferAgreement,
     TransferRecord,
+    LegendSeason,
+    LegendEvent,
+    LegendEventPlayer,
   ],
   migrations: [
     CreatePlayerCatalog1787237754573,
@@ -124,6 +131,7 @@ const dataSource = new DataSource({
     CreateCalendarEvents1788386400000,
     CreateContracts1788472800000,
     CreateTransfers1788559200000,
+    CreateLegendEvents1788645600000,
   ],
   migrationsTableName: 'migrations',
   ssl: useSsl ? { rejectUnauthorized: true } : undefined,

@@ -227,6 +227,34 @@ export interface PlayerContract {
   promises: Array<ContractPromise & { status: "PENDING" }>;
 }
 
+export interface LegendMarketPlayer {
+  careerPlayerId: number;
+  playerCardId: number;
+  nickname: string;
+  cardYear: number;
+  position: Position;
+  currentAge: number;
+  overall: number;
+  imageUrl: string | null;
+  currentTeam: { id: number; code: string; name: string } | null;
+  interestedClubs: Array<{ id: number; code: string; name: string }>;
+  canNegotiate: boolean;
+}
+
+export interface RevealedLegendEvent {
+  id: number;
+  seasonYear: number;
+  theme: { id: number; code: string; name: string };
+  revealedDate: string;
+  players: LegendMarketPlayer[];
+}
+
+export interface LegendEventsResponse {
+  careerId: number;
+  currentDate: string;
+  events: RevealedLegendEvent[];
+}
+
 export type CalendarAdvanceMode =
   "ONE_DAY" | "THREE_DAYS" | "NEXT_MATCH" | "NEXT_EVENT";
 
@@ -242,6 +270,7 @@ export type CalendarEventType =
   | "SCHEDULED_GAME"
   | "CONTRACT_RESPONSE"
   | "LEGEND_REVEAL"
+  | "LEGEND_SIGNING"
   | "PLAYER_MEETING"
   | "INTERNATIONAL_ROSTER_REGISTRATION"
   | "SEASON_REVIEW"

@@ -9,6 +9,7 @@
     "lint": "oxlint",
     "test:contracts": "node scripts/check-contract-ui.cjs",
     "test:app": "node scripts/check-app-requests.cjs",
+    "test:legends": "node scripts/check-legend-ui.cjs",
     "preview": "vite preview"
   },
   "dependencies": {

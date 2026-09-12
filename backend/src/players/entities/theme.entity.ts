@@ -22,6 +22,9 @@ export class Theme {
   @Column({ type: 'varchar', length: 255, nullable: true })
   description!: string | null;
 
+  @Column({ type: 'boolean', default: false })
+  legendEnabled!: boolean;
+
   @OneToMany(() => PlayerCard, (playerCard) => playerCard.theme)
   playerCards!: PlayerCard[];
 }

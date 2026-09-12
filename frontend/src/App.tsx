@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import "./App.css";
 import ContractsView from "./ContractsView";
+import LegendEventsView from "./LegendEventsView";
 import SeasonHubView from "./SeasonHubView";
 import SquadView from "./SquadView";
 import {
@@ -24,7 +25,8 @@ import {
   type SwapStarterResponse,
 } from "./types";
 
-type AppView = "saves" | "create" | "career" | "squad" | "season" | "contracts";
+type AppView =
+  "saves" | "create" | "career" | "squad" | "season" | "contracts" | "legends";
 type AuthMode = "login" | "register";
 
 interface TeamDraft {
@@ -95,6 +97,7 @@ function App() {
   const sessionVersion = useRef(0);
   const sessionToken = useRef<string | null>(null);
   const careerSelection = useRef(0);
+  const careerRequestVersion = useRef(0);
   const selectedCareerId = useRef<number | null>(null);
   const pendingCreation = useRef<number | null>(null);
 
@@ -113,6 +116,18 @@ function App() {
     return (
       isCurrentSession(requestToken, session) &&
       careerSelection.current === selection
+    );
+  }
+
+  function isCurrentCareerRequest(
+    requestToken: string,
+    session: number,
+    selection: number,
+    request: number,
+  ) {
+    return (
+      isCurrentSelection(requestToken, session, selection) &&
+      careerRequestVersion.current === request
     );
   }
 
@@ -197,16 +212,17 @@ function App() {
     if (!token || token !== sessionToken.current) return;
     const session = sessionVersion.current;
     const selection = ++careerSelection.current;
+    const request = ++careerRequestVersion.current;
     selectedCareerId.current = id;
     setPageError("");
     try {
       const career = await apiRequest<Career>(`/careers/${id}`, { token });
-      if (!isCurrentSelection(token, session, selection)) return;
+      if (!isCurrentCareerRequest(token, session, selection, request)) return;
       setActiveCareer(career);
       setSelectedContractOfferId(null);
       setView("career");
     } catch (error) {
-      if (!isCurrentSelection(token, session, selection)) return;
+      if (!isCurrentCareerRequest(token, session, selection, request)) return;
       selectedCareerId.current = activeCareer?.id ?? null;
       handleAuthenticatedError(error);
     }
@@ -266,6 +282,7 @@ function App() {
         ]);
       }
       if (!isCurrentSelection(token, session, selection)) return;
+      const request = ++careerRequestVersion.current;
       selectedCareerId.current = career.id;
       setActiveCareer(career);
       setSelectedContractOfferId(null);
@@ -274,10 +291,10 @@ function App() {
         const savedCareers = await apiRequest<CareerSummary[]>("/careers", {
           token,
         });
-        if (isCurrentSelection(token, session, selection))
+        if (isCurrentCareerRequest(token, session, selection, request))
           setCareers(savedCareers);
       } catch (error) {
-        if (!isCurrentSelection(token, session, selection)) return;
+        if (!isCurrentCareerRequest(token, session, selection, request)) return;
         setPageError(
           `커리어는 저장했습니다. 목록을 새로 불러오지 못했습니다: ${toMessage(error)}`,
         );
@@ -305,6 +322,8 @@ function App() {
       return;
     const session = sessionVersion.current;
     const selection = careerSelection.current;
+    let request = ++careerRequestVersion.current;
+    let mutationCompleted = false;
     setPageError("");
 
     try {
@@ -316,15 +335,23 @@ function App() {
           body: { benchCareerPlayerId },
         },
       );
+      mutationCompleted = true;
       if (!isCurrentSelection(token, session, selection)) return;
+      // Reads during the PATCH must not cancel its required post-write refresh.
+      request = ++careerRequestVersion.current;
       const refreshedCareer = await apiRequest<Career>(
         `/careers/${activeCareer.id}`,
         { token },
       );
-      if (!isCurrentSelection(token, session, selection)) return;
+      if (!isCurrentCareerRequest(token, session, selection, request)) return;
       setActiveCareer(refreshedCareer);
     } catch (error) {
       if (!isCurrentSelection(token, session, selection)) return;
+      if (!isCurrentCareerRequest(token, session, selection, request)) {
+        // A failed write must still reject for its caller; only stale reads are discarded.
+        if (!mutationCompleted) throw error;
+        return;
+      }
       handleAuthenticatedError(error);
       throw error;
     }
@@ -340,17 +367,18 @@ function App() {
       return;
     const session = sessionVersion.current;
     const selection = careerSelection.current;
+    const request = ++careerRequestVersion.current;
 
     try {
       const [refreshedCareer, savedCareers] = await Promise.all([
         apiRequest<Career>(`/careers/${activeCareer.id}`, { token }),
         apiRequest<CareerSummary[]>("/careers", { token }),
       ]);
-      if (!isCurrentSelection(token, session, selection)) return;
+      if (!isCurrentCareerRequest(token, session, selection, request)) return;
       setActiveCareer(refreshedCareer);
       setCareers(savedCareers);
     } catch (error) {
-      if (!isCurrentSelection(token, session, selection)) return;
+      if (!isCurrentCareerRequest(token, session, selection, request)) return;
       handleAuthenticatedError(error);
       throw error;
     }
@@ -383,6 +411,7 @@ function App() {
         onSeason={() => setView("season")}
         onSquad={() => setView("squad")}
         onContracts={() => openContracts()}
+        onLegends={() => setView("legends")}
         hasActiveCareer={activeCareer !== null}
         onLogout={() => void logout()}
       />
@@ -425,6 +454,7 @@ function App() {
             onBack={() => setView("career")}
             onCareerRefresh={refreshActiveCareer}
             onOpenContracts={openContracts}
+            onOpenLegends={() => setView("legends")}
           />
         )}
 
@@ -437,6 +467,18 @@ function App() {
             onBack={() => setView("career")}
             onOpenSeason={() => setView("season")}
             onCareerRefresh={refreshActiveCareer}
+          />
+        )}
+
+        {view === "legends" && activeCareer && (
+          <LegendEventsView
+            key={activeCareer.id}
+            career={activeCareer}
+            token={token}
+            onBack={() => setView("career")}
+            onOpenSeason={() => setView("season")}
+            onCareerUpdated={refreshActiveCareer}
+            onOpenContractOffer={openContracts}
           />
         )}
 
@@ -626,6 +668,7 @@ function AppHeader({
   onSeason,
   onSquad,
   onContracts,
+  onLegends,
   hasActiveCareer,
   onLogout,
 }: {
@@ -636,6 +679,7 @@ function AppHeader({
   onSeason: () => void;
   onSquad: () => void;
   onContracts: () => void;
+  onLegends: () => void;
   hasActiveCareer: boolean;
   onLogout: () => void;
 }) {
@@ -667,6 +711,12 @@ function AppHeader({
               onClick={onContracts}
             >
               계약
+            </button>
+            <button
+              className={view === "legends" ? "active" : ""}
+              onClick={onLegends}
+            >
+              레전드 시장
             </button>
           </>
         )}

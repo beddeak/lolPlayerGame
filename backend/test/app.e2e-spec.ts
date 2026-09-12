@@ -8,6 +8,7 @@ import { configureApplication } from '../src/application.setup';
 import { AppModule } from '../src/app.module';
 import { Account } from '../src/auth/entities/account.entity';
 import { Career } from '../src/careers/entities/career.entity';
+import { CareerTeam } from '../src/careers/entities/career-team.entity';
 import { PlayerInstruction } from '../src/careers/enums/player-instruction.enum';
 import { Region } from '../src/careers/enums/region.enum';
 import { TeamStrategy } from '../src/careers/enums/team-strategy.enum';
@@ -15,6 +16,8 @@ import { ChampionArchetype } from '../src/careers/enums/champion-archetype.enum'
 import { TrainingCategory } from '../src/careers/enums/training-category.enum';
 import { TrainingType } from '../src/careers/enums/training-type.enum';
 import { LeagueSplit } from '../src/leagues/entities/league-split.entity';
+import { LeagueStage } from '../src/leagues/entities/league-stage.entity';
+import { LeagueFixture } from '../src/leagues/entities/league-fixture.entity';
 import { LeagueFixtureStatus } from '../src/leagues/enums/league-fixture-status.enum';
 import { LeagueSplitStatus } from '../src/leagues/enums/league-split-status.enum';
 import { LeagueStageStatus } from '../src/leagues/enums/league-stage-status.enum';
@@ -233,6 +236,7 @@ interface LeagueSplitResponse {
     status: LeagueStageStatus;
     bestOf: number;
     currentRound: number;
+    participants: Array<{ teamId: number; initialSeed: number }>;
     fixtures: LeagueFixtureResponse[];
   }>;
   fixtures: LeagueFixtureResponse[];
@@ -1920,6 +1924,156 @@ describe('Application authentication and career ownership (e2e)', () => {
       .set('Authorization', `Bearer ${tokenA}`)
       .expect(200);
   });
+
+  it.each([Region.LCK, Region.LPL])(
+    '%s Split 3 uses only the completed Split 2 from the current year',
+    async (region) => {
+      const api = request(app.getHttpServer());
+      const registerResponse = await api
+        .post('/auth/register')
+        .send({
+          email: `year-boundary-${region}-${fixtureKey}@example.com`,
+          password: 'year-boundary-password',
+          displayName: `Year Boundary ${region}`,
+        })
+        .expect(201);
+      const registered = registerResponse.body as unknown as AuthResponse;
+      accountIds.push(registered.account.id);
+      const authorization = `Bearer ${registered.accessToken}`;
+
+      // These league-seeding fixtures need teams and result snapshots only;
+      // no simulation, player state, or development database is involved.
+      const career = await dataSource.getRepository(Career).save({
+        accountId: registered.account.id,
+        startYear: 2026,
+        currentYear: 2026,
+        currentDate: '2026-03-30',
+      });
+      const teams = await dataSource.getRepository(CareerTeam).save(
+        Array.from({ length: 4 }, (_, index) => ({
+          careerId: career.id,
+          code: `YEAR_${index + 1}`,
+          name: `Year Team ${index + 1}`,
+          region,
+          isUserControlled: index === 0,
+        })),
+      );
+      const splitEndpoint = `/careers/${career.id}/league-splits`;
+      const createSecondSplit = async () => {
+        const response = await api
+          .post(splitEndpoint)
+          .set('Authorization', authorization)
+          .send({ region, splitNumber: 2 })
+          .expect(201);
+        return response.body as unknown as LeagueSplitResponse;
+      };
+      const snapshotCompletedSplit = async (
+        split: LeagueSplitResponse,
+        preferredWinner: number,
+      ) => {
+        for (const fixture of split.fixtures) {
+          const winnerTeamId = [fixture.teamA.id, fixture.teamB.id].includes(
+            preferredWinner,
+          )
+            ? preferredWinner
+            : Math.min(fixture.teamA.id, fixture.teamB.id);
+          const series = await dataSource.getRepository(MatchSeries).save({
+            careerId: career.id,
+            teamAId: fixture.teamA.id,
+            teamBId: fixture.teamB.id,
+            seed: fixture.id,
+            bestOf: fixture.bestOf,
+          });
+          await dataSource.getRepository(Match).save(
+            Array.from(
+              { length: Math.floor(fixture.bestOf / 2) + 1 },
+              (_, index) => ({
+                careerId: career.id,
+                seriesId: series.id,
+                seriesGameNumber: index + 1,
+                teamAId: fixture.teamA.id,
+                teamBId: fixture.teamB.id,
+                winnerTeamId,
+                seed: fixture.id + index,
+                durationMinutes: 30,
+                teamABaseAbility: 70,
+                teamARngModifier: 0,
+                teamAPerformance: 70,
+                teamBBaseAbility: 70,
+                teamBRngModifier: 0,
+                teamBPerformance: 70,
+              }),
+            ),
+          );
+          await dataSource
+            .getRepository(LeagueFixture)
+            .update(fixture.id, { seriesId: series.id });
+        }
+        await dataSource
+          .getRepository(LeagueStage)
+          .update(
+            { leagueSplitId: split.id },
+            { status: LeagueStageStatus.COMPLETED },
+          );
+        const response = await api
+          .get(`${splitEndpoint}/${split.id}`)
+          .set('Authorization', authorization)
+          .expect(200);
+        const completed = response.body as unknown as LeagueSplitResponse;
+        expect(completed.status).toBe(LeagueSplitStatus.COMPLETED);
+        return completed.standings.map((standing) => standing.teamId);
+      };
+
+      const oldSplit = await createSecondSplit();
+      const oldOrder = await snapshotCompletedSplit(oldSplit, teams[0].id);
+      await dataSource.getRepository(Career).update(career.id, {
+        currentYear: 2027,
+        currentDate: '2027-07-29',
+      });
+      await api
+        .post(splitEndpoint)
+        .set('Authorization', authorization)
+        .send({ region, splitNumber: 3 })
+        .expect(409);
+      expect(
+        await dataSource.getRepository(LeagueSplit).countBy({
+          careerId: career.id,
+          year: 2027,
+          region,
+          splitNumber: 3,
+        }),
+      ).toBe(0);
+
+      const currentSplit = await createSecondSplit();
+      await api
+        .post(splitEndpoint)
+        .set('Authorization', authorization)
+        .send({ region, splitNumber: 3 })
+        .expect(409);
+      const currentOrder = await snapshotCompletedSplit(
+        currentSplit,
+        teams[2].id,
+      );
+      expect(currentOrder).not.toEqual(oldOrder);
+
+      const createdResponse = await api
+        .post(splitEndpoint)
+        .set('Authorization', authorization)
+        .send({ region, splitNumber: 3 })
+        .expect(201);
+      const created = createdResponse.body as unknown as LeagueSplitResponse;
+      expect(created.year).toBe(2027);
+      expect(
+        created.stages[0].participants.map((participant) => participant.teamId),
+      ).toEqual(currentOrder);
+      expect(
+        created.stages[0].participants.map(
+          (participant) => participant.initialSeed,
+        ),
+      ).toEqual([1, 2, 3, 4]);
+      expect(created.fixtures.length).toBeGreaterThan(0);
+    },
+  );
 
   afterAll(async () => {
     if (dataSource?.isInitialized) {

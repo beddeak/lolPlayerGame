@@ -93,6 +93,7 @@ describe('CareersService', () => {
         code: 'CURRENT_2026',
         name: '2026 Current',
         description: null,
+        legendEnabled: false,
         playerCards: [],
       },
     };

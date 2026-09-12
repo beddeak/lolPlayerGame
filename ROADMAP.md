@@ -3110,6 +3110,8 @@ Legend Event
 - CareerPlayer 생성
 - AI Competition
 
+구현 범위 및 사용법: [PHASE 22 레전드 이벤트](docs/PHASE22-LEGEND-EVENTS.md)
+
 
 --------------------------------
 

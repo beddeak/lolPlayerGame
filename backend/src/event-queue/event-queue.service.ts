@@ -18,6 +18,7 @@ import { CalendarEventStatus } from './enums/calendar-event-status.enum';
 import { CalendarEventType } from './enums/calendar-event-type.enum';
 import { ContractsService } from '../contracts/contracts.service';
 import { getTransferWindow } from '../transfers/transfer-window';
+import { LegendsService } from '../legends/legends.service';
 
 export interface EnqueueCalendarEventInput {
   scheduledDate: string;
@@ -40,6 +41,7 @@ export class EventQueueService {
     @InjectRepository(CalendarEvent)
     private readonly eventsRepository: Repository<CalendarEvent>,
     private readonly contractsService: ContractsService,
+    private readonly legendsService: LegendsService,
   ) {}
 
   async findAll(
@@ -56,7 +58,13 @@ export class EventQueueService {
       order: { scheduledDate: 'ASC', id: 'ASC' },
     });
 
-    return events.map((event) => this.toResponse(event));
+    return events
+      .filter(
+        (event) =>
+          event.type !== CalendarEventType.LEGEND_REVEAL ||
+          event.status !== CalendarEventStatus.SCHEDULED,
+      )
+      .map((event) => this.toResponse(event));
   }
 
   async resolve(
@@ -75,7 +83,11 @@ export class EventQueueService {
         lock: { mode: 'pessimistic_write' },
       });
 
-      if (!event) {
+      if (
+        !event ||
+        (event.type === CalendarEventType.LEGEND_REVEAL &&
+          event.status === CalendarEventStatus.SCHEDULED)
+      ) {
         throw new NotFoundException(
           `CalendarEvent ${eventId} was not found in Career ${careerId}`,
         );
@@ -135,10 +147,19 @@ export class EventQueueService {
     date: string,
   ): Promise<ProcessedCalendarEvents> {
     // Every response path locks career -> event/offer to serialize calendar and contract decisions.
-    await manager.findOne(Career, {
+    const savedCareer = await manager.findOne(Career, {
       where: { id: careerId },
       lock: { mode: 'pessimistic_write' },
     });
+    if (!savedCareer)
+      throw new NotFoundException(`Career ${careerId} was not found`);
+    // Calendar advancement saves its local date at transaction end, not before each day.
+    const career = {
+      ...savedCareer,
+      currentDate: date,
+      currentYear: Number(date.slice(0, 4)),
+    };
+    await this.legendsService.prepareSeason(manager, career, date);
     await this.contractsService.closeExpiredTransferNegotiations(
       manager,
       careerId,
@@ -168,6 +189,17 @@ export class EventQueueService {
     }
 
     for (const event of events) {
+      if (event.type === CalendarEventType.LEGEND_REVEAL) {
+        await this.legendsService.revealEvent(manager, career, event, date);
+      }
+    }
+    const legendNews = await this.legendsService.processCompetition(
+      manager,
+      career,
+      date,
+    );
+
+    for (const event of events) {
       if (
         event.type === CalendarEventType.CONTRACT_RESPONSE &&
         event.payload?.contractOfferId !== undefined
@@ -189,7 +221,9 @@ export class EventQueueService {
       await manager.save(CalendarEvent, events);
     }
 
-    const processedEvents = events.map((event) => this.toResponse(event));
+    const processedEvents = [...events, ...legendNews].map((event) =>
+      this.toResponse(event),
+    );
 
     return {
       processedEvents,

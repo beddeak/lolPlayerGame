@@ -34,6 +34,7 @@ describe('PlayerCardsService', () => {
     code: 'TEST_THEME',
     name: 'Test Theme',
     description: null,
+    legendEnabled: false,
     playerCards: [],
   } as Theme;
   const dto: CreatePlayerCardDto = {

@@ -16,6 +16,7 @@ import { EventQueueModule } from './event-queue/event-queue.module';
 import { SimulationsModule } from './simulations/simulations.module';
 import { ContractsModule } from './contracts/contracts.module';
 import { TransfersModule } from './transfers/transfers.module';
+import { LegendsModule } from './legends/legends.module';
 
 @Module({
   imports: [
@@ -56,6 +57,7 @@ import { TransfersModule } from './transfers/transfers.module';
     SimulationsModule,
     TransfersModule,
     ContractsModule,
+    LegendsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

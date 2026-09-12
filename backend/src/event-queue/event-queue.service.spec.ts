@@ -6,6 +6,7 @@ import { CalendarEventStatus } from './enums/calendar-event-status.enum';
 import { CalendarEventType } from './enums/calendar-event-type.enum';
 import { EventQueueService } from './event-queue.service';
 import { ContractsService } from '../contracts/contracts.service';
+import { LegendsService } from '../legends/legends.service';
 
 describe('EventQueueService', () => {
   const career = { id: 1, accountId: 7 } as Career;
@@ -40,7 +41,7 @@ describe('EventQueueService', () => {
     eventsRepository.find.mockResolvedValue([]);
     eventsRepository.findOne.mockResolvedValue(null);
     entityManager.find.mockResolvedValue([]);
-    entityManager.findOne.mockResolvedValue(null);
+    entityManager.findOne.mockResolvedValue(career);
     service = new EventQueueService(
       dataSource as unknown as DataSource,
       careersRepository as unknown as Repository<Career>,
@@ -51,6 +52,11 @@ describe('EventQueueService', () => {
         areAcquisitionResponseEvents: jest.fn(),
         processResponseEvent: jest.fn(),
       } as unknown as ContractsService,
+      {
+        prepareSeason: jest.fn(),
+        revealEvent: jest.fn(),
+        processCompetition: jest.fn().mockResolvedValue([]),
+      } as unknown as LegendsService,
     );
   });
 
@@ -75,6 +81,18 @@ describe('EventQueueService', () => {
     await expect(service.findAll(8, career.id, {})).rejects.toBeInstanceOf(
       NotFoundException,
     );
+  });
+
+  it('hides unrevealed legend dates from the public queue', async () => {
+    const hidden = {
+      ...createEvent(1, true),
+      type: CalendarEventType.LEGEND_REVEAL,
+    };
+    const revealed = { ...hidden, id: 2, status: CalendarEventStatus.READY };
+    eventsRepository.find.mockResolvedValue([hidden, revealed]);
+    expect(
+      (await service.findAll(7, career.id, {})).map((event) => event.id),
+    ).toEqual([2]);
   });
 
   it('auto-completes non-blocking events and readies blocking events', async () => {
@@ -106,6 +124,18 @@ describe('EventQueueService', () => {
 
     expect(result.status).toBe(CalendarEventStatus.COMPLETED);
     expect(result.completedAt).toBeInstanceOf(Date);
+  });
+
+  it('does not reveal the existence of a hidden legend event through resolve', async () => {
+    const event = {
+      ...createEvent(3, true),
+      type: CalendarEventType.LEGEND_REVEAL,
+    };
+    entityManager.findOne.mockResolvedValue(event);
+    await expect(
+      service.resolve(7, career.id, event.id),
+    ).rejects.toBeInstanceOf(NotFoundException);
+    expect(entityManager.save).not.toHaveBeenCalled();
   });
 
   it('rejects resolving scheduled or non-blocking events', async () => {

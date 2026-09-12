@@ -63,6 +63,7 @@ describe('LeaguesService', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    career.currentYear = 2026;
     career.currentDate = '2026-01-01';
     career.careerTeams = [...lckTeams, ...lplTeams];
     savedSplit = null;
@@ -205,6 +206,129 @@ describe('LeaguesService', () => {
     expect(
       result.stages[0].fixtures.every((fixture) => fixture.roundNumber === 1),
     ).toBe(true);
+  });
+
+  describe('Split 3 season prerequisites', () => {
+    async function createPriorSplit(
+      region: Region,
+      year: number,
+      completed: boolean,
+    ) {
+      career.currentYear = year;
+      career.currentDate = `${year}-01-01`;
+      career.careerTeams = createTeams(10, region, 1);
+      await service.createSplit(7, career.id, { region, splitNumber: 2 });
+      const split = savedSplit!;
+      if (completed) {
+        split.stages.forEach((stage) => {
+          stage.status = LeagueStageStatus.COMPLETED;
+        });
+      }
+      return split;
+    }
+
+    // Model the repository predicate, not a canned result that ignores the year.
+    function useStoredSplits(splits: LeagueSplit[]) {
+      leagueSplitsRepository.findOne.mockImplementation(
+        ({
+          where,
+        }: {
+          where: {
+            careerId: number;
+            region: Region;
+            splitNumber?: number;
+            year?: number;
+          };
+        }) =>
+          Promise.resolve(
+            splits.find(
+              (split) =>
+                split.careerId === where.careerId &&
+                split.region === where.region &&
+                (where.splitNumber === undefined ||
+                  split.splitNumber === where.splitNumber) &&
+                (where.year === undefined || split.year === where.year),
+            ) ?? null,
+          ),
+      );
+    }
+
+    it.each([
+      [Region.LCK, 2026],
+      [Region.LCK, 2028],
+      [Region.LPL, 2026],
+      [Region.LPL, 2028],
+    ])(
+      'does not use %s Split 2 from %i to seed 2027',
+      async (region, priorYear) => {
+        const oldSplit = await createPriorSplit(region, priorYear, true);
+        useStoredSplits([oldSplit]);
+        career.currentYear = 2027;
+        career.currentDate = '2027-07-29';
+        entityManager.save.mockClear();
+
+        await expect(
+          service.createSplit(7, career.id, {
+            region,
+            splitNumber: 3,
+          }),
+        ).rejects.toThrow('must exist in 2027');
+        expect(leagueSplitsRepository.findOne).toHaveBeenLastCalledWith(
+          expect.objectContaining({
+            where: { careerId: career.id, year: 2027, region, splitNumber: 2 },
+          }),
+        );
+        expect(entityManager.save).not.toHaveBeenCalled();
+      },
+    );
+
+    it.each([Region.LCK, Region.LPL])(
+      'requires the current %s Split 2 to be completed',
+      async (region) => {
+        const oldSplit = await createPriorSplit(region, 2026, true);
+        const currentSplit = await createPriorSplit(region, 2027, false);
+        useStoredSplits([oldSplit, currentSplit]);
+        entityManager.save.mockClear();
+
+        await expect(
+          service.createSplit(7, career.id, { region, splitNumber: 3 }),
+        ).rejects.toThrow('in 2027 must be completed');
+        expect(entityManager.save).not.toHaveBeenCalled();
+      },
+    );
+
+    it.each([Region.LCK, Region.LPL])(
+      'seeds %s Split 3 from the completed current season',
+      async (region) => {
+        const oldSplit = await createPriorSplit(region, 2026, true);
+        const currentSplit = await createPriorSplit(region, 2027, true);
+        const fixture = currentSplit.stages[0].fixtures[0];
+        fixture.seriesId = 50;
+        fixture.series = {
+          id: 50,
+          bestOf: 3,
+          games: [
+            { winnerTeamId: fixture.teamBId },
+            { winnerTeamId: fixture.teamBId },
+          ],
+        } as MatchSeries;
+        useStoredSplits([oldSplit, currentSplit]);
+
+        const result = await service.createSplit(7, career.id, {
+          region,
+          splitNumber: 3,
+        });
+
+        expect(result.year).toBe(2027);
+        expect(result.stages[0].participants[0].teamId).toBe(fixture.teamBId);
+        expect(result.stages[0].fixtures.length).toBeGreaterThan(0);
+        expect(
+          result.stages[0].fixtures.every((game) =>
+            game.scheduledDate.startsWith('2027-'),
+          ),
+        ).toBe(true);
+      },
+    );
   });
 
   it('derives standings only from completed fixtures in that stage', async () => {

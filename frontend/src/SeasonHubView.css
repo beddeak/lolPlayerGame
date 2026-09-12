@@ -1000,6 +1000,10 @@
   font-size: 0.62rem;
 }
 
+.event-feed-actions {
+  gap: 0.35rem;
+}
+
 .add-split-panel {
   border-color: #bcd8ed;
   background: linear-gradient(130deg, #f3f9fd, #e6f3fb);

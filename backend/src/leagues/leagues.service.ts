@@ -125,6 +125,7 @@ export class LeaguesService {
 
     const orderedTeams = await this.orderInitialTeams(
       careerId,
+      career.currentYear,
       dto.region,
       dto.splitNumber,
       regionalTeams,
@@ -413,6 +414,7 @@ export class LeaguesService {
 
   private async orderInitialTeams(
     careerId: number,
+    year: number,
     region: Region,
     splitNumber: number,
     teams: CareerTeam[],
@@ -424,14 +426,13 @@ export class LeaguesService {
     }
 
     const previousSplit = await this.leagueSplitsRepository.findOne({
-      where: { careerId, region, splitNumber: 2 },
+      where: { careerId, year, region, splitNumber: 2 },
       relations: this.splitRelations,
-      order: { year: 'DESC' },
     });
 
     if (!previousSplit) {
       throw new ConflictException(
-        `${region} Split 2 must exist before Split 3 can be seeded`,
+        `${region} Split 2 must exist in ${year} before Split 3 can be seeded`,
       );
     }
 
@@ -440,7 +441,7 @@ export class LeaguesService {
 
     if (response.status !== LeagueSplitStatus.COMPLETED) {
       throw new ConflictException(
-        `${region} Split 2 must be completed before Split 3`,
+        `${region} Split 2 in ${year} must be completed before Split 3`,
       );
     }
 

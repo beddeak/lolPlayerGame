@@ -1,0 +1,96 @@
+{
+  "themes": [
+    {
+      "code": "DEMO_LEGEND_ORIGIN",
+      "name": "DEVELOPMENT DEMO - Origin Five",
+      "description": "DEVELOPMENT DEMO: fictional test players, not historical esports ratings.",
+      "cardDefaults": {
+        "cardYear": 2021,
+        "startingAge": 22,
+        "mechanics": 74,
+        "gameSense": 72,
+        "laning": 73,
+        "teamFight": 75,
+        "macro": 71,
+        "teamPlay": 74,
+        "mental": 73,
+        "championPool": 72,
+        "personality": "PROFESSIONAL",
+        "potential": 80
+      },
+      "players": [
+        {
+          "nickname": "DEMO_LEGEND_ORIGIN_TOP",
+          "nationality": "KR",
+          "mainPosition": "TOP"
+        },
+        {
+          "nickname": "DEMO_LEGEND_ORIGIN_JGL",
+          "nationality": "KR",
+          "mainPosition": "JUNGLE"
+        },
+        {
+          "nickname": "DEMO_LEGEND_ORIGIN_MID",
+          "nationality": "KR",
+          "mainPosition": "MID"
+        },
+        {
+          "nickname": "DEMO_LEGEND_ORIGIN_ADC",
+          "nationality": "KR",
+          "mainPosition": "ADC"
+        },
+        {
+          "nickname": "DEMO_LEGEND_ORIGIN_SUP",
+          "nationality": "KR",
+          "mainPosition": "SUPPORT"
+        }
+      ]
+    },
+    {
+      "code": "DEMO_LEGEND_HORIZON",
+      "name": "DEVELOPMENT DEMO - Horizon Five",
+      "description": "DEVELOPMENT DEMO: fictional test players, not historical esports ratings.",
+      "cardDefaults": {
+        "cardYear": 2022,
+        "startingAge": 21,
+        "mechanics": 76,
+        "gameSense": 70,
+        "laning": 75,
+        "teamFight": 72,
+        "macro": 73,
+        "teamPlay": 71,
+        "mental": 72,
+        "championPool": 74,
+        "personality": "LOYAL",
+        "potential": 82
+      },
+      "players": [
+        {
+          "nickname": "DEMO_LEGEND_HORIZON_TOP",
+          "nationality": "KR",
+          "mainPosition": "TOP"
+        },
+        {
+          "nickname": "DEMO_LEGEND_HORIZON_JGL",
+          "nationality": "KR",
+          "mainPosition": "JUNGLE"
+        },
+        {
+          "nickname": "DEMO_LEGEND_HORIZON_MID",
+          "nationality": "KR",
+          "mainPosition": "MID"
+        },
+        {
+          "nickname": "DEMO_LEGEND_HORIZON_ADC",
+          "nationality": "KR",
+          "mainPosition": "ADC"
+        },
+        {
+          "nickname": "DEMO_LEGEND_HORIZON_SUP",
+          "nationality": "KR",
+          "mainPosition": "SUPPORT"
+        }
+      ]
+    }
+  ]
+}

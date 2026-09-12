@@ -50,6 +50,7 @@ describe('ThemesService', () => {
     expect(themesRepository.create).toHaveBeenCalledWith({
       ...dto,
       description: null,
+      legendEnabled: false,
     });
   });
 

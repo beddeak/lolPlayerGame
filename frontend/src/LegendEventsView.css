@@ -1,0 +1,377 @@
+.legend-market {
+  width: min(1440px, calc(100% - 3rem));
+  margin: auto;
+  padding: 2rem 0 5rem;
+  color: #172a3b;
+}
+.legend-market button {
+  cursor: pointer;
+  font-weight: 800;
+}
+.legend-market button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+.legend-nav {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 1.25rem;
+}
+.legend-nav button {
+  background: transparent;
+  color: #566a7c;
+}
+.legend-hero {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 2rem;
+  padding: 2.5rem;
+  background: linear-gradient(110deg, #fff 30%, #fff2d5);
+  border-top: 5px solid #ef9419;
+  margin-bottom: 1.5rem;
+  box-shadow: 0 8px 24px #2b3d4f08;
+}
+.legend-hero p,
+.legend-event-heading p {
+  color: #987025;
+  letter-spacing: 0.13em;
+  font-size: 0.7rem;
+  font-weight: 900;
+  margin: 0 0 0.4rem;
+}
+.legend-hero h1 {
+  margin: 0.4rem 0 0.8rem;
+  font-size: clamp(1.7rem, 3vw, 2.8rem);
+  letter-spacing: -0.055em;
+}
+.legend-hero > div > span {
+  font-size: 0.83rem;
+  color: #687888;
+  line-height: 1.7;
+}
+.legend-date {
+  display: grid;
+  gap: 0.5rem;
+  text-align: right;
+  flex-shrink: 0;
+}
+.legend-date small {
+  color: #8b7956;
+  font-size: 0.62rem;
+  letter-spacing: 0.1em;
+}
+.legend-date strong {
+  font-size: 1.1rem;
+}
+.legend-date button {
+  padding: 0.6rem;
+  background: white;
+  border: 1px solid #e6d4b3;
+  color: #77531d;
+}
+.legend-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 1.5rem;
+  align-items: start;
+}
+.legend-events {
+  display: grid;
+  gap: 1.5rem;
+  min-width: 0;
+}
+.legend-event {
+  background: #fff;
+  border: 1px solid #e2e8ed;
+  padding: 1.5rem;
+}
+.legend-event-heading {
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+  align-items: end;
+  margin-bottom: 1.4rem;
+}
+.legend-event-heading h2 {
+  font-size: 1.2rem;
+  margin: 0;
+}
+.legend-event-heading > span {
+  font-size: 0.67rem;
+  color: #70808e;
+  white-space: nowrap;
+}
+.legend-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(135px, 1fr));
+  gap: 0.8rem;
+}
+.legend-player-card {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  align-items: center;
+  padding: 0.85rem 0.6rem 0.7rem;
+  color: #382f23;
+  background: linear-gradient(140deg, #fffefb, #f6e7bc);
+  border: 1px solid #decb99;
+  box-shadow: 0 4px 12px #7e64320b;
+  transition:
+    transform 0.16s,
+    box-shadow 0.16s;
+}
+.legend-player-card:hover:not(:disabled),
+.legend-player-card.selected {
+  box-shadow:
+    0 0 0 2px #e99b29,
+    0 8px 20px #6e571318;
+  transform: translateY(-3px);
+}
+.legend-card-rating {
+  align-self: start;
+  display: grid;
+  text-align: left;
+  position: relative;
+  z-index: 1;
+}
+.legend-card-rating strong {
+  font:
+    900 2rem "Barlow Condensed",
+    sans-serif;
+  line-height: 1;
+}
+.legend-card-rating span {
+  font-size: 0.55rem;
+  letter-spacing: 0.04em;
+  margin-top: 0.3rem;
+}
+.legend-card-portrait {
+  width: 100%;
+  height: 100px;
+  position: relative;
+  margin-top: -1.4rem;
+  overflow: hidden;
+}
+.legend-card-portrait > span {
+  display: block;
+  font:
+    800 6rem "Barlow Condensed",
+    sans-serif;
+  color: #d1b87380;
+  line-height: 1;
+  text-align: center;
+}
+.legend-card-portrait img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.legend-card-year {
+  font-size: 0.52rem;
+  letter-spacing: 0.17em;
+  color: #8c723e;
+  margin: 0.6rem 0 0.25rem;
+}
+.legend-card-name {
+  font-size: clamp(0.85rem, 1.3vw, 1.2rem);
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+.legend-card-status {
+  font-size: 0.54rem;
+  letter-spacing: 0.08em;
+  margin-top: 0.6rem;
+  padding-top: 0.55rem;
+  border-top: 1px solid #c8b68d80;
+  width: 100%;
+  color: #79643c;
+}
+.legend-card-status.signed {
+  color: #236ba5;
+}
+.legend-negotiation {
+  position: sticky;
+  top: 6.3rem;
+  background: white;
+  border: 1px solid #dce5ed;
+}
+.legend-target {
+  position: relative;
+  padding: 1.4rem;
+  background: #f3f7fa;
+  border-bottom: 1px solid #e3eaf0;
+}
+.legend-target p {
+  color: #977126;
+  font-size: 0.65rem;
+  font-weight: 800;
+  margin: 0 0 0.8rem;
+}
+.legend-target > span {
+  color: #718393;
+  font-size: 0.68rem;
+}
+.legend-target h2 {
+  margin: 0.4rem 3.5rem 0 0;
+  overflow-wrap: anywhere;
+  font-size: 1.5rem;
+}
+.legend-target > strong {
+  position: absolute;
+  right: 1.3rem;
+  bottom: 1.25rem;
+  display: grid;
+  font:
+    900 2.5rem "Barlow Condensed",
+    sans-serif;
+  line-height: 1;
+  color: #1768a8;
+}
+.legend-target strong small {
+  text-align: center;
+  font: 800 0.5rem sans-serif;
+  letter-spacing: 0.16em;
+  margin-top: 0.2rem;
+}
+.legend-interest,
+.legend-current-offer,
+.legend-offer-form {
+  padding: 1.3rem;
+  border-bottom: 1px solid #e3eaf0;
+}
+.legend-negotiation h3 {
+  font-size: 0.9rem;
+  margin: 0 0 0.8rem;
+}
+.legend-negotiation p {
+  font-size: 0.7rem;
+  line-height: 1.7;
+  color: #708291;
+}
+.legend-interest > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+.legend-interest > div > span {
+  background: #eef4f8;
+  padding: 0.4rem 0.55rem;
+  font-size: 0.66rem;
+  font-weight: 900;
+  color: #365a78;
+}
+.legend-offer-form fieldset {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.85rem;
+}
+.legend-offer-form label {
+  font-size: 0.73rem;
+  font-weight: 800;
+  display: grid;
+  gap: 0.35rem;
+}
+.legend-offer-form label small {
+  color: #7d8b98;
+  font-weight: 400;
+}
+.legend-offer-form input:not([type="checkbox"]),
+.legend-offer-form select {
+  width: 100%;
+  padding: 0.65rem;
+  background: #f8fafb;
+  border: 1px solid #d8e2e9;
+  color: #172a3b;
+  font: inherit;
+  box-sizing: border-box;
+}
+.legend-offer-form .legend-check {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.legend-offer-form > button,
+.legend-current-offer > button,
+.legend-empty button {
+  width: 100%;
+  padding: 0.85rem;
+  background: #1768a8;
+  color: white;
+  font-size: 0.8rem;
+}
+.legend-negotiation .legend-validation {
+  color: #b43f32;
+}
+.legend-notice {
+  padding: 1rem;
+  margin-bottom: 1rem;
+  font-size: 0.8rem;
+  background: #fff0ec;
+  color: #a43e30;
+  border: 1px solid #f0c7bd;
+}
+.legend-empty {
+  text-align: center;
+  padding: 4rem 1.5rem;
+  background: #fff;
+  border: 1px solid #e1e8ef;
+  color: #698093;
+}
+.legend-empty > span {
+  font-size: 0.7rem;
+  letter-spacing: 0.15em;
+  color: #a58348;
+}
+.legend-empty h2 {
+  color: #294359;
+  font-size: 1.2rem;
+}
+.legend-empty p {
+  font-size: 0.8rem;
+}
+.legend-empty button {
+  width: auto;
+  margin-top: 1rem;
+}
+@media (max-width: 1080px) {
+  .legend-layout {
+    grid-template-columns: minmax(0, 1fr) 285px;
+  }
+  .legend-cards {
+    grid-template-columns: repeat(auto-fit, minmax(115px, 1fr));
+  }
+}
+@media (max-width: 780px) {
+  .legend-market {
+    width: calc(100% - 1.5rem);
+    padding-top: 1rem;
+  }
+  .legend-hero {
+    padding: 1.5rem;
+    display: block;
+  }
+  .legend-date {
+    margin-top: 1.5rem;
+    text-align: left;
+    justify-items: start;
+  }
+  .legend-layout {
+    grid-template-columns: 1fr;
+  }
+  .legend-negotiation {
+    position: static;
+  }
+  .legend-cards {
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  }
+  .legend-event-heading {
+    align-items: start;
+    flex-direction: column;
+  }
+}
