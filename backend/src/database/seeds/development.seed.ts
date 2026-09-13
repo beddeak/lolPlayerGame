@@ -34,10 +34,11 @@ import { SetBonusRequirement } from '../../set-bonuses/entities/set-bonus-requir
 import dataSource from '../data-source';
 import { seedClubCatalog, validateClubSeeds } from './club-catalog.seed';
 import type { ClubSeedData } from './club-catalog.seed';
+import { isCatalogOnlySeed } from './seed-mode';
 
 interface DevelopmentSeedData {
   startYear: number;
-  managedTeamCode: string;
+  managedTeamCode?: string;
   themes: Array<{
     code: string;
     name: string;
@@ -513,11 +514,17 @@ async function seedCareer(
   createdTeamCount: number;
   createdStarterCount: number;
 }> {
+  const managedTeamCode = seedData.managedTeamCode;
+  if (!managedTeamCode) {
+    throw new Error(
+      'Development career creation requires an explicit managedTeamCode',
+    );
+  }
   const careerTeamsRepository = dataSource.getRepository(CareerTeam);
   const existingSeedTeam = await careerTeamsRepository
     .createQueryBuilder('careerTeam')
     .innerJoinAndSelect('careerTeam.career', 'career')
-    .where('careerTeam.code = :code', { code: seedData.managedTeamCode })
+    .where('careerTeam.code = :code', { code: managedTeamCode })
     .andWhere('career.accountId = :accountId', { accountId })
     .getOne();
 
@@ -537,7 +544,7 @@ async function seedCareer(
 
   const dto: CreateCareerDto = {
     startYear: seedData.startYear,
-    managedTeamCode: seedData.managedTeamCode,
+    managedTeamCode,
     teams: seedData.teams.map((team) => ({
       code: team.code,
       name: team.name,
@@ -851,7 +858,7 @@ async function seedChampionArchetypes(
 
 async function runSeed(): Promise<void> {
   const seedData = await loadSeedData();
-  const catalogOnly = process.argv.includes('--catalog-only');
+  const catalogOnly = isCatalogOnlySeed(seedData.managedTeamCode, process.argv);
   const accountConfig = catalogOnly ? null : loadDevelopmentAccountConfig();
   const keys = seedData.playerCards.map((card) => card.key);
   if (new Set(keys).size !== keys.length)
