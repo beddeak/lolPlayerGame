@@ -7,11 +7,17 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, EntityManager, Repository } from 'typeorm';
-import { PlayerPersonality } from '../players/enums/player-personality.enum';
+import {
+  PLAYER_CARD_STAT_MAX,
+  PLAYER_CARD_STAT_MIN,
+} from '../players/constants/player-card.constants';
 import { CAREER_PLAYER_STATE_CONFIG } from './config/player-state.config';
+import { formRecovery } from './config/form-recovery';
+import { TrainingPlayerEffect } from './training-player-effect';
 import { POSITION_PROFICIENCY_CONFIG } from './config/position-proficiency.config';
 import { createTrainingRandom } from './config/training-random';
 import { TRAINING_CONFIG } from './config/training.config';
+import { getTrainingWeek } from './config/training-week';
 import {
   PLAYER_INSTRUCTIONS_BY_POSITION,
   ROLE_PROFICIENCY_CONFIG,
@@ -39,10 +45,22 @@ import {
 } from './enums/training-type.enum';
 
 interface LockedTrainingContext {
+  career: Career;
   period: TrainingPeriod;
   managedTeam: CareerTeam;
   categorySequence: number;
 }
+
+const STAT_FIELDS = {
+  [TrainingType.MECHANICS]: 'currentMechanics',
+  [TrainingType.GAME_SENSE]: 'currentGameSense',
+  [TrainingType.LANING]: 'currentLaning',
+  [TrainingType.TEAM_FIGHT]: 'currentTeamFight',
+  [TrainingType.MACRO]: 'currentMacro',
+  [TrainingType.TEAM_PLAY]: 'currentTeamPlay',
+  [TrainingType.MENTAL]: 'currentMental',
+  [TrainingType.CHAMPION_POOL]: 'currentChampionPool',
+} as const;
 
 @Injectable()
 export class TrainingService {
@@ -56,19 +74,20 @@ export class TrainingService {
     accountId: number,
     careerId: number,
   ): Promise<TrainingPeriodResponseDto> {
-    const period = await this.trainingPeriodsRepository.findOne({
-      where: { careerId, career: { accountId } },
-      relations: { career: true, sessions: true },
-      order: { periodNumber: 'DESC' },
+    const career = await this.dataSource.manager.findOneBy(Career, {
+      id: careerId,
+      accountId,
     });
-
-    if (!period) {
-      throw new NotFoundException(
-        `Current TrainingPeriod was not found in Career ${careerId}`,
-      );
-    }
-
-    return this.toResponse(period);
+    if (!career)
+      throw new NotFoundException(`Career ${careerId} was not found`);
+    const period = await this.trainingPeriodsRepository.findOne({
+      where: {
+        careerId,
+        weekStartsAt: getTrainingWeek(career.currentDate).weekStartsAt,
+      },
+      relations: { sessions: true },
+    });
+    return this.toResponse(period, career, this.dataSource.manager);
   }
 
   trainTeam(
@@ -88,7 +107,18 @@ export class TrainingService {
       let resultBefore: number;
       let resultAfter: number;
 
-      if (dto.type === TrainingType.STRATEGY) {
+      if (dto.type === TrainingType.REST) {
+        const trained = await manager.countBy(TrainingSession, {
+          trainingPeriodId: context.period.id,
+          category: TrainingCategory.INDIVIDUAL,
+        });
+        if (trained)
+          throw new ConflictException(
+            '개인 훈련을 진행한 주에는 팀 전체 휴식을 선택할 수 없습니다.',
+          );
+        resultBefore = 0;
+        resultAfter = 0;
+      } else if (dto.type === TrainingType.STRATEGY) {
         const proficiency = await manager
           .getRepository(CareerTeamStrategyProficiency)
           .createQueryBuilder('proficiency')
@@ -108,7 +138,14 @@ export class TrainingService {
         }
 
         resultBefore = proficiency.proficiency;
-        this.assertCanGrow(resultBefore, 'Strategy proficiency');
+        if (
+          resultBefore >= TEAM_STRATEGY_PROFICIENCY_CONFIG.max &&
+          context.managedTeam.chemistry >= TEAM_CHEMISTRY_CONFIG.max
+        ) {
+          throw new BadRequestException(
+            '전술 숙련도와 팀 케미가 이미 최대입니다.',
+          );
+        }
         resultAfter = this.clamp(
           resultBefore + TRAINING_CONFIG.growth[TrainingType.STRATEGY],
           TEAM_STRATEGY_PROFICIENCY_CONFIG.min,
@@ -116,6 +153,13 @@ export class TrainingService {
         );
         proficiency.proficiency = resultAfter;
         await manager.save(CareerTeamStrategyProficiency, proficiency);
+        context.managedTeam.chemistry = this.clamp(
+          context.managedTeam.chemistry +
+            TRAINING_CONFIG.growth[TrainingType.CHEMISTRY],
+          TEAM_CHEMISTRY_CONFIG.min,
+          TEAM_CHEMISTRY_CONFIG.max,
+        );
+        await manager.save(CareerTeam, context.managedTeam);
       } else {
         resultBefore = context.managedTeam.chemistry;
         this.assertCanGrow(resultBefore, 'Team chemistry');
@@ -128,6 +172,11 @@ export class TrainingService {
         await manager.save(CareerTeam, context.managedTeam);
       }
 
+      const playerEffects = await this.applyTeamActivity(
+        manager,
+        context,
+        dto.type === TrainingType.REST,
+      );
       await manager.save(
         TrainingSession,
         manager.create(TrainingSession, {
@@ -153,10 +202,11 @@ export class TrainingService {
           formBefore: null,
           formDelta: null,
           formAfter: null,
+          playerEffects,
         }),
       );
 
-      return this.reloadPeriod(manager, context.period.id);
+      return this.reloadPeriod(manager, context.period.id, context.career);
     });
   }
 
@@ -205,12 +255,17 @@ export class TrainingService {
         category: TrainingCategory.INDIVIDUAL,
         careerPlayerId: careerPlayer.id,
       });
-      const isOverloaded = priorPlayerTrainingCount > 0;
+      if (
+        priorPlayerTrainingCount >= TRAINING_CONFIG.usesPerPeriod.individual
+      ) {
+        throw new ConflictException(
+          '이 선수는 이번 주 개인 훈련을 이미 사용했습니다.',
+        );
+      }
       const random = createTrainingRandom(
-        `${careerId}:${context.period.periodNumber}:${context.categorySequence}:${careerPlayer.id}:${dto.type}`,
+        `${careerId}:${context.period.weekStartsAt}:${careerPlayer.id}:${dto.type}`,
       );
       const growthRoll = random();
-      const formRoll = random();
       const growth = await this.applyIndividualGrowth(
         manager,
         careerPlayer,
@@ -218,26 +273,14 @@ export class TrainingService {
         growthRoll,
       );
       const conditionBefore = careerPlayer.condition;
-      const conditionLoss = this.calculateConditionLoss(
-        careerPlayer,
-        dto.type,
-        isOverloaded,
-      );
+      const conditionLoss = this.calculateConditionLoss(careerPlayer, dto.type);
       const conditionAfter = this.clamp(
         conditionBefore - conditionLoss,
         CAREER_PLAYER_STATE_CONFIG.min,
         CAREER_PLAYER_STATE_CONFIG.max,
       );
       const formBefore = careerPlayer.form;
-      const shouldDropForm =
-        isOverloaded &&
-        formRoll <
-          this.calculateOverloadFormDropChance(careerPlayer, conditionAfter);
-      const formAfter = this.clamp(
-        formBefore - (shouldDropForm ? TRAINING_CONFIG.overload.formDrop : 0),
-        CAREER_PLAYER_STATE_CONFIG.min,
-        CAREER_PLAYER_STATE_CONFIG.max,
-      );
+      const formAfter = formBefore;
 
       careerPlayer.condition = conditionAfter;
       careerPlayer.form = formAfter;
@@ -267,10 +310,11 @@ export class TrainingService {
           formBefore,
           formDelta: formAfter - formBefore,
           formAfter,
+          playerEffects: null,
         }),
       );
 
-      return this.reloadPeriod(manager, context.period.id);
+      return this.reloadPeriod(manager, context.period.id, context.career);
     });
   }
 
@@ -292,6 +336,9 @@ export class TrainingService {
       throw new NotFoundException(`Career ${careerId} was not found`);
     }
     await assertManagerActive(manager, careerId);
+    const week = getTrainingWeek(career.currentDate);
+    if (category === TrainingCategory.INDIVIDUAL && !week.available)
+      throw new ConflictException(week.unavailableReason!);
 
     const managedTeam = await manager
       .getRepository(CareerTeam)
@@ -309,19 +356,42 @@ export class TrainingService {
       );
     }
 
-    const period = await manager
+    let period = await manager
       .getRepository(TrainingPeriod)
       .createQueryBuilder('period')
       .setLock('pessimistic_write')
       .where('period.careerId = :careerId', { careerId })
-      .orderBy('period.periodNumber', 'DESC')
+      .andWhere('period.weekStartsAt = :weekStartsAt', {
+        weekStartsAt: week.weekStartsAt,
+      })
       .getOne();
 
     if (!period) {
-      throw new ConflictException(
-        `Career ${careerId} does not have a current TrainingPeriod`,
+      const previous = await manager.findOne(TrainingPeriod, {
+        where: { careerId },
+        order: { periodNumber: 'DESC' },
+      });
+      period = await manager.save(
+        TrainingPeriod,
+        manager.create(TrainingPeriod, {
+          careerId,
+          periodNumber: (previous?.periodNumber ?? 0) + 1,
+          weekStartsAt: week.weekStartsAt,
+        }),
       );
     }
+
+    if (
+      category === TrainingCategory.INDIVIDUAL &&
+      (await manager.existsBy(TrainingSession, {
+        trainingPeriodId: period.id,
+        category: TrainingCategory.TEAM,
+        type: TrainingType.REST,
+      }))
+    )
+      throw new ConflictException(
+        '팀 전체 휴식을 선택한 주에는 개인 훈련을 진행할 수 없습니다.',
+      );
 
     const used = await manager.countBy(TrainingSession, {
       trainingPeriodId: period.id,
@@ -332,13 +402,86 @@ export class TrainingService {
         ? TRAINING_CONFIG.usesPerPeriod.team
         : TRAINING_CONFIG.usesPerPeriod.individual;
 
-    if (used >= limit) {
+    if (category === TrainingCategory.TEAM && used >= limit) {
       throw new ConflictException(
         `${category} training limit of ${limit} has been reached for TrainingPeriod ${period.periodNumber}`,
       );
     }
 
-    return { period, managedTeam, categorySequence: used + 1 };
+    return { career, period, managedTeam, categorySequence: used + 1 };
+  }
+
+  private async applyTeamActivity(
+    manager: EntityManager,
+    context: LockedTrainingContext,
+    rest: boolean,
+  ): Promise<TrainingPlayerEffect[]> {
+    const state = CAREER_PLAYER_STATE_CONFIG;
+    const players = await manager.find(CareerPlayer, {
+      where: {
+        careerId: context.career.id,
+        currentTeamId: context.managedTeam.id,
+      },
+      select: { id: true, form: true, condition: true, currentMental: true },
+      order: { id: 'ASC' },
+      lock: { mode: 'pessimistic_write' },
+    });
+    if (!players.length)
+      throw new ConflictException('팀 활동에 참가할 선수가 없습니다.');
+    if (
+      rest &&
+      players.every(
+        (player) => player.condition >= state.max && player.form >= state.max,
+      )
+    ) {
+      throw new BadRequestException(
+        '모든 선수의 컨디션과 폼이 이미 최대입니다.',
+      );
+    }
+    if (!rest && players.every((player) => player.condition <= state.min)) {
+      throw new BadRequestException(
+        '스크림에 참가할 수 있는 선수가 없습니다. 팀 휴식이 필요합니다.',
+      );
+    }
+    const effects = players.map((player) => {
+      const conditionBefore = player.condition;
+      const formBefore = player.form;
+      const participates = rest || conditionBefore > state.min;
+      const conditionAfter = this.clamp(
+        conditionBefore +
+          (rest
+            ? TRAINING_CONFIG.restConditionRecovery
+            : -TRAINING_CONFIG.scrimConditionLoss),
+        state.min,
+        state.max,
+      );
+      const formAfter = this.clamp(
+        formBefore +
+          (participates
+            ? formRecovery(player.currentMental, rest ? 'rest' : 'scrim')
+            : 0),
+        state.min,
+        state.max,
+      );
+      return {
+        careerPlayerId: player.id,
+        conditionBefore,
+        conditionAfter,
+        conditionDelta: conditionAfter - conditionBefore,
+        formBefore,
+        formAfter,
+        formDelta: formAfter - formBefore,
+      };
+    });
+    await manager.save(
+      CareerPlayer,
+      effects.map((effect) => ({
+        id: effect.careerPlayerId,
+        condition: effect.conditionAfter,
+        form: effect.formAfter,
+      })),
+    );
+    return effects;
   }
 
   private async applyIndividualGrowth(
@@ -347,41 +490,29 @@ export class TrainingService {
     dto: CreateIndividualTrainingDto,
     growthRoll: number,
   ): Promise<{ before: number; after: number; succeeded: boolean }> {
-    if (dto.type === TrainingType.LANING) {
-      const before = careerPlayer.currentLaning;
-      this.assertCanGrow(before, 'Laning');
+    if (dto.type in STAT_FIELDS) {
+      const field = STAT_FIELDS[dto.type as keyof typeof STAT_FIELDS];
+      const before = careerPlayer[field];
+      this.assertCanGrow(before, dto.type, PLAYER_CARD_STAT_MAX);
       const potentialGap = careerPlayer.playerCard.potential - before;
       const chance = this.clamp(
-        TRAINING_CONFIG.laningGrowthChance.base +
+        TRAINING_CONFIG.statGrowthChance.base +
           Math.max(0, potentialGap) *
-            TRAINING_CONFIG.laningGrowthChance.perPotentialGap,
-        TRAINING_CONFIG.laningGrowthChance.min,
-        TRAINING_CONFIG.laningGrowthChance.max,
+            TRAINING_CONFIG.statGrowthChance.perPotentialGap,
+        TRAINING_CONFIG.statGrowthChance.min,
+        TRAINING_CONFIG.statGrowthChance.max,
       );
       const succeeded = growthRoll < chance;
       const after = succeeded
         ? this.clamp(
-            before + TRAINING_CONFIG.growth[TrainingType.LANING],
-            0,
-            100,
+            before + (growthRoll < chance / 2 ? 2 : 1),
+            PLAYER_CARD_STAT_MIN,
+            PLAYER_CARD_STAT_MAX,
           )
         : before;
 
-      careerPlayer.currentLaning = after;
+      careerPlayer[field] = after;
       return { before, after, succeeded };
-    }
-
-    if (dto.type === TrainingType.CHAMPION_POOL) {
-      const before = careerPlayer.currentChampionPool;
-      this.assertCanGrow(before, 'Champion Pool');
-      const potentialGap = careerPlayer.playerCard.potential - before;
-      const configuredGrowth =
-        TRAINING_CONFIG.growth[TrainingType.CHAMPION_POOL];
-      const growth = potentialGap <= 0 ? 1 : configuredGrowth;
-      const after = this.clamp(before + growth, 0, 100);
-
-      careerPlayer.currentChampionPool = after;
-      return { before, after, succeeded: after > before };
     }
 
     if (dto.type === TrainingType.ROLE) {
@@ -413,7 +544,7 @@ export class TrainingService {
       const before = proficiency.proficiency;
       this.assertCanGrow(before, 'Role proficiency');
       const after = this.clamp(
-        before + TRAINING_CONFIG.growth[TrainingType.ROLE],
+        before + Math.floor(growthRoll * 3),
         ROLE_PROFICIENCY_CONFIG.min,
         ROLE_PROFICIENCY_CONFIG.max,
       );
@@ -444,7 +575,7 @@ export class TrainingService {
     const before = proficiency.proficiency;
     this.assertCanGrow(before, 'Position proficiency');
     const after = this.clamp(
-      before + TRAINING_CONFIG.growth[TrainingType.POSITION],
+      before + Math.floor(growthRoll * 3),
       POSITION_PROFICIENCY_CONFIG.min,
       POSITION_PROFICIENCY_CONFIG.max,
     );
@@ -457,7 +588,6 @@ export class TrainingService {
   private calculateConditionLoss(
     careerPlayer: CareerPlayer,
     type: TrainingType,
-    isOverloaded: boolean,
   ): number {
     const ageAdjustment =
       careerPlayer.currentAge < 30
@@ -465,9 +595,6 @@ export class TrainingService {
         : Math.min(3, 1 + Math.floor((careerPlayer.currentAge - 30) / 3));
     const personalityAdjustment =
       TRAINING_CONFIG.personalityConditionAdjustment[careerPlayer.personality];
-    const overloadAdjustment = isOverloaded
-      ? TRAINING_CONFIG.overload.additionalConditionLoss
-      : 0;
 
     return Math.max(
       1,
@@ -475,25 +602,7 @@ export class TrainingService {
         type as keyof typeof TRAINING_CONFIG.conditionLoss
       ] +
         personalityAdjustment +
-        ageAdjustment +
-        overloadAdjustment,
-    );
-  }
-
-  private calculateOverloadFormDropChance(
-    careerPlayer: CareerPlayer,
-    conditionAfter: number,
-  ): number {
-    return this.clamp(
-      TRAINING_CONFIG.overload.baseFormDropChance +
-        (careerPlayer.personality === PlayerPersonality.SENSITIVE
-          ? TRAINING_CONFIG.overload.sensitiveFormDropChanceBonus
-          : 0) +
-        (conditionAfter < TRAINING_CONFIG.overload.lowConditionThreshold
-          ? TRAINING_CONFIG.overload.lowConditionFormDropChanceBonus
-          : 0),
-      0,
-      1,
+        ageAdjustment,
     );
   }
 
@@ -508,7 +617,7 @@ export class TrainingService {
       );
     }
 
-    if (dto.type === TrainingType.CHEMISTRY && dto.strategy !== undefined) {
+    if (dto.type !== TrainingType.STRATEGY && dto.strategy !== undefined) {
       throw new BadRequestException(
         'strategy is only valid for STRATEGY training',
       );
@@ -522,10 +631,7 @@ export class TrainingService {
       );
     }
 
-    if (
-      dto.type === TrainingType.LANING ||
-      dto.type === TrainingType.CHAMPION_POOL
-    ) {
+    if (dto.type in STAT_FIELDS) {
       if (dto.position !== undefined || dto.instruction !== undefined) {
         throw new BadRequestException(
           'position and instruction are not valid for this training type',
@@ -566,8 +672,8 @@ export class TrainingService {
     }
   }
 
-  private assertCanGrow(value: number, label: string): void {
-    if (value >= 100) {
+  private assertCanGrow(value: number, label: string, max = 100): void {
+    if (value >= max) {
       throw new BadRequestException(`${label} is already at its maximum`);
     }
   }
@@ -575,31 +681,55 @@ export class TrainingService {
   private async reloadPeriod(
     manager: EntityManager,
     trainingPeriodId: number,
+    career: Career,
   ): Promise<TrainingPeriodResponseDto> {
     const period = await manager.findOneOrFail(TrainingPeriod, {
       where: { id: trainingPeriodId },
       relations: { sessions: true },
     });
 
-    return this.toResponse(period);
+    return this.toResponse(period, career, manager);
   }
 
-  private toResponse(period: TrainingPeriod): TrainingPeriodResponseDto {
-    const sessions = [...(period.sessions ?? [])].sort(
+  private async toResponse(
+    period: TrainingPeriod | null,
+    career: Career,
+    manager: EntityManager,
+  ): Promise<TrainingPeriodResponseDto> {
+    const sessions = [...(period?.sessions ?? [])].sort(
       (left, right) => left.id - right.id,
     );
     const teamUsed = sessions.filter(
       (session) => session.category === TrainingCategory.TEAM,
     ).length;
+    const currentPlayers = await manager.find(CareerPlayer, {
+      where: { careerId: career.id, currentTeam: { isUserControlled: true } },
+      select: { id: true },
+    });
+    const currentIds = new Set(currentPlayers.map((player) => player.id));
+    const playerCount = currentPlayers.length;
     const individualUsed = sessions.filter(
-      (session) => session.category === TrainingCategory.INDIVIDUAL,
+      (session) =>
+        session.careerPlayerId !== null &&
+        currentIds.has(session.careerPlayerId),
     ).length;
 
     return {
-      id: period.id,
-      careerId: period.careerId,
-      periodNumber: period.periodNumber,
-      createdAt: period.createdAt,
+      id: period?.id ?? 0,
+      careerId: career.id,
+      periodNumber: period?.periodNumber ?? 0,
+      createdAt:
+        period?.createdAt ?? new Date(`${career.currentDate}T00:00:00Z`),
+      ...getTrainingWeek(career.currentDate),
+      teamRested: sessions.some(
+        (session) =>
+          session.category === TrainingCategory.TEAM &&
+          session.type === TrainingType.REST,
+      ),
+      playerUsesPerWeek: TRAINING_CONFIG.usesPerPeriod.individual,
+      usedPlayerIds: sessions.flatMap((session) =>
+        session.careerPlayerId === null ? [] : [session.careerPlayerId],
+      ),
       teamTraining: {
         used: teamUsed,
         limit: TRAINING_CONFIG.usesPerPeriod.team,
@@ -607,11 +737,8 @@ export class TrainingService {
       },
       individualTraining: {
         used: individualUsed,
-        limit: TRAINING_CONFIG.usesPerPeriod.individual,
-        remaining: Math.max(
-          0,
-          TRAINING_CONFIG.usesPerPeriod.individual - individualUsed,
-        ),
+        limit: playerCount,
+        remaining: Math.max(0, playerCount - individualUsed),
       },
       sessions: sessions.map((session) => ({
         id: session.id,
@@ -633,6 +760,7 @@ export class TrainingService {
         formBefore: session.formBefore,
         formDelta: session.formDelta,
         formAfter: session.formAfter,
+        playerEffects: session.playerEffects ?? [],
         createdAt: session.createdAt,
       })),
     };

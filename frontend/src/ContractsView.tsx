@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { apiRequest } from "./api";
+import { DEFAULT_ANNUAL_SALARY, formatMoney as formatSalary } from "./money";
+import PlayerSalesPanel from "./PlayerSalesPanel";
 import {
   POSITIONS,
   type CalendarResponse,
@@ -53,7 +55,7 @@ interface Props {
 
 function defaultTerms(roster?: CareerRoster): ContractTerms {
   return {
-    annualSalary: 10000,
+    annualSalary: DEFAULT_ANNUAL_SALARY,
     years: 2,
     starterGuarantee: false,
     expectedRole: roster?.role === "BENCH" ? "ROTATION" : "STARTER",
@@ -83,6 +85,7 @@ export default function ContractsView({
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [reloadKey, setReloadKey] = useState(0);
+  const [salePlayerId, setSalePlayerId] = useState<number | null>(null);
   const base = `/careers/${career.id}/contracts`;
   const fetchData = useCallback(
     () =>
@@ -457,6 +460,28 @@ export default function ContractsView({
                 </small>
               </div>
             </section>
+            {selected && (
+              <div className="contracts-sale-action">
+                <button
+                  disabled={busy}
+                  onClick={() =>
+                    setSalePlayerId(salePlayerId === playerId ? null : playerId)
+                  }
+                >
+                  {salePlayerId === playerId ? "판매 화면 닫기" : "선수 팔기"}
+                </button>
+                {salePlayerId === playerId && playerId !== null && (
+                  <PlayerSalesPanel
+                    key={playerId}
+                    career={career}
+                    token={token}
+                    playerId={playerId}
+                    onCareerUpdated={onCareerRefresh}
+                    onOpenSeason={onOpenSeason}
+                  />
+                )}
+              </div>
+            )}
             {contract && (
               <section className="contracts-signed">
                 <h3>체결 조건과 약속</h3>
@@ -575,7 +600,7 @@ export default function ContractsView({
                           }))
                         }
                       />
-                      <small>
+                      <small className="money-preview">
                         {Number.isFinite(terms.annualSalary)
                           ? formatSalary(terms.annualSalary)
                           : "연봉을 입력해 주세요"}
@@ -770,11 +795,6 @@ function validateTerms(terms: ContractTerms): string {
   )
     return "연봉은 1~10,000,000만원 사이 정수로 입력해 주세요.";
   return "";
-}
-function formatSalary(value: number): string {
-  return value >= 10000
-    ? `${new Intl.NumberFormat("ko-KR", { maximumFractionDigits: 4 }).format(value / 10000)}억 원`
-    : `${value.toLocaleString("ko-KR")}만 원`;
 }
 function toMessage(value: unknown): string {
   return value instanceof Error

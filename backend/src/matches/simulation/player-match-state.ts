@@ -1,4 +1,9 @@
 import { CAREER_PLAYER_STATE_CONFIG } from '../../careers/config/player-state.config';
+import { formRecovery } from '../../careers/config/form-recovery';
+import {
+  PLAYER_CARD_STAT_MAX,
+  PLAYER_CARD_STAT_MIN,
+} from '../../players/constants/player-card.constants';
 
 export interface PlayerMatchState {
   form: number;
@@ -54,7 +59,9 @@ export function calculatePostMatchPlayerState(
   const formDelta = clamp(
     Math.round(
       (rating - config.form.neutralRating) / config.form.ratingPointsPerDelta,
-    ) + (won ? config.form.winnerDelta : config.form.loserDelta),
+    ) +
+      (won ? config.form.winnerDelta : config.form.loserDelta) +
+      formRecovery(state.mental, 'match'),
     config.form.minDelta,
     config.form.maxDelta,
   );
@@ -77,13 +84,20 @@ export function calculatePostMatchPlayerState(
     config.mental.maxDelta,
   );
 
+  const form = clampState(state.form + formDelta);
+  const condition = clampState(state.condition + conditionDelta);
+  const mental = clamp(
+    state.mental + mentalDelta,
+    PLAYER_CARD_STAT_MIN,
+    PLAYER_CARD_STAT_MAX,
+  );
   return {
-    form: clampState(state.form + formDelta),
-    condition: clampState(state.condition + conditionDelta),
-    mental: clampState(state.mental + mentalDelta),
-    formDelta,
-    conditionDelta,
-    mentalDelta,
+    form,
+    condition,
+    mental,
+    formDelta: form - state.form,
+    conditionDelta: condition - state.condition,
+    mentalDelta: mental - state.mental,
   };
 }
 

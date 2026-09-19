@@ -6,12 +6,13 @@ const { createRequire } = require("node:module");
 const ts = require("typescript");
 const React = require("react");
 const { renderToStaticMarkup } = require("react-dom/server");
+const { loadClubLogo } = require("./check-club-logo.cjs");
 const settle = async () => {
   for (let i = 0; i < 3; i++)
     await new Promise((resolve) => setImmediate(resolve));
 };
 
-function harness(file, props, request) {
+function harness(file, props, request, overrides = {}) {
   const slots = [];
   let cursor = 0;
   let effects = [];
@@ -70,8 +71,14 @@ function harness(file, props, request) {
   const module = { exports: {} };
   new Function("require", "module", "exports", output)(
     (name) => {
+      if (overrides[name]) return overrides[name];
       if (name === "react") return hooks;
       if (name === "./api") return { apiRequest: request, ApiError: Error };
+      if (name === "./money") return require('./load-source.cjs').loadSource('money');
+      if (name === "./market-types") return require('./load-source.cjs').loadSource('market-types');
+      if (name === "./types") return require('./load-source.cjs').loadSource('types');
+      if (name === "./ClubLogo") return loadClubLogo();
+      if (name === "./InternationalPanel") return { __esModule: true, default: () => null };
       if (name.endsWith(".css")) return {};
       return localRequire(name);
     },
@@ -471,7 +478,8 @@ async function aiClubNews() {
   assert.equal(view.button("구단 소식 처리하기"), undefined);
 }
 
-(async () => {
+module.exports = { harness, fixture };
+if (require.main === module) (async () => {
   await emptyMarket();
   await offerFlow();
   await unavailable(false);

@@ -17,6 +17,8 @@ import { CareerTeam } from '../careers/entities/career-team.entity';
 import { Career } from '../careers/entities/career.entity';
 import { Roster } from '../careers/entities/roster.entity';
 import { RosterRole } from '../careers/enums/roster-role.enum';
+import { isUserApprovedSale } from '../contracts/user-sale';
+import { TRANSFER_CONFIG } from './config/transfer.config';
 import {
   ContractOfferStatus,
   ContractOfferType,
@@ -76,6 +78,7 @@ export interface TransferMarketCandidate {
   } | null;
   requiredFee: number;
   activeAgreementId: number | null;
+  activeAgreementFee: number | null;
   canNegotiate: boolean;
   hasBenchSpace: boolean;
   blockedReason: string | null;
@@ -129,6 +132,19 @@ export class TransfersService {
     careerId: number,
     query: FindTransferMarketQueryDto,
   ): Promise<TransferMarketCandidate[]> {
+    return this.findCandidates(accountId, careerId, query, false);
+  }
+
+  async findSaleCandidates(accountId: number, careerId: number) {
+    return this.findCandidates(accountId, careerId, {}, true);
+  }
+
+  private async findCandidates(
+    accountId: number,
+    careerId: number,
+    query: FindTransferMarketQueryDto,
+    owned: boolean,
+  ): Promise<TransferMarketCandidate[]> {
     const career = await this.assertOwnedCareer(
       this.dataSource.manager,
       accountId,
@@ -176,7 +192,7 @@ export class TransfersService {
     ).length;
 
     return players
-      .filter((player) => player.currentTeamId !== managedTeam.id)
+      .filter((player) => (player.currentTeamId === managedTeam.id) === owned)
       .map((player) => {
         const availability =
           player.currentTeamId === null
@@ -222,6 +238,8 @@ export class TransfersService {
             : null,
           requiredFee,
           activeAgreementId: agreementsByPlayer.get(player.id)?.id ?? null,
+          activeAgreementFee:
+            agreementsByPlayer.get(player.id)?.offeredFee ?? null,
           canNegotiate: blockedReason === null,
           hasBenchSpace: destinationBenchCount < MAX_BENCH_PLAYERS,
           blockedReason,
@@ -453,6 +471,99 @@ export class TransfersService {
     );
   }
 
+  /** Only called by the authenticated sale workflow under its career write lock. */
+  async createUserSaleAgreement(
+    manager: EntityManager,
+    career: Career,
+    buyer: CareerTeam,
+    careerPlayerId: number,
+    askingFee: number,
+  ): Promise<TransferAgreement> {
+    validateTransferFee(askingFee);
+    assertTransferWindow(career.currentDate);
+    if (askingFee < TRANSFER_CONFIG.fee.contractedMinimum)
+      throw new BadRequestException('판매 이적료가 최소 금액보다 작습니다.');
+    const seller = await this.findManagedTeam(manager, career.id);
+    if (
+      buyer.careerId !== career.id ||
+      buyer.isUserControlled ||
+      buyer.id === seller.id
+    )
+      throw new ConflictException(
+        '같은 커리어의 다른 구단에만 판매할 수 있습니다.',
+      );
+    const player = await this.findCareerPlayer(
+      manager,
+      career.id,
+      careerPlayerId,
+      true,
+    );
+    if (player.currentTeamId !== seller.id)
+      throw new ConflictException(
+        '감독 소속 구단의 선수만 판매할 수 있습니다.',
+      );
+    await this.lockTeams(manager, career.id, [buyer.id, seller.id]);
+    const roster = await this.findPlayerRoster(manager, player.id, true);
+    if (!roster || roster.careerTeamId !== seller.id)
+      throw new ConflictException(
+        '선수의 현재 로스터 정보가 일치하지 않습니다.',
+      );
+    await this.assertSourceCanReleaseStarter(manager, roster, true);
+    await this.assertDestinationBenchSpace(manager, buyer.id);
+    if (
+      await manager.findOne(ContractOffer, {
+        where: {
+          careerId: career.id,
+          careerPlayerId,
+          status: In(OPEN_CONTRACT_STATUSES),
+        },
+      })
+    )
+      throw new ConflictException(
+        '진행 중인 선수 계약 협상을 먼저 종료해 주세요.',
+      );
+    if (
+      await manager.findOne(TransferAgreement, {
+        where: {
+          careerId: career.id,
+          careerPlayerId,
+          status: TransferAgreementStatus.ACCEPTED,
+        },
+      })
+    )
+      throw new ConflictException('이미 진행 중인 이적 합의가 있습니다.');
+    const contract = await manager.findOneBy(PlayerContract, {
+      careerId: career.id,
+      careerPlayerId,
+      status: PlayerContractStatus.ACTIVE,
+    });
+    const requiredFee = this.requiredTransferFee(
+      player,
+      roster,
+      contract,
+      career.currentDate,
+    );
+    if (askingFee > requiredFee)
+      throw new ConflictException(
+        `구매 구단의 최대 평가액은 ${requiredFee}만원입니다.`,
+      );
+    return manager.save(
+      TransferAgreement,
+      manager.create(TransferAgreement, {
+        careerId: career.id,
+        careerPlayerId,
+        buyerCareerTeamId: buyer.id,
+        sellerCareerTeamId: seller.id,
+        offeredFee: askingFee,
+        requiredFee,
+        status: TransferAgreementStatus.ACCEPTED,
+        offeredDate: career.currentDate,
+        resolvedDate: career.currentDate,
+        reason: '감독이 판매를 승인했습니다. 선수 계약이 성사되면 이적합니다.',
+      }),
+    );
+  }
+
   async releasePlayer(
     accountId: number,
     careerId: number,
@@ -678,7 +789,7 @@ export class TransfersService {
         where: { id: player.currentTeamId, careerId: offer.careerId },
         lock: { mode: 'pessimistic_write' },
       });
-      if (!seller || seller.isUserControlled)
+      if (!seller || (seller.isUserControlled && !isUserApprovedSale(offer)))
         throw new ConflictException(
           '사용자 구단 선수는 AI가 자동으로 영입할 수 없습니다.',
         );
@@ -729,7 +840,9 @@ export class TransfersService {
       destinationTeam,
     );
     await this.assertDestinationBenchSpace(manager, destinationTeam.id);
-    const managerLineupBefore = destinationTeam.isUserControlled
+    const affectsManagedTeam =
+      destinationTeam.isUserControlled || isUserApprovedSale(offer);
+    const managerLineupBefore = affectsManagedTeam
       ? await getManagedLineupStrength(manager, offer.careerId)
       : null;
     const sourceTeamId = player.currentTeamId;
@@ -818,7 +931,7 @@ export class TransfersService {
       transferFee: agreement?.offeredFee ?? 0,
       completedDate,
       managerLineupBefore,
-      managerLineupAfter: destinationTeam.isUserControlled
+      managerLineupAfter: affectsManagedTeam
         ? await getManagedLineupStrength(manager, offer.careerId)
         : null,
     });

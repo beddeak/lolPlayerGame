@@ -55,7 +55,8 @@ describe('full season calendar and existing career continuity (e2e)', () => {
   jest.setTimeout(180_000);
   const key = `season_${Date.now()}_${process.pid}`;
   const positions = Object.values(Position);
-  const regions = Object.values(Region);
+  // Preserve the original four-region legacy save fixture. Six-region coverage is separate.
+  const regions = [Region.LCK, Region.LPL, Region.LEC, Region.LCS];
   const accountIds: number[] = [];
   const playerIds: number[] = [];
   const cardIds: number[] = [];
@@ -216,11 +217,11 @@ describe('full season calendar and existing career continuity (e2e)', () => {
       currentPhase: { code: 'PRESEASON' },
     });
     expect(before.season.periods).toHaveLength(14);
-    expect(before.seasonReadiness).toHaveLength(4);
+    expect(before.seasonReadiness).toHaveLength(6);
     expect(
-      before.seasonReadiness.every(
-        (row) => row.status === 'READY' && row.teamCount === 2,
-      ),
+      before.seasonReadiness
+        .filter((row) => regions.includes(row.region))
+        .every((row) => row.status === 'READY' && row.teamCount === 2),
     ).toBe(true);
     expect(before.nextMatch).toBeNull();
     expect(

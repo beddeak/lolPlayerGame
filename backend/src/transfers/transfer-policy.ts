@@ -1,5 +1,6 @@
 import { BadRequestException } from '@nestjs/common';
 import { RosterRole } from '../careers/enums/roster-role.enum';
+import { PLAYER_CARD_STAT_MAX } from '../players/constants/player-card.constants';
 import { TRANSFER_CONFIG } from './config/transfer.config';
 
 export interface RequiredTransferFeeInput {
@@ -67,9 +68,11 @@ function validateTransferFeeInput(input: RequiredTransferFeeInput): void {
   if (
     !Number.isFinite(input.ability) ||
     input.ability < 0 ||
-    input.ability > 100
+    input.ability > PLAYER_CARD_STAT_MAX
   ) {
-    throw new BadRequestException('Ability must be between 0 and 100');
+    throw new BadRequestException(
+      `Ability must be between 0 and ${PLAYER_CARD_STAT_MAX}`,
+    );
   }
 
   if (!Number.isInteger(input.currentAge) || input.currentAge < 1) {

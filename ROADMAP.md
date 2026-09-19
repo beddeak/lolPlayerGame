@@ -3148,3 +3148,6 @@ Firing
 구현 범위 및 사용법: [PHASE 25 팬 지지·이사회 신뢰·경질](docs/PHASE25-MANAGER-CAREER.md)
 
 정식 커리어 시작 및 데이터 입력: [구단 선택·구단/선수 카탈로그](docs/CLUB-CATALOG.md)
+
+후속 구현: [주간 스크림·개인 훈련·휴식 / 국제대회 / LCP·CBLOL](docs/WEEKLY-ACTIVITIES-INTERNATIONALS.md)
+개발 DB 적용은 카탈로그 입력 완료 후 진행한다. 실제 규정과 게임용 시드 정책의 차이도 위 문서에 기록한다.

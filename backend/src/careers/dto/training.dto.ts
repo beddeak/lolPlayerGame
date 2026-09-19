@@ -8,6 +8,7 @@ import {
   TrainingType,
 } from '../enums/training-type.enum';
 import { TrainingCategory } from '../enums/training-category.enum';
+import { TrainingPlayerEffect } from '../training-player-effect';
 
 export class CreateTeamTrainingDto {
   @IsIn(TEAM_TRAINING_TYPES)
@@ -61,6 +62,7 @@ export class TrainingSessionResponseDto {
   formBefore!: number | null;
   formDelta!: number | null;
   formAfter!: number | null;
+  playerEffects!: TrainingPlayerEffect[];
   createdAt!: Date;
 }
 
@@ -69,6 +71,15 @@ export class TrainingPeriodResponseDto {
   careerId!: number;
   periodNumber!: number;
   createdAt!: Date;
+  weekStartsAt!: string;
+  weekEndsAt!: string;
+  available!: boolean;
+  teamAvailable!: boolean;
+  teamRested!: boolean;
+  unavailableReason!: string | null;
+  phaseLabel!: string;
+  playerUsesPerWeek!: number;
+  usedPlayerIds!: number[];
   teamTraining!: TrainingUsageResponseDto;
   individualTraining!: TrainingUsageResponseDto;
   sessions!: TrainingSessionResponseDto[];

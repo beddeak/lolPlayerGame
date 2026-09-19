@@ -17,6 +17,7 @@ import { SeasonScheduleService } from './season-schedule.service';
 import { ManagerCareerService } from '../manager-career/manager-career.service';
 import { CalendarAdvanceMode } from './enums/calendar-advance-mode.enum';
 import { CalendarStopReason } from './enums/calendar-stop-reason.enum';
+import { DailyFormRecoveryService } from './daily-form-recovery.service';
 
 describe('CalendarsService', () => {
   const career = {
@@ -54,6 +55,14 @@ describe('CalendarsService', () => {
     prepare: jest.fn(),
     describe: jest.fn(),
   };
+  const dailyFormRecovery = {
+    apply: jest
+      .fn<
+        ReturnType<DailyFormRecoveryService['apply']>,
+        Parameters<DailyFormRecoveryService['apply']>
+      >()
+      .mockResolvedValue(undefined),
+  };
 
   let service: CalendarsService;
   let fixture: LeagueFixture;
@@ -89,6 +98,7 @@ describe('CalendarsService', () => {
           .fn()
           .mockResolvedValue({ status: 'ACTIVE', canManage: true }),
       } as unknown as ManagerCareerService,
+      dailyFormRecovery,
     );
   });
 
@@ -102,6 +112,25 @@ describe('CalendarsService', () => {
     expect(result.nextMatch?.id).toBe(fixture.id);
     expect(result.nextMatch?.scheduledDate).toBe('2026-01-12');
     expect(result.nextMatch?.region).toBe(Region.LCK);
+    expect(dailyFormRecovery.apply).not.toHaveBeenCalled();
+  });
+
+  it('NEXT_MATCH also targets international match events without a regional fixture', async () => {
+    career.currentDate = '2026-03-15';
+    fixturesRepository.find.mockResolvedValue([]);
+    eventQueueService.findNextScheduledEvent.mockResolvedValue({
+      scheduledDate: '2026-03-16',
+      type: CalendarEventType.SCHEDULED_GAME,
+    });
+    const result = await service.advance(7, career.id, {
+      mode: CalendarAdvanceMode.NEXT_MATCH,
+    });
+    expect(result.currentDate).toBe('2026-03-16');
+    expect(eventQueueService.findNextScheduledEvent).toHaveBeenCalledWith(
+      entityManager,
+      career.id,
+      CalendarEventType.SCHEDULED_GAME,
+    );
   });
 
   it('advances three days when there is no match in the interval', async () => {
@@ -110,6 +139,11 @@ describe('CalendarsService', () => {
     });
 
     expect(result.currentDate).toBe('2026-01-04');
+    expect(dailyFormRecovery.apply.mock.calls.map((call) => call[2])).toEqual([
+      '2026-01-02',
+      '2026-01-03',
+      '2026-01-04',
+    ]);
     expect(result.advancedDays).toBe(3);
     expect(result.stopReason).toBe(CalendarStopReason.TARGET_REACHED);
   });
@@ -219,6 +253,7 @@ describe('CalendarsService', () => {
 
     expect(result.currentDate).toBe('2026-01-12');
     expect(result.advancedDays).toBe(0);
+    expect(dailyFormRecovery.apply).not.toHaveBeenCalled();
     expect(result.stopReason).toBe(CalendarStopReason.MATCH_DAY);
   });
 
@@ -247,6 +282,11 @@ describe('CalendarsService', () => {
 
     expect(result.currentDate).toBe('2027-01-01');
     expect(result.currentYear).toBe(2027);
+    expect(dailyFormRecovery.apply).toHaveBeenCalledWith(
+      entityManager,
+      career.id,
+      '2027-01-01',
+    );
     expect(result.stopReason).toBe(CalendarStopReason.TRANSFER_WINDOW_BOUNDARY);
   });
 

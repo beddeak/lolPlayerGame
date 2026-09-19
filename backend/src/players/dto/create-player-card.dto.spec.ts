@@ -1,6 +1,7 @@
 import 'reflect-metadata';
 import { plainToInstance } from 'class-transformer';
 import { validateSync } from 'class-validator';
+import { PLAYER_CARD_BASE_STAT_FIELDS } from '../constants/player-card.constants';
 import { Position } from '../enums/position.enum';
 import { CreatePlayerCardDto } from './create-player-card.dto';
 
@@ -48,4 +49,30 @@ describe('CreatePlayerCardDto', () => {
 
     expect(errors.map((error) => error.property)).toContain(invalidProperty);
   });
+
+  describe.each([...PLAYER_CARD_BASE_STAT_FIELDS, 'potential'])(
+    '%s stat boundary',
+    (field) => {
+      it.each([0, 100, 119])('accepts integer %i', (value) => {
+        const dto = plainToInstance(CreatePlayerCardDto, {
+          ...createInput(2026, 20),
+          [field]: value,
+        });
+        expect(validateSync(dto)).toHaveLength(0);
+      });
+
+      it.each([120, 256, 999, -1, 1.5, '119', null, undefined])(
+        'rejects %s',
+        (value) => {
+          const dto = plainToInstance(CreatePlayerCardDto, {
+            ...createInput(2026, 20),
+            [field]: value,
+          });
+          expect(validateSync(dto).map((error) => error.property)).toContain(
+            field,
+          );
+        },
+      );
+    },
+  );
 });

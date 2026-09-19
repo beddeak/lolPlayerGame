@@ -64,7 +64,7 @@ describe('official club catalog and server-owned career initialization (e2e)', (
   jest.setTimeout(120_000);
   const key = `club_${Date.now()}_${process.pid}`;
   const positions = Object.values(Position);
-  const regions = Object.values(Region);
+  const regions = [Region.LCK, Region.LPL, Region.LEC, Region.LCS];
   const accountIds: number[] = [];
   const clubs: Club[] = [];
   const rosterTemplates: ClubRoster[] = [];
@@ -289,7 +289,8 @@ describe('official club catalog and server-owned career initialization (e2e)', (
     }
     expect(
       result.clubs.find((item) => item.code === disabledClub.code),
-    ).toMatchObject({ selectable: false });
+    ).toBeUndefined();
+    expect(result.clubs).toHaveLength(result.worldTeamCount);
     expect(JSON.stringify(result)).not.toMatch(/potential/i);
     expect(await catalogSnapshot()).toEqual(before);
     expect(await persistenceCounts()).toEqual(counts);
@@ -376,6 +377,108 @@ describe('official club catalog and server-owned career initialization (e2e)', (
     expect(JSON.stringify(career)).not.toMatch(/potential/i);
     expect(await loadCareer(career.id)).toEqual(career);
     expect(await catalogSnapshot()).toEqual(before);
+  });
+
+  it('accepts 119 stats through HTTP and career setup but rejects values outside the shared limit', async () => {
+    const repository = dataSource.getRepository(PlayerCard);
+    const body = {
+      playerId: players[0].id,
+      themeId,
+      cardYear: 2024,
+      startingAge: 20,
+      mainPosition: Position.TOP,
+      mechanics: 119,
+      gameSense: 119,
+      laning: 119,
+      teamFight: 119,
+      macro: 119,
+      teamPlay: 119,
+      mental: 119,
+      championPool: 119,
+      potential: 119,
+    };
+    const stats = [
+      'mechanics',
+      'gameSense',
+      'laning',
+      'teamFight',
+      'macro',
+      'teamPlay',
+      'mental',
+      'championPool',
+      'potential',
+    ] as const;
+    const beforeCount = await repository.count();
+    for (const field of stats) {
+      await api()
+        .post('/player-cards')
+        .set(auth(adminToken))
+        .send({ ...body, [field]: 120 })
+        .expect(400);
+    }
+    for (const mechanics of [-1, 1.5, 256, 999]) {
+      await api()
+        .post('/player-cards')
+        .set(auth(adminToken))
+        .send({ ...body, mechanics })
+        .expect(400);
+    }
+    expect(await repository.count()).toBe(beforeCount);
+    const created = json<PlayerCardResponseDto>(
+      await api()
+        .post('/player-cards')
+        .set(auth(adminToken))
+        .send(body)
+        .expect(201),
+    );
+    const saved = await repository.findOneByOrFail({ id: created.id });
+    cards.push(saved);
+    expect(created).not.toHaveProperty('potential');
+    expect(saved.potential).toBe(119);
+    await expect(
+      repository.update(saved.id, { mechanics: 120 }),
+    ).rejects.toThrow();
+    await expect(
+      repository.save({ ...saved, potential: 120 }),
+    ).rejects.toThrow();
+    expect(await repository.findOneByOrFail({ id: saved.id })).toEqual(saved);
+
+    const slot = rosterTemplates[0];
+    try {
+      await dataSource.getRepository(ClubRoster).update(slot.id, {
+        playerCardId: saved.id,
+      });
+      const career = await createCareer();
+      const top = career.teams
+        .find((team) => team.code === clubs[0].code)!
+        .starters.find(
+          (entry) => entry.starterPosition === Position.TOP,
+        )!.careerPlayer;
+      expect(top).toMatchObject({
+        currentMechanics: 119,
+        currentGameSense: 119,
+        currentLaning: 119,
+        currentTeamFight: 119,
+        currentMacro: 119,
+        currentTeamPlay: 119,
+        currentMental: 119,
+        currentChampionPool: 119,
+      });
+      await expect(
+        dataSource
+          .getRepository(CareerPlayer)
+          .update(top.id, { currentMechanics: 120 }),
+      ).rejects.toThrow();
+      expect(
+        (
+          await dataSource
+            .getRepository(CareerPlayer)
+            .findOneByOrFail({ id: top.id })
+        ).currentMechanics,
+      ).toBe(119);
+    } finally {
+      await dataSource.getRepository(ClubRoster).save(slot);
+    }
   });
 
   it('rejects forged world, year, owner and player selection fields before saving', async () => {

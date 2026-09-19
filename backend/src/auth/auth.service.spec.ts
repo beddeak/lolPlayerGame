@@ -130,6 +130,19 @@ describe('AuthService', () => {
     ).rejects.toBeInstanceOf(UnauthorizedException);
   });
 
+  it('rejects a Google-only account without attempting password verification', async () => {
+    queryBuilder.getOne.mockResolvedValue({
+      id: 1,
+      email: 'google@example.com',
+      passwordHash: null,
+    });
+    await expect(
+      service.login({ email: 'google@example.com', password: 'password123' }),
+    ).rejects.toThrow('Invalid email or password');
+    expect(passwordService.verify).not.toHaveBeenCalled();
+    expect(jwtService.signAsync).not.toHaveBeenCalled();
+  });
+
   it('rejects a missing current account', async () => {
     accountsRepository.findOneBy.mockResolvedValue(null);
 

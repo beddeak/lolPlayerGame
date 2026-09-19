@@ -9,6 +9,7 @@ import {
 } from 'typeorm';
 import { Position } from '../enums/position.enum';
 import { PlayerPersonality } from '../enums/player-personality.enum';
+import { PLAYER_STAT_TRANSFORMER } from '../utils/player-stat.transformer';
 import { Player } from './player.entity';
 import { Theme } from './theme.entity';
 
@@ -62,28 +63,60 @@ export class PlayerCard {
   @Column({ type: 'enum', enum: Position })
   mainPosition!: Position;
 
-  @Column({ type: 'tinyint', unsigned: true })
+  @Column({
+    type: 'tinyint',
+    unsigned: true,
+    transformer: PLAYER_STAT_TRANSFORMER,
+  })
   mechanics!: number;
 
-  @Column({ type: 'tinyint', unsigned: true })
+  @Column({
+    type: 'tinyint',
+    unsigned: true,
+    transformer: PLAYER_STAT_TRANSFORMER,
+  })
   gameSense!: number;
 
-  @Column({ type: 'tinyint', unsigned: true })
+  @Column({
+    type: 'tinyint',
+    unsigned: true,
+    transformer: PLAYER_STAT_TRANSFORMER,
+  })
   laning!: number;
 
-  @Column({ type: 'tinyint', unsigned: true })
+  @Column({
+    type: 'tinyint',
+    unsigned: true,
+    transformer: PLAYER_STAT_TRANSFORMER,
+  })
   teamFight!: number;
 
-  @Column({ type: 'tinyint', unsigned: true })
+  @Column({
+    type: 'tinyint',
+    unsigned: true,
+    transformer: PLAYER_STAT_TRANSFORMER,
+  })
   macro!: number;
 
-  @Column({ type: 'tinyint', unsigned: true })
+  @Column({
+    type: 'tinyint',
+    unsigned: true,
+    transformer: PLAYER_STAT_TRANSFORMER,
+  })
   teamPlay!: number;
 
-  @Column({ type: 'tinyint', unsigned: true })
+  @Column({
+    type: 'tinyint',
+    unsigned: true,
+    transformer: PLAYER_STAT_TRANSFORMER,
+  })
   mental!: number;
 
-  @Column({ type: 'tinyint', unsigned: true })
+  @Column({
+    type: 'tinyint',
+    unsigned: true,
+    transformer: PLAYER_STAT_TRANSFORMER,
+  })
   championPool!: number;
 
   @Column({
@@ -93,6 +126,10 @@ export class PlayerCard {
   })
   personality!: PlayerPersonality;
 
-  @Column({ type: 'tinyint', unsigned: true })
+  @Column({
+    type: 'tinyint',
+    unsigned: true,
+    transformer: PLAYER_STAT_TRANSFORMER,
+  })
   potential!: number;
 }

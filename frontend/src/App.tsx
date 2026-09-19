@@ -1,10 +1,14 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import ClubSelectionView from "./ClubSelectionView";
+import ClubLogo from "./ClubLogo";
+import GoogleAuthButton from "./GoogleAuthButton";
+import GoogleAccountLink from "./GoogleAccountLink";
 import "./App.css";
 import ContractsView from "./ContractsView";
-import LegendEventsView from "./LegendEventsView";
+import MarketView from "./MarketView";
 import SeasonHubView from "./SeasonHubView";
 import SquadView from "./SquadView";
+import TrainingPanel from "./TrainingPanel";
 import {
   ApiError,
   apiRequest,
@@ -81,8 +85,12 @@ function App() {
   const [selectedContractOfferId, setSelectedContractOfferId] = useState<
     number | null
   >(null);
+  const [marketSection, setMarketSection] = useState<"players" | "legends">(
+    "players",
+  );
   const [booting, setBooting] = useState(() => Boolean(getStoredAccessToken()));
   const [pageError, setPageError] = useState("");
+  const [creatingClubCode, setCreatingClubCode] = useState<string | null>(null);
   const sessionVersion = useRef(0);
   const sessionToken = useRef<string | null>(null);
   const careerSelection = useRef(0);
@@ -168,6 +176,8 @@ function App() {
   async function finishAuthentication(response: AuthResponse) {
     const session = ++sessionVersion.current;
     sessionToken.current = response.accessToken;
+    pendingCreation.current = null;
+    setCreatingClubCode(null);
     careerSelection.current++;
     selectedCareerId.current = null;
     const savedCareers = await apiRequest<CareerSummary[]>("/careers", {
@@ -192,6 +202,7 @@ function App() {
     selectedCareerId.current = null;
     pendingCreation.current = null;
     clearStoredAccessToken();
+    setCreatingClubCode(null);
     setToken(null);
     setAccount(null);
     setCareers([]);
@@ -250,6 +261,7 @@ function App() {
     const session = sessionVersion.current;
     const selection = careerSelection.current;
     pendingCreation.current = session;
+    setCreatingClubCode(payload.clubCode);
     setPageError("");
     try {
       const career = await apiRequest<Career>("/careers/from-club", {
@@ -294,11 +306,14 @@ function App() {
         );
       }
     } catch (error) {
-      if (!isCurrentSelection(token, session, selection)) return;
+      if (!isCurrentSession(token, session)) return;
       handleAuthenticatedError(error);
-      throw error;
+      if (isCurrentSelection(token, session, selection)) throw error;
     } finally {
-      if (pendingCreation.current === session) pendingCreation.current = null;
+      if (pendingCreation.current === session) {
+        pendingCreation.current = null;
+        setCreatingClubCode(null);
+      }
     }
   }
 
@@ -405,27 +420,40 @@ function App() {
         onSeason={() => navigate("season")}
         onSquad={() => navigate("squad")}
         onContracts={() => openContracts()}
-        onLegends={() => navigate("legends")}
+        onLegends={() => {
+          setMarketSection("players");
+          navigate("legends");
+        }}
         hasActiveCareer={activeCareer !== null}
         onLogout={() => void logout()}
       />
 
       <main className="app-main">
         {pageError && <div className="notice error-notice">{pageError}</div>}
+        {creatingClubCode && (
+          <div className="notice" role="status">
+            {creatingClubCode} 새 게임을 생성하고 있습니다. 완료한 게임은 커리어
+            목록에서 확인할 수 있습니다.
+          </div>
+        )}
 
         {view === "saves" && (
-          <SaveSelectScreen
-            account={account}
-            careers={careers}
-            onOpen={openCareer}
-            onCreate={() => void openCreateCareer()}
-          />
+          <>
+            <SaveSelectScreen
+              account={account}
+              careers={careers}
+              onOpen={openCareer}
+              onCreate={() => void openCreateCareer()}
+            />
+            <GoogleAccountLink key={token} token={token} />
+          </>
         )}
 
         {view === "create" && (
           <ClubSelectionView
             key={token}
             token={token}
+            creatingClubCode={creatingClubCode}
             onBack={() => navigate("saves")}
             onSubmit={createCareer}
             onSessionError={handleAuthenticatedError}
@@ -434,6 +462,9 @@ function App() {
 
         {view === "career" && activeCareer && (
           <CareerDashboard
+            key={`${token}:${activeCareer.id}`}
+            token={token}
+            onCareerRefresh={refreshActiveCareer}
             career={activeCareer}
             onBack={() => navigate("saves")}
             onOpenSeason={() => navigate("season")}
@@ -449,7 +480,10 @@ function App() {
             onBack={() => navigate("career")}
             onCareerRefresh={refreshActiveCareer}
             onOpenContracts={openContracts}
-            onOpenLegends={() => navigate("legends")}
+            onOpenLegends={() => {
+              setMarketSection("legends");
+              navigate("legends");
+            }}
           />
         )}
 
@@ -466,8 +500,9 @@ function App() {
         )}
 
         {view === "legends" && activeCareer && (
-          <LegendEventsView
-            key={activeCareer.id}
+          <MarketView
+            key={`${activeCareer.id}-${marketSection}`}
+            initialSection={marketSection}
             career={activeCareer}
             token={token}
             onBack={() => navigate("career")}
@@ -510,9 +545,28 @@ function AuthScreen({
   const [displayName, setDisplayName] = useState("");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [googlePending, setGooglePending] = useState(false);
+  const authState = useRef({
+    method: null as "local" | "google" | null,
+    version: 0,
+    mounted: true,
+  });
+
+  useEffect(() => {
+    const lifecycle = authState.current;
+    lifecycle.mounted = true;
+    return () => {
+      lifecycle.mounted = false;
+      lifecycle.version++;
+      lifecycle.method = null;
+    };
+  }, []);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (authState.current.method !== null || !authState.current.mounted) return;
+    authState.current.method = "local";
+    const request = ++authState.current.version;
     setError("");
     setSubmitting(true);
 
@@ -524,15 +578,22 @@ function AuthScreen({
             ? { email, password, displayName }
             : { email, password },
       });
+      if (!authState.current.mounted || authState.current.version !== request)
+        return;
       await onAuthenticated(response);
     } catch (submitError) {
-      setError(toMessage(submitError));
+      if (authState.current.mounted && authState.current.version === request)
+        setError(toMessage(submitError));
     } finally {
-      setSubmitting(false);
+      if (authState.current.mounted && authState.current.version === request) {
+        authState.current.method = null;
+        setSubmitting(false);
+      }
     }
   }
 
   function changeMode(nextMode: AuthMode) {
+    if (authState.current.method !== null) return;
     setMode(nextMode);
     setError("");
   }
@@ -579,12 +640,14 @@ function AuthScreen({
           <div className="mode-tabs" role="tablist" aria-label="계정 메뉴">
             <button
               className={mode === "login" ? "active" : ""}
+              disabled={submitting || googlePending}
               onClick={() => changeMode("login")}
             >
               로그인
             </button>
             <button
               className={mode === "register" ? "active" : ""}
+              disabled={submitting || googlePending}
               onClick={() => changeMode("register")}
             >
               회원가입
@@ -632,7 +695,7 @@ function AuthScreen({
             {error && <div className="inline-error">{error}</div>}
             <button
               className="primary-button auth-submit"
-              disabled={submitting}
+              disabled={submitting || googlePending}
             >
               {submitting
                 ? "처리 중..."
@@ -641,6 +704,34 @@ function AuthScreen({
                   : "감독 등록하기"}
             </button>
           </form>
+
+          <div className="auth-local-separator">또는 Google 계정 사용</div>
+          <GoogleAuthButton
+            disabled={submitting}
+            onBegin={() => {
+              if (
+                !authState.current.mounted ||
+                authState.current.method !== null
+              )
+                return false;
+              authState.current.method = "google";
+              setError("");
+              setGooglePending(true);
+              return true;
+            }}
+            onEnd={() => {
+              if (authState.current.method === "google")
+                authState.current.method = null;
+              if (authState.current.mounted) setGooglePending(false);
+            }}
+            onAuthenticated={async (response) => {
+              if (
+                authState.current.mounted &&
+                authState.current.method === "google"
+              )
+                await onAuthenticated(response);
+            }}
+          />
 
           <div className="save-note">
             <span className="save-dot" />
@@ -711,7 +802,7 @@ function AppHeader({
               className={view === "legends" ? "active" : ""}
               onClick={onLegends}
             >
-              레전드 시장
+              일반 시장
             </button>
           </>
         )}
@@ -787,9 +878,10 @@ function SaveSelectScreen({
                 AUTO SAVED
               </span>
             </div>
-            <div className="team-monogram">
-              {career.managedTeamCode.slice(0, 3)}
-            </div>
+            <ClubLogo
+              club={{ code: career.managedTeamCode }}
+              className="team-monogram"
+            />
             <p className="team-code">{career.managedTeamCode}</p>
             <h2>{career.managedTeamName}</h2>
             <dl className="save-meta">
@@ -841,12 +933,16 @@ function SaveSelectScreen({
 
 function CareerDashboard({
   career,
+  token,
+  onCareerRefresh,
   onBack,
   onOpenSeason,
   onOpenSquad,
   onOpenContracts,
 }: {
   career: Career;
+  token: string;
+  onCareerRefresh: () => Promise<void>;
   onBack: () => void;
   onOpenSeason: () => void;
   onOpenSquad: () => void;
@@ -854,12 +950,8 @@ function CareerDashboard({
 }) {
   const managedTeam =
     career.teams.find((team) => team.isUserControlled) ?? career.teams[0];
-  const [selectedTeamId, setSelectedTeamId] = useState(
-    managedTeam?.id ?? career.teams[0]?.id,
-  );
   const [detailPlayer, setDetailPlayer] = useState<CareerPlayer | null>(null);
-  const selectedTeam =
-    career.teams.find((team) => team.id === selectedTeamId) ?? managedTeam;
+  const selectedTeam = managedTeam;
 
   if (!selectedTeam) return null;
 
@@ -915,7 +1007,7 @@ function CareerDashboard({
 
       <section className="club-hero">
         <div className="club-identity">
-          <div className="club-crest">{managedTeam.code.slice(0, 3)}</div>
+          <ClubLogo club={managedTeam} className="club-crest" />
           <div>
             <p className="eyebrow">MANAGED CLUB · {managedTeam.region}</p>
             <h1>{managedTeam.name}</h1>
@@ -939,45 +1031,14 @@ function CareerDashboard({
       </section>
 
       <div className="dashboard-grid">
-        <section className="roster-panel">
-          <div className="panel-heading">
-            <div>
-              <p className="eyebrow">ACTIVE ROSTER</p>
-              <h2>선발 라인업</h2>
-            </div>
-            <div className="team-switcher">
-              {career.teams.map((team) => (
-                <button
-                  className={team.id === selectedTeam.id ? "active" : ""}
-                  key={team.id}
-                  onClick={() => setSelectedTeamId(team.id)}
-                >
-                  {team.code}
-                </button>
-              ))}
-            </div>
-          </div>
-          <div className="roster-table-head">
-            <span>POS</span>
-            <span>PLAYER</span>
-            <span>OVR</span>
-            <span>FORM</span>
-            <span>COND</span>
-          </div>
-          <div className="roster-list">
-            {selectedTeam.starters.map((roster, index) => (
-              <PlayerRow
-                key={roster.id}
-                player={roster.careerPlayer}
-                position={
-                  roster.starterPosition ?? roster.careerPlayer.currentPosition
-                }
-                imageIndex={index}
-                onOpen={() => setDetailPlayer(roster.careerPlayer)}
-              />
-            ))}
-          </div>
-        </section>
+        <TrainingPanel
+          key={`${career.id}:${token}:${career.currentDate}`}
+          career={career}
+          team={managedTeam}
+          token={token}
+          onCareerRefresh={onCareerRefresh}
+          onOpenPlayer={setDetailPlayer}
+        />
 
         <aside className="side-panels">
           <section className="info-panel">
@@ -1065,55 +1126,6 @@ function Metric({
         {suffix}
       </strong>
     </div>
-  );
-}
-
-function PlayerRow({
-  player,
-  position,
-  imageIndex,
-  onOpen,
-}: {
-  player: CareerPlayer;
-  position: Position;
-  imageIndex: number;
-  onOpen: () => void;
-}) {
-  return (
-    <button
-      className="player-row"
-      type="button"
-      onClick={onOpen}
-      aria-label={`${player.playerCard.player.nickname} 상세 보기`}
-    >
-      <span className="position-chip">{POSITION_LABELS[position]}</span>
-      <div className="player-profile">
-        <img
-          src={cardImage(player.playerCard, imageIndex)}
-          alt={`${player.playerCard.player.nickname} 선수 카드`}
-        />
-        <div>
-          <small>
-            {player.playerCard.player.nationality} · AGE {player.currentAge}
-          </small>
-          <strong>{player.playerCard.player.nickname}</strong>
-          <span>{player.playerCard.theme.name}</span>
-        </div>
-      </div>
-      <strong className="ovr-value">{calculatePlayerOverall(player)}</strong>
-      <div className="mini-stat">
-        <strong>{player.form}</strong>
-        <i>
-          <b style={{ width: `${player.form}%` }} />
-        </i>
-      </div>
-      <div className="mini-stat">
-        <strong>{player.condition}</strong>
-        <i>
-          <b style={{ width: `${player.condition}%` }} />
-        </i>
-      </div>
-    </button>
   );
 }
 

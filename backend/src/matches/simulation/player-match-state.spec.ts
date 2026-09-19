@@ -44,16 +44,16 @@ describe('player match state', () => {
         true,
       ),
     ).toEqual({
-      form: 53,
+      form: 57,
       condition: 94,
       mental: 52,
-      formDelta: 3,
+      formDelta: 7,
       conditionDelta: -6,
       mentalDelta: 2,
     });
   });
 
-  it('clamps every post-match state to the 0 to 100 range', () => {
+  it('clamps Mental to 119 while Form and Condition remain in 0 to 100', () => {
     expect(
       calculatePostMatchPlayerState(
         { form: 0, condition: 2, mental: 0 },
@@ -61,14 +61,45 @@ describe('player match state', () => {
         40,
         false,
       ),
-    ).toEqual(expect.objectContaining({ form: 0, condition: 0, mental: 0 }));
+    ).toEqual(
+      expect.objectContaining({
+        form: 0,
+        condition: 0,
+        mental: 0,
+        formDelta: 0,
+        conditionDelta: -2,
+        mentalDelta: 0,
+      }),
+    );
     expect(
       calculatePostMatchPlayerState(
-        { form: 100, condition: 100, mental: 100 },
+        { form: 100, condition: 100, mental: 119 },
         10,
         25,
         true,
       ),
-    ).toEqual(expect.objectContaining({ form: 100, mental: 100 }));
+    ).toEqual(expect.objectContaining({ form: 100, mental: 119 }));
+  });
+
+  it('does not reset valid high Mental to 100 after a loss', () => {
+    const state = calculatePostMatchPlayerState(
+      { form: 100, condition: 100, mental: 119 },
+      5,
+      25,
+      false,
+    );
+    expect(state.mental).toBe(118);
+    expect(state.mentalDelta).toBe(-1);
+  });
+
+  it('allows Mental above 100 to grow up to 119', () => {
+    expect(
+      calculatePostMatchPlayerState(
+        { form: 100, condition: 100, mental: 118 },
+        10,
+        25,
+        true,
+      ).mental,
+    ).toBe(119);
   });
 });

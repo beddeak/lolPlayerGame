@@ -14,6 +14,8 @@ export interface LeagueStageSettings {
   swissRounds?: number;
   qualifierCount?: number;
   description?: string;
+  bracket?: 'HYBRID_SIX' | 'DOUBLE_SIX' | 'DOUBLE_FOUR' | 'CBLOL_PLAY_IN';
+  advancementWins?: number;
 }
 
 export interface LeagueStageTemplate {

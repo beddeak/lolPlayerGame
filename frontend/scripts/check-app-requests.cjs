@@ -5,6 +5,10 @@ const fs = require("node:fs");
 const path = require("node:path");
 const ts = require("typescript");
 const React = require("react");
+const {
+  harness: clubHarness,
+  fixture: clubFixture,
+} = require("./check-club-selection-ui.cjs");
 
 class ApiError extends Error {
   constructor(status, message) {
@@ -121,11 +125,16 @@ function harness() {
   ).outputText;
   const module = { exports: {} };
   const views = {
+    "./TrainingPanel": { default: function TrainingPanel() {} },
+    "./ClubLogo": { default: function ClubLogo() {} },
     "./ClubSelectionView": { default: function ClubSelectionView() {} },
     "./SeasonHubView": { default: function SeasonHubView() {} },
     "./ContractsView": { default: function ContractsView() {} },
     "./LegendEventsView": { default: function LegendEventsView() {} },
+    "./MarketView": { default: function MarketView() {} },
     "./SquadView": { default: function SquadView() {} },
+    "./GoogleAuthButton": { default: function GoogleAuthButton() {} },
+    "./GoogleAccountLink": { default: function GoogleAccountLink() {} },
   };
   new Function("require", "module", "exports", output)(
     (name) => {
@@ -660,13 +669,15 @@ async function legendNavigation() {
   await app.login();
   await app.open(1);
   app.component("AppHeader").onLegends();
-  const market = app.component("LegendEventsView");
+  const market = app.component("MarketView");
   assert.equal(market.career.id, 1);
+  assert.equal(market.initialSection, "players");
   market.onOpenContractOffer(77);
   assert.equal(app.component("ContractsView").initialOfferId, 77);
   app.component("AppHeader").onSeason();
   app.component("SeasonHubView").onOpenLegends();
-  assert.equal(app.component("LegendEventsView").career.id, 1);
+  assert.equal(app.component("MarketView").career.id, 1);
+  assert.equal(app.component("MarketView").initialSection, "legends");
 }
 
 async function clubCreationContract() {
@@ -700,6 +711,135 @@ async function createAfterGoingBack() {
   post.resolve(career(3));
   await pending;
   assert.equal(app.component("SaveSelectScreen").careers[0].id, 3);
+}
+
+async function reenterPendingCreation(fail = false) {
+  const app = harness();
+  await app.login();
+  await app.createScreen();
+  const post = deferred();
+  let posts = 0;
+  app.intercept((url, options, fallback) =>
+    url === "/careers/from-club" && ++posts === 1
+      ? post.promise
+      : fallback(url, options),
+  );
+  const f = clubFixture();
+  Object.assign(f.data.clubs[0], { code: "DK", name: "DK Club" });
+  const first = clubHarness(app.component("ClubSelectionView"), f.request);
+  await first.mount();
+  first.button("이 구단으로 시작하기→").props.onClick();
+  assert.equal(app.component("ClubSelectionView").creatingClubCode, "DK");
+  app.component("ClubSelectionView").onBack();
+  first.unmount();
+  await app.createScreen();
+
+  const reopened = clubHarness(app.component("ClubSelectionView"), f.request);
+  const html = await reopened.mount();
+  assert.match(html, /DK 새 게임 생성이 끝날 때까지 기다려 주세요/);
+  assert.equal(reopened.tile("GEN").props.disabled, true);
+  reopened.tile("GEN").props.onClick();
+  reopened.render();
+  assert.equal(reopened.tile("DK").props["aria-pressed"], true);
+  const start = reopened.button("시즌 생성 중...→");
+  assert.equal(start.props.disabled, true);
+  start.props.onClick();
+  await settle();
+  assert.equal(posts, 1, "Re-entering while DK is pending must not create GEN");
+  assert.ok(
+    app
+      .nodes()
+      .some(
+        (node) =>
+          node.props.role === "status" &&
+          node.props.children
+            .join("")
+            .includes("DK 새 게임을 생성하고 있습니다"),
+      ),
+    "Creation remains visibly pending after navigating away and back",
+  );
+
+  if (fail) post.reject(new Error("Create temporarily unavailable"));
+  else post.resolve(career(3));
+  await settle();
+  assert.equal(app.component("ClubSelectionView").creatingClubCode, null);
+  if (fail) {
+    assert.ok(
+      app
+        .nodes()
+        .some(
+          (node) =>
+            node.props.className === "notice error-notice" &&
+            node.props.children.includes("Create temporarily unavailable"),
+        ),
+      "A failed creation must remain understandable after re-entry",
+    );
+  }
+  await reopened.update(app.component("ClubSelectionView"));
+  assert.equal(reopened.button("이 구단으로 시작하기→").props.disabled, false);
+  assert.equal(
+    app.component("AppHeader").hasActiveCareer,
+    false,
+    "Completion must not hijack the reopened selection screen",
+  );
+  app.component("ClubSelectionView").onBack();
+  assert.equal(app.component("SaveSelectScreen").careers.length, fail ? 0 : 1);
+  await app.createScreen();
+  await reopened.update(app.component("ClubSelectionView"));
+  reopened.tile("GEN").props.onClick();
+  reopened.render();
+  reopened.button("이 구단으로 시작하기→").props.onClick();
+  await settle();
+  assert.equal(posts, 2, "A deliberate new start is allowed after completion");
+  assert.deepEqual(
+    app.calls
+      .filter((call) => call.url === "/careers/from-club")
+      .map((call) => call.options.body),
+    [{ clubCode: "DK" }, { clubCode: "GEN" }],
+  );
+  reopened.unmount();
+}
+
+async function oldCreationCannotClearNewSessionPending(fail = false) {
+  const app = harness();
+  await app.login();
+  await app.createScreen();
+  const first = deferred(),
+    second = deferred();
+  app.intercept((url, options, fallback) =>
+    url === "/careers/from-club"
+      ? options.token === "token-1"
+        ? first.promise
+        : second.promise
+      : fallback(url, options),
+  );
+  const oldPending = app
+    .component("ClubSelectionView")
+    .onSubmit({ clubCode: "DK" });
+  await app.logout();
+  await app.login(2);
+  await app.createScreen();
+  assert.equal(app.component("ClubSelectionView").creatingClubCode, null);
+  const currentPending = app
+    .component("ClubSelectionView")
+    .onSubmit({ clubCode: "GEN" });
+  if (fail) first.reject(new ApiError(401, "Old account expired"));
+  else first.resolve(career(3));
+  await oldPending;
+  assert.equal(app.component("ClubSelectionView").creatingClubCode, "GEN");
+  assert.equal(app.storedToken(), "token-2");
+  assertNoPageErrorForCurrentSession(app);
+  second.resolve(career(4));
+  await currentPending;
+  assert.equal(app.activeId(), 4);
+}
+
+function assertNoPageErrorForCurrentSession(app) {
+  app.render();
+  assert.equal(
+    app.nodes().some((node) => node.props.className === "notice error-notice"),
+    false,
+  );
 }
 
 async function createAcrossSessions() {
@@ -743,6 +883,24 @@ async function unmountedCreate() {
   );
 }
 
+async function googleLinkPanelPreservesCareerAndSession() {
+  const app = harness();
+  await app.login();
+  await app.open(1);
+  app.component("AppHeader").onHome();
+  const linking = app.component("GoogleAccountLink");
+  assert.equal(linking.token, "token-1");
+  assert.equal(linking.onAuthenticated, undefined, "Linking must never replace the current account or reset careers");
+  assert.equal(app.nodes().find((node) => node.type.name === "GoogleAccountLink").key, "token-1");
+  app.component("AppHeader").onSeason();
+  assert.equal(app.component("SeasonHubView").career.id, 1);
+  assert.equal(app.storedToken(), "token-1");
+  await app.logout();
+  await app.login(2);
+  assert.equal(app.component("GoogleAccountLink").token, "token-2");
+  assert.equal(app.nodes().find((node) => node.type.name === "GoogleAccountLink").key, "token-2");
+}
+
 (async () => {
   await staleRefresh();
   await staleRefresh(true);
@@ -772,10 +930,15 @@ async function unmountedCreate() {
   await legendNavigation();
   await clubCreationContract();
   await createAfterGoingBack();
+  await reenterPendingCreation();
+  await reenterPendingCreation(true);
+  await oldCreationCannotClearNewSessionPending();
+  await oldCreationCannotClearNewSessionPending(true);
   await createAcrossSessions();
   await unmountedCreate();
+  await googleLinkPanelPreservesCareerAndSession();
   console.log(
-    "App request regression checks passed: 30 scenarios (save/session races, request ordering, mutation failures, create/list failures, legend navigation).",
+    "App request regression checks passed: 35 scenarios (save/session races, request ordering, mutation failures, create/list failures, creation re-entry, legend navigation, Google linking isolation).",
   );
 })().catch((error) => {
   console.error(error);

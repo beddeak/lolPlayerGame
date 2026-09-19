@@ -1,4 +1,5 @@
 import { MANAGER_CAREER_CONFIG } from './config/manager-career.config';
+import { PLAYER_CARD_STAT_MAX } from '../players/constants/player-card.constants';
 
 export type ManagerJobStatus = 'ACTIVE' | 'WARNING' | 'DISMISSED';
 export type ManagerTransition = 'NONE' | 'WARNING' | 'RECOVERED' | 'DISMISSED';
@@ -118,8 +119,8 @@ export function expectedSeriesWinChance(
   teamStrength: number,
   opponentStrength: number,
 ): number {
-  inRange(teamStrength, 'teamStrength', 0, 100);
-  inRange(opponentStrength, 'opponentStrength', 0, 100);
+  inRange(teamStrength, 'teamStrength', 0, PLAYER_CARD_STAT_MAX);
+  inRange(opponentStrength, 'opponentStrength', 0, PLAYER_CARD_STAT_MAX);
   const config = MANAGER_CAREER_CONFIG;
   return clamp(
     0.5 +
@@ -136,14 +137,14 @@ export function expectedLeagueRank(
   teamStrength: number,
   leagueStrengths: readonly number[],
 ): number {
-  inRange(teamStrength, 'teamStrength', 0, 100);
+  inRange(teamStrength, 'teamStrength', 0, PLAYER_CARD_STAT_MAX);
   if (leagueStrengths.length === 0 || !leagueStrengths.includes(teamStrength)) {
     throw new Error('leagueStrengths must include the managed team');
   }
   let stronger = 0;
   let equal = 0;
   for (const strength of leagueStrengths) {
-    inRange(strength, 'leagueStrength', 0, 100);
+    inRange(strength, 'leagueStrength', 0, PLAYER_CARD_STAT_MAX);
     if (strength > teamStrength) stronger += 1;
     if (strength === teamStrength) equal += 1;
   }

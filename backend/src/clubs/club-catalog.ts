@@ -184,12 +184,15 @@ export function buildClubCareer(
 
 export function toClubCatalogResponse(clubs: Club[]): ClubCatalogResponseDto {
   const { reason, clubReasons } = assessClubCatalog(clubs);
+  // Disabled templates stay internal so old saves need no destructive cleanup.
+  // An enabled but incomplete club must remain visible with its blocking reason.
+  const activeClubs = clubs.filter((club) => club.enabled);
   return {
     startYear: DEFAULT_CAREER_START_YEAR,
-    worldTeamCount: clubs.filter((club) => club.enabled).length,
+    worldTeamCount: activeClubs.length,
     ready: reason === null,
     unavailableReason: reason,
-    clubs: clubs.map((club) => {
+    clubs: activeClubs.map((club) => {
       const roster = (club.rosters ?? []).filter(
         (entry) => entry.playerCard?.player && entry.playerCard.theme,
       );
@@ -203,9 +206,7 @@ export function toClubCatalogResponse(clubs: Club[]): ClubCatalogResponseDto {
             STARTER_POSITIONS.indexOf(left.position!) -
             STARTER_POSITIONS.indexOf(right.position!),
         );
-      const unavailableReason = !club.enabled
-        ? '이 구단은 현재 새 게임에서 선택할 수 없습니다.'
-        : (clubReasons.get(club.code) ?? reason);
+      const unavailableReason = clubReasons.get(club.code) ?? reason;
       const statValues = starters.flatMap(({ playerCard }) => [
         playerCard.mechanics,
         playerCard.gameSense,

@@ -50,6 +50,7 @@ import { CareerTeamStrategyProficiency } from './entities/career-team-strategy-p
 import { Career } from './entities/career.entity';
 import { Roster } from './entities/roster.entity';
 import { TrainingPeriod } from './entities/training-period.entity';
+import { getTrainingWeek } from './config/training-week';
 import { RosterRole } from './enums/roster-role.enum';
 import { TeamStrategy } from './enums/team-strategy.enum';
 import { lockActiveManagerCareer } from '../manager-career/manager-access';
@@ -135,6 +136,7 @@ export class CareersService {
         careerId: savedCareer.id,
         career: savedCareer,
         periodNumber: 1,
+        weekStartsAt: getTrainingWeek(savedCareer.currentDate).weekStartsAt,
       }),
     );
 

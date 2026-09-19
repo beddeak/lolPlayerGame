@@ -113,6 +113,18 @@ export class EventQueueService {
         );
       }
 
+      if (
+        event.payload?.tournamentId &&
+        [
+          CalendarEventType.SCHEDULED_GAME,
+          CalendarEventType.INTERNATIONAL_ROSTER_REGISTRATION,
+        ].includes(event.type)
+      ) {
+        throw new ConflictException(
+          '국제대회 화면에서 로스터 등록 또는 경기를 진행해 주세요.',
+        );
+      }
+
       if (event.status !== CalendarEventStatus.READY) {
         throw new ConflictException(
           `CalendarEvent ${eventId} is not ready to resolve`,
@@ -321,12 +333,18 @@ export class EventQueueService {
   async findNextScheduledEvent(
     repository: EntityManager | Repository<CalendarEvent>,
     careerId: number,
+    type?: CalendarEventType,
   ): Promise<CalendarEvent | null> {
     const eventRepository =
       'getRepository' in repository
         ? repository.getRepository(CalendarEvent)
         : repository;
 
+    if (type)
+      return eventRepository.findOne({
+        where: { careerId, status: CalendarEventStatus.SCHEDULED, type },
+        order: { scheduledDate: 'ASC', id: 'ASC' },
+      });
     return eventRepository.findOne({
       // AI negotiations run in the daily loop, but must not shorten a jump to
       // the next user event just to stop for an automated club response.

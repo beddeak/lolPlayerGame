@@ -68,6 +68,7 @@ describe('MatchSeriesService', () => {
       entity === CareerTeam ? careerTeamsRepository : matchSeriesRepository,
   };
   const dataSource = {
+    manager: { existsBy: jest.fn().mockResolvedValue(false) },
     transaction: (work: (value: typeof manager) => Promise<unknown>) =>
       work(manager),
   };

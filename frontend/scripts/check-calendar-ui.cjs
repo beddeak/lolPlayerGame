@@ -6,6 +6,7 @@ const { createRequire } = require("node:module");
 const ts = require("typescript");
 const React = require("react");
 const { renderToStaticMarkup } = require("react-dom/server");
+const { loadClubLogo } = require("./check-club-logo.cjs");
 const settle = async () => {
   for (let i = 0; i < 4; i++) await new Promise((resolve) => setImmediate(resolve));
 };
@@ -62,6 +63,8 @@ function harness(props, request) {
   new Function("require", "module", "exports", output)((name) => {
     if (name === "react") return hooks;
     if (name === "./api") return { apiRequest: request, ApiError: Error };
+    if (name === "./ClubLogo") return loadClubLogo();
+    if (name === "./InternationalPanel") return { __esModule: true, default: () => null };
     if (name.endsWith(".css")) return {};
     return localRequire(name);
   }, module, module.exports);
@@ -76,6 +79,7 @@ function harness(props, request) {
       if (Array.isArray(node)) return node.forEach(visit);
       if (!React.isValidElement(node)) return;
       result.push(node);
+      if (node.type.name === "ClubLogo") return;
       if (typeof node.type === "function") visit(node.type(node.props));
       else visit(node.props.children);
     };
@@ -152,6 +156,7 @@ async function annualReadOnly() {
   const view = harness(data.props, data.request);
   const html = await view.mount();
   assert.match(html, /올해의 여정/);
+  assert.match(html, /src="\/club-logos\/hle.png"/);
   assert.match(html, /현재는 수동 일정 모드/);
   assert.equal((html.match(/class="season-period period-/g) ?? []).length, 14);
   assert.equal((html.match(/aria-current="date"/g) ?? []).length, 1);

@@ -20,6 +20,8 @@ import {
 } from '../src/contracts/contract.types';
 import { ContractOffer } from '../src/contracts/entities/contract-offer.entity';
 import { PlayerContract } from '../src/contracts/entities/player-contract.entity';
+import { TransferAgreement } from '../src/transfers/entities/transfer-agreement.entity';
+import { AiClubState } from '../src/ai-clubs/entities/ai-club-state.entity';
 import { CalendarEvent } from '../src/event-queue/entities/calendar-event.entity';
 import { CalendarEventStatus } from '../src/event-queue/enums/calendar-event-status.enum';
 import { CalendarEventType } from '../src/event-queue/enums/calendar-event-type.enum';
@@ -520,6 +522,276 @@ describe('Transfer, free agency and contract expiration (e2e)', () => {
         .expect(201);
       playerCardIds.push((cardResponse.body as { id: number }).id);
     }
+  });
+
+  it('sells an owned starter only after the buyer and player agree, promotes a replacement and records the fee once', async () => {
+    const career = await createCareer();
+    const home = team(career, 'TRANSFER_HOME');
+    const buyer = team(career, 'TRANSFER_SELLER');
+    const playerId = starter(home, Position.TOP).careerPlayer.id;
+    const quote = await api()
+      .get(`${transferBase(career.id)}/sale-candidates`)
+      .set(auth())
+      .expect(200);
+    const candidates = quote.body as TransferMarketEntryResponse[];
+    expect(candidates.every((item) => item.currentTeamId === home.id)).toBe(
+      true,
+    );
+    const candidate = candidates.find(
+      (item) => item.careerPlayerId === playerId,
+    )!;
+    expect(candidate.canNegotiate).toBe(true);
+    const body = {
+      careerPlayerId: playerId,
+      buyerCareerTeamId: buyer.id,
+      askingFee: candidate.requiredFee,
+    };
+    const responses = await Promise.all(
+      [0, 1].map(() =>
+        api()
+          .post(`${contractsBase(career.id)}/sales`)
+          .set(auth())
+          .send(body),
+      ),
+    );
+    expect(responses.map((item) => item.status).sort()).toEqual([201, 409]);
+    const offer = responses.find((item) => item.status === 201)!
+      .body as ContractOfferResponse;
+    expect(
+      starter(team(await getCareer(career.id), 'TRANSFER_HOME'), Position.TOP)
+        .careerPlayer.id,
+    ).toBe(playerId);
+    await api()
+      .post(`${contractsBase(career.id)}/offers`)
+      .set(auth())
+      .send({ careerPlayerId: playerId, terms: generousTerms })
+      .expect(409);
+    for (let day = 0; day < 3; day++) {
+      if ((await getCareer(career.id)).currentDate >= offer.responseDate) break;
+      await api()
+        .post(`/careers/${career.id}/calendar/advance`)
+        .set(auth())
+        .send({ mode: 'ONE_DAY' })
+        .expect(201);
+    }
+    const saved = await dataSource
+      .getRepository(ContractOffer)
+      .findOneByOrFail({ id: offer.id });
+    expect(saved.status).toBe(ContractOfferStatus.SIGNED);
+    const after = await getCareer(career.id);
+    expect(
+      starter(team(after, 'TRANSFER_HOME'), Position.TOP).careerPlayer.id,
+    ).not.toBe(playerId);
+    expect(team(after, 'TRANSFER_HOME').starters).toHaveLength(5);
+    expect(
+      team(after, 'TRANSFER_SELLER').benches.some(
+        (item) => item.careerPlayer.id === playerId,
+      ),
+    ).toBe(true);
+    const records = (await listHistory(career.id)).filter(
+      (record) => record.careerPlayerId === playerId,
+    );
+    expect(records).toHaveLength(1);
+    expect(records[0]).toMatchObject({
+      fromTeamId: home.id,
+      toTeamId: buyer.id,
+      type: TransferRecordType.TRANSFER,
+      transferFee: body.askingFee,
+    });
+    const state = await dataSource
+      .getRepository(AiClubState)
+      .findOneByOrFail({ careerTeamId: buyer.id });
+    expect(state.transferSpent).toBe(body.askingFee);
+    const sales = await api()
+      .get(`${contractsBase(career.id)}/sales`)
+      .set(auth())
+      .expect(200);
+    expect(sales.body).toEqual([
+      expect.objectContaining({
+        id: offer.id,
+        status: 'SIGNED',
+        transferFee: body.askingFee,
+      }),
+    ]);
+    await api()
+      .post(`${contractsBase(career.id)}/sales/${offer.id}/cancel`)
+      .set(auth())
+      .expect(409);
+    await api()
+      .post(`${contractsBase(career.id)}/sales`)
+      .set(auth())
+      .send(body)
+      .expect(409);
+  });
+
+  it('cancels a sale without releasing the player or charging the AI club', async () => {
+    const career = await createCareer();
+    const home = team(career, 'TRANSFER_HOME');
+    const buyer = team(career, 'TRANSFER_SELLER');
+    const playerId = home.benches[0].careerPlayer.id;
+    const result = await api()
+      .post(`${contractsBase(career.id)}/sales`)
+      .set(auth())
+      .send({
+        careerPlayerId: playerId,
+        buyerCareerTeamId: buyer.id,
+        askingFee: 5000,
+      })
+      .expect(201);
+    const offer = result.body as ContractOfferResponse;
+    await api()
+      .post(`${contractsBase(career.id)}/sales/${offer.id}/cancel`)
+      .set(auth())
+      .expect(201);
+    const agreement = await dataSource
+      .getRepository(TransferAgreement)
+      .findOneByOrFail({ id: offer.transferAgreementId! });
+    expect(agreement.status).toBe(TransferAgreementStatus.CANCELLED);
+    expect(
+      (
+        await dataSource
+          .getRepository(CalendarEvent)
+          .findOneByOrFail({ id: offer.responseEventId })
+      ).status,
+    ).toBe(CalendarEventStatus.COMPLETED);
+    await api()
+      .post(`/careers/${career.id}/calendar/advance`)
+      .set(auth())
+      .send({ mode: 'ONE_DAY' })
+      .expect(201);
+    expect(
+      (
+        await dataSource
+          .getRepository(CareerPlayer)
+          .findOneByOrFail({ id: playerId })
+      ).currentTeamId,
+    ).toBe(home.id);
+    expect(
+      (await listHistory(career.id)).some(
+        (record) => record.careerPlayerId === playerId,
+      ),
+    ).toBe(false);
+    expect(
+      (
+        await dataSource
+          .getRepository(AiClubState)
+          .findOneByOrFail({ careerTeamId: buyer.id })
+      ).transferSpent,
+    ).toBe(0);
+    await api()
+      .post(`${contractsBase(career.id)}/offers`)
+      .set(auth())
+      .send({ careerPlayerId: playerId, terms: generousTerms })
+      .expect(201);
+  });
+
+  it('protects sale ownership, validation, closed windows and starters without replacements', async () => {
+    const career = await createCareer(0);
+    const home = team(career, 'TRANSFER_HOME');
+    const buyer = team(career, 'TRANSFER_SELLER');
+    const playerId = home.starters[0].careerPlayer.id;
+    const body = {
+      careerPlayerId: playerId,
+      buyerCareerTeamId: buyer.id,
+      askingFee: 5000,
+    };
+    await api()
+      .get(`${transferBase(career.id)}/sale-candidates`)
+      .set(auth(otherToken))
+      .expect(404);
+    await api()
+      .get(`${contractsBase(career.id)}/sales`)
+      .set(auth(otherToken))
+      .expect(404);
+    await api()
+      .post(`${contractsBase(career.id)}/sales`)
+      .set(auth(otherToken))
+      .send(body)
+      .expect(404);
+    await api()
+      .post(`${contractsBase(career.id)}/sales`)
+      .set(auth())
+      .send(body)
+      .expect(409);
+    await api()
+      .post(`${contractsBase(career.id)}/sales`)
+      .set(auth())
+      .send({ ...body, careerPlayerId: buyer.benches[0].careerPlayer.id })
+      .expect(409);
+    await api()
+      .post(`${contractsBase(career.id)}/sales`)
+      .set(auth())
+      .send({ ...body, buyerCareerTeamId: home.id })
+      .expect(404);
+    for (const askingFee of [0, 4999, 5000.5, 500001]) {
+      await api()
+        .post(`${contractsBase(career.id)}/sales`)
+        .set(auth())
+        .send({ ...body, askingFee })
+        .expect(400);
+    }
+    await api()
+      .post(`${contractsBase(career.id)}/sales`)
+      .set(auth())
+      .send({ ...body, history: [{ action: 'USER_APPROVED_SALE' }] })
+      .expect(400);
+    await dataSource
+      .getRepository(Career)
+      .update(career.id, { currentDate: '2026-11-18' });
+    await api()
+      .post(`${contractsBase(career.id)}/sales`)
+      .set(auth())
+      .send(body)
+      .expect(409);
+    expect(
+      await dataSource
+        .getRepository(TransferAgreement)
+        .countBy({ careerId: career.id }),
+    ).toBe(0);
+  });
+
+  it('rolls a sale agreement back when the buyer has no salary budget and prevents excessive asking prices', async () => {
+    const career = await createCareer();
+    const home = team(career, 'TRANSFER_HOME');
+    const buyer = team(career, 'TRANSFER_SELLER');
+    const playerId = home.benches[0].careerPlayer.id;
+    const body = {
+      careerPlayerId: playerId,
+      buyerCareerTeamId: buyer.id,
+      askingFee: 500000,
+    };
+    await api()
+      .post(`${contractsBase(career.id)}/sales`)
+      .set(auth())
+      .send(body)
+      .expect(409);
+    await seedActiveContract(
+      career,
+      buyer.id,
+      buyer.starters[0].careerPlayer.id,
+    );
+    await api()
+      .post(`${contractsBase(career.id)}/sales`)
+      .set(auth())
+      .send({ ...body, askingFee: 5000 })
+      .expect(409);
+    expect(
+      await dataSource
+        .getRepository(TransferAgreement)
+        .countBy({ careerId: career.id }),
+    ).toBe(0);
+    expect(
+      await dataSource
+        .getRepository(ContractOffer)
+        .countBy({ careerId: career.id, careerPlayerId: playerId }),
+    ).toBe(0);
+    expect(
+      (
+        await dataSource
+          .getRepository(CareerPlayer)
+          .findOneByOrFail({ id: playerId })
+      ).currentTeamId,
+    ).toBe(home.id);
   });
 
   it('separates contracted players and free agents and protects every transfer list by career ownership', async () => {

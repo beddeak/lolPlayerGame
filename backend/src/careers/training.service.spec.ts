@@ -25,7 +25,6 @@ interface TestableTrainingService {
   calculateConditionLoss(
     careerPlayer: CareerPlayer,
     type: TrainingType,
-    isOverloaded: boolean,
   ): number;
 }
 
@@ -77,7 +76,7 @@ describe('TrainingService rules', () => {
     ).not.toThrow();
   });
 
-  it('makes laning growth chance-based and champion pool growth guaranteed', async () => {
+  it('makes individual stat growth chance-based in the 0 to 2 range', async () => {
     const successfulPlayer = createCareerPlayer();
     const failedPlayer = createCareerPlayer();
     const championPoolPlayer = createCareerPlayer();
@@ -103,14 +102,14 @@ describe('TrainingService rules', () => {
 
     expect(successfulLaning).toEqual({
       before: 70,
-      after: 71,
+      after: 72,
       succeeded: true,
     });
     expect(failedLaning).toEqual({ before: 70, after: 70, succeeded: false });
-    expect(championPool).toEqual({ before: 70, after: 72, succeeded: true });
+    expect(championPool).toEqual({ before: 70, after: 70, succeeded: false });
   });
 
-  it('increases condition cost for age, personality, and repeat training', () => {
+  it('adjusts condition cost for age and personality', () => {
     const resilientPlayer = createCareerPlayer();
     const overloadedPlayer = createCareerPlayer();
 
@@ -120,16 +119,80 @@ describe('TrainingService rules', () => {
     const normalLoss = rules.calculateConditionLoss(
       resilientPlayer,
       TrainingType.LANING,
-      false,
     );
     const overloadLoss = rules.calculateConditionLoss(
       overloadedPlayer,
       TrainingType.LANING,
-      true,
     );
 
     expect(normalLoss).toBe(7);
-    expect(overloadLoss).toBe(17);
+    expect(overloadLoss).toBe(12);
+  });
+
+  it.each([
+    [TrainingType.LANING, 'currentLaning'],
+    [TrainingType.CHAMPION_POOL, 'currentChampionPool'],
+  ] as const)('grows %s past 100 but never past 119', async (type, field) => {
+    const player = createCareerPlayer();
+    player.playerCard.potential = 119;
+    player[field] = 100;
+    const manager = {} as EntityManager;
+    const initialGrowth = await rules.applyIndividualGrowth(
+      manager,
+      player,
+      { type, careerPlayerId: 1 },
+      0,
+    );
+    expect(initialGrowth.after).toBeGreaterThan(100);
+
+    player[field] = 118;
+    expect(
+      await rules.applyIndividualGrowth(
+        manager,
+        player,
+        { type, careerPlayerId: 1 },
+        0,
+      ),
+    ).toEqual({ before: 118, after: 119, succeeded: true });
+    expect(player[field]).toBe(119);
+
+    await expect(
+      rules.applyIndividualGrowth(
+        manager,
+        player,
+        { type, careerPlayerId: 1 },
+        0,
+      ),
+    ).rejects.toThrow(BadRequestException);
+    expect(player[field]).toBe(119);
+  });
+
+  it('keeps role and position proficiency capped at 100', async () => {
+    const player = createCareerPlayer();
+    const query = {
+      setLock: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockReturnThis(),
+      getOne: jest.fn().mockResolvedValue({ proficiency: 100 }),
+    };
+    const save = jest.fn();
+    const manager = {
+      getRepository: jest.fn().mockReturnValue({
+        createQueryBuilder: jest.fn().mockReturnValue(query),
+      }),
+      save,
+    } as unknown as EntityManager;
+    for (const type of [TrainingType.ROLE, TrainingType.POSITION]) {
+      await expect(
+        rules.applyIndividualGrowth(
+          manager,
+          player,
+          { type, careerPlayerId: 1, position: Position.MID },
+          0,
+        ),
+      ).rejects.toThrow(BadRequestException);
+    }
+    expect(save).not.toHaveBeenCalled();
   });
 
   it('derives repeatable random rolls without accepting a client seed', () => {

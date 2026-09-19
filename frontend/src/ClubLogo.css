@@ -1,0 +1,61 @@
+.club-logo {
+  display: inline-grid;
+  width: 76px;
+  height: 76px;
+  flex-shrink: 0;
+  place-items: center;
+  vertical-align: middle;
+}
+
+.club-logo > img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.club-logo > .club-logo-initials {
+  display: grid;
+  width: 92%;
+  height: 88%;
+  place-items: center;
+  clip-path: polygon(12% 0, 88% 0, 100% 18%, 87% 77%, 50% 100%, 13% 77%, 0 18%);
+  background: linear-gradient(135deg, #415869, #1a2c3a);
+  color: #fff;
+  font: 800 1.7rem "Barlow Condensed", sans-serif;
+  letter-spacing: -0.025em;
+  line-height: 1;
+}
+
+.club-logo.club-logo--small {
+  width: 2.2rem;
+  height: 2.2rem;
+}
+
+.club-logo.club-logo--small > .club-logo-initials {
+  font-size: 0.68rem;
+}
+
+/* Official logos keep their own silhouette instead of being shield-cropped. */
+.club-logo.team-monogram,
+.club-logo.club-crest {
+  padding: 0.6rem;
+  border: 1px solid #dce4eb;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 0.3rem 0.9rem rgb(20 51 76 / 8%);
+  clip-path: none;
+}
+
+/* Riot's official broadcast marks include white details: retain their colors. */
+.club-logo.club-logo--official {
+  padding: 0.5rem;
+  border: 1px solid #2d4153;
+  border-radius: 10px;
+  background: #172632;
+}
+
+.club-logo.club-logo--official.club-logo--small {
+  padding: 0.18rem;
+  border-radius: 5px;
+}

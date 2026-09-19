@@ -1,7 +1,7 @@
 export const POSITIONS = ["TOP", "JUNGLE", "MID", "ADC", "SUPPORT"] as const;
 export type Position = (typeof POSITIONS)[number];
 
-export const REGIONS = ["LCK", "LPL", "LEC", "LCS"] as const;
+export const REGIONS = ["LCK", "LPL", "LEC", "LCS", "LCP", "CBLOL"] as const;
 export type Region = (typeof REGIONS)[number];
 
 export type TeamStrategy =

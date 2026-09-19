@@ -1,4 +1,5 @@
 import { useState } from "react";
+import ClubLogo from "./ClubLogo";
 import type {
   Career,
   CareerPlayer,
@@ -39,6 +40,9 @@ const DETAIL_STATS = [
   ["멘탈", "currentMental"],
   ["챔피언 폭", "currentChampionPool"],
 ] as const;
+
+// Base abilities use 0..119; percentages such as Form keep their own scale.
+const ABILITY_DISPLAY_MAX = 119;
 
 interface SquadViewProps {
   career: Career;
@@ -148,6 +152,7 @@ export default function SquadView({
               key={team.id}
               onClick={() => changeTeam(team.id)}
             >
+              <ClubLogo club={team} className="club-logo--small" />
               <strong>{team.code}</strong>
               <small>{team.name}</small>
             </button>
@@ -397,7 +402,9 @@ function SquadPlayerDetail({ roster }: { roster: CareerRoster }) {
               <i>
                 <b
                   className={value >= 85 ? "elite" : value >= 75 ? "good" : ""}
-                  style={{ width: `${value}%` }}
+                  style={{
+                    width: `${(Math.max(0, Math.min(ABILITY_DISPLAY_MAX, value)) / ABILITY_DISPLAY_MAX) * 100}%`,
+                  }}
                 />
               </i>
               <strong>{value}</strong>

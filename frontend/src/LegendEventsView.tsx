@@ -6,6 +6,7 @@ import {
   type FormEvent,
 } from "react";
 import { apiRequest } from "./api";
+import { DEFAULT_ANNUAL_SALARY, formatMoney } from "./money";
 import type {
   Career,
   ContractOffer,
@@ -17,6 +18,7 @@ import type {
 import "./LegendEventsView.css";
 
 interface Props {
+  embedded?: boolean;
   career: Career;
   token: string;
   onBack: () => void;
@@ -38,7 +40,7 @@ const ROLES: Record<ContractRole, string> = {
   PROSPECT: "육성 선수",
 };
 const INITIAL_TERMS: ContractTerms = {
-  annualSalary: 10000,
+  annualSalary: DEFAULT_ANNUAL_SALARY,
   years: 2,
   expectedRole: "STARTER",
   starterGuarantee: false,
@@ -46,6 +48,7 @@ const INITIAL_TERMS: ContractTerms = {
 };
 
 export default function LegendEventsView({
+  embedded = false,
   career,
   token,
   onBack,
@@ -196,14 +199,20 @@ export default function LegendEventsView({
 
   return (
     <section className="legend-market">
-      <div className="legend-nav">
-        <button onClick={onBack}>← 구단 사무실</button>
-        <button onClick={onOpenSeason}>시즌 허브 →</button>
-      </div>
+      {!embedded && (
+        <div className="legend-nav">
+          <button onClick={onBack}>← 구단 사무실</button>
+          <button onClick={onOpenSeason}>시즌 허브 →</button>
+        </div>
+      )}
       <header className="legend-hero">
         <div>
           <p>THE CLASSICS / TRANSFER MARKET</p>
-          <h1>다시 만나는 전성기</h1>
+          {embedded ? (
+            <h2>레전드 시장 · 다시 만나는 전성기</h2>
+          ) : (
+            <h1>다시 만나는 전성기</h1>
+          )}
           <span>
             공개된 레전드 선수에게 계약을 제안하세요. 다른 구단도 영입 경쟁에
             참여합니다.
@@ -382,6 +391,9 @@ export default function LegendEventsView({
                           }))
                         }
                       />
+                      <strong className="money-preview">
+                        {formatMoney(terms.annualSalary)}
+                      </strong>
                     </label>
                     <label>
                       계약 기간

@@ -63,6 +63,7 @@ export class AuthService {
 
     if (
       !account ||
+      !account.passwordHash ||
       !(await this.passwordService.verify(dto.password, account.passwordHash))
     ) {
       throw new UnauthorizedException('Invalid email or password');
@@ -81,7 +82,7 @@ export class AuthService {
     return this.toAccountResponse(account);
   }
 
-  private async issueAccessToken(account: Account): Promise<AuthResponseDto> {
+  async issueAccessToken(account: Account): Promise<AuthResponseDto> {
     const expiresInSeconds = this.configService.getOrThrow<number>(
       'JWT_EXPIRES_IN_SECONDS',
     );

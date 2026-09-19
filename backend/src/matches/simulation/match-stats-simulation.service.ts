@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { PLAYER_CARD_STAT_MAX } from '../../players/constants/player-card.constants';
 import { MATCH_STATS_CONFIG } from '../config/match-stats.config';
 import { createSeededRandom } from './seeded-random';
 import {
@@ -116,7 +117,9 @@ export class MatchStatsSimulationService {
     const deathWeights = team.players.map(
       (player) =>
         MATCH_STATS_CONFIG.deathWeightFloor +
-        (100 - this.getEffectiveStat(player, 'mental')) *
+        // Preserve the existing 100-point death-risk baseline without negative
+        // allocation weights when valid Mental exceeds that baseline.
+        Math.max(0, 100 - this.getEffectiveStat(player, 'mental')) *
           this.randomBetween(
             random,
             MATCH_STATS_CONFIG.allocationRandomMultiplier.min,
@@ -320,7 +323,10 @@ export class MatchStatsSimulationService {
     const stateModifier =
       calculatePlayerMatchStateModifiers(player).stateModifier;
 
-    return Math.min(100, Math.max(0, player[stat] + stateModifier));
+    return Math.min(
+      PLAYER_CARD_STAT_MAX,
+      Math.max(0, player[stat] + stateModifier),
+    );
   }
 
   private allocateIntegerTotal(total: number, weights: number[]): number[] {

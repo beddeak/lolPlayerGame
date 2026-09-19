@@ -1,0 +1,99 @@
+.google-auth {
+  margin-top: 1rem;
+}
+.google-auth-note,
+.google-auth-unavailable {
+  color: #526575;
+  font-size: 0.8rem;
+  line-height: 1.6;
+}
+.google-prepare-button {
+  display: inline-flex;
+  min-height: 44px;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #b6c6d3;
+  border-radius: 5px;
+  padding: 0.7rem 1rem;
+  background: #fff;
+  color: #263b4c;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+.google-prepare-button:hover:not(:disabled) {
+  background: #f2f7fb;
+  border-color: #6383a0;
+}
+.google-prepare-button:disabled {
+  cursor: wait;
+  opacity: 0.55;
+}
+.google-prepare-button:focus-visible,
+.google-cancel:focus-visible {
+  outline: 3px solid #3685c9;
+  outline-offset: 3px;
+}
+.google-cancel {
+  display: block;
+  margin: 0.6rem 0;
+}
+.google-official-button {
+  min-height: 44px;
+  overflow: hidden;
+}
+.google-official-button[hidden] {
+  display: none;
+}
+.google-account-panel {
+  display: flex;
+  width: min(1240px, calc(100% - 3rem));
+  gap: 1.5rem;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  margin: -3rem auto 6rem;
+  padding: 1.3rem;
+  background: #f5f9fc;
+  border: 1px solid #d8e3ec;
+  border-radius: 8px;
+  color: #30495e;
+}
+.google-account-panel h2 {
+  margin: 0 0 0.4rem;
+  font-size: 1rem;
+}
+.google-account-panel p {
+  margin: 0.3rem 0;
+  max-width: 44rem;
+  font-size: 0.82rem;
+  line-height: 1.6;
+}
+.google-account-panel .google-auth {
+  flex: 0 1 300px;
+  margin: 0;
+}
+.google-linked {
+  color: #236c4a;
+  overflow-wrap: anywhere;
+}
+.google-auth .inline-error {
+  color: #a52a36;
+  background: #fff2f2;
+}
+.auth-local-separator {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  margin: 1.3rem 0 0;
+  color: #627888;
+  font-size: 0.75rem;
+}
+.auth-local-separator::before,
+.auth-local-separator::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: #d8e3ec;
+}

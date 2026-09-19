@@ -1357,8 +1357,8 @@ describe('Application authentication and career ownership (e2e)', () => {
       expect.objectContaining({
         careerId: career.id,
         periodNumber: 1,
-        teamTraining: { used: 0, limit: 2, remaining: 2 },
-        individualTraining: { used: 0, limit: 2, remaining: 2 },
+        teamTraining: { used: 0, limit: 1, remaining: 1 },
+        individualTraining: { used: 0, limit: 6, remaining: 6 },
         sessions: [],
       }),
     );
@@ -1381,8 +1381,8 @@ describe('Application authentication and career ownership (e2e)', () => {
 
     expect(strategyTraining.teamTraining).toEqual({
       used: 1,
-      limit: 2,
-      remaining: 1,
+      limit: 1,
+      remaining: 0,
     });
     expect(strategyTraining.sessions[0]).toEqual(
       expect.objectContaining({
@@ -1395,28 +1395,6 @@ describe('Application authentication and career ownership (e2e)', () => {
       }),
     );
 
-    const chemistryTrainingResponse = await api
-      .post(`/careers/${career.id}/training-periods/current/team`)
-      .set('Authorization', `Bearer ${tokenA}`)
-      .send({ type: TrainingType.CHEMISTRY })
-      .expect(201);
-    const chemistryTraining =
-      chemistryTrainingResponse.body as unknown as TrainingPeriodResponse;
-
-    expect(chemistryTraining.teamTraining).toEqual({
-      used: 2,
-      limit: 2,
-      remaining: 0,
-    });
-    expect(chemistryTraining.sessions[1]).toEqual(
-      expect.objectContaining({
-        category: TrainingCategory.TEAM,
-        type: TrainingType.CHEMISTRY,
-        resultBefore: 50,
-        resultDelta: 3,
-        resultAfter: 53,
-      }),
-    );
     await api
       .post(`/careers/${career.id}/training-periods/current/team`)
       .set('Authorization', `Bearer ${tokenA}`)
@@ -1448,7 +1426,7 @@ describe('Application authentication and career ownership (e2e)', () => {
       .expect(201);
     const positionTraining =
       positionTrainingResponse.body as unknown as TrainingPeriodResponse;
-    const positionSession = positionTraining.sessions[2];
+    const positionSession = positionTraining.sessions[1];
 
     expect(positionSession).toEqual(
       expect.objectContaining({
@@ -1457,14 +1435,13 @@ describe('Application authentication and career ownership (e2e)', () => {
         careerPlayerId: adcPlayer.id,
         position: Position.TOP,
         resultBefore: 20,
-        resultDelta: 5,
-        resultAfter: 25,
-        growthSucceeded: true,
       }),
     );
     expect(positionSession.conditionDelta).toBeLessThan(0);
+    expect(positionSession.resultDelta).toBeGreaterThanOrEqual(0);
+    expect(positionSession.resultDelta).toBeLessThanOrEqual(2);
 
-    const roleTrainingResponse = await api
+    await api
       .post(`/careers/${career.id}/training-periods/current/individual`)
       .set('Authorization', `Bearer ${tokenA}`)
       .send({
@@ -1473,33 +1450,7 @@ describe('Application authentication and career ownership (e2e)', () => {
         position: Position.ADC,
         instruction: PlayerInstruction.HYPER_CARRY,
       })
-      .expect(201);
-    const roleTraining =
-      roleTrainingResponse.body as unknown as TrainingPeriodResponse;
-    const roleSession = roleTraining.sessions[3];
-
-    expect(roleTraining.individualTraining).toEqual({
-      used: 2,
-      limit: 2,
-      remaining: 0,
-    });
-    expect(roleSession).toEqual(
-      expect.objectContaining({
-        category: TrainingCategory.INDIVIDUAL,
-        type: TrainingType.ROLE,
-        careerPlayerId: adcPlayer.id,
-        position: Position.ADC,
-        instruction: PlayerInstruction.HYPER_CARRY,
-        resultBefore: 50,
-        resultDelta: 4,
-        resultAfter: 54,
-        growthSucceeded: true,
-      }),
-    );
-    expect(Math.abs(roleSession.conditionDelta!)).toBeGreaterThan(
-      Math.abs(positionSession.conditionDelta!),
-    );
-    expect(roleSession.formAfter).toBeLessThanOrEqual(roleSession.formBefore!);
+      .expect(409);
     await api
       .post(`/careers/${career.id}/training-periods/current/individual`)
       .set('Authorization', `Bearer ${tokenA}`)
@@ -1532,16 +1483,16 @@ describe('Application authentication and career ownership (e2e)', () => {
       trainedAdc.positionProficiencies.find(
         (proficiency) => proficiency.position === Position.TOP,
       )?.proficiency,
-    ).toBe(25);
-    expect(trainedAdc.condition).toBe(roleSession.conditionAfter);
-    expect(trainedAdc.form).toBe(roleSession.formAfter);
+    ).toBe(positionSession.resultAfter);
+    expect(trainedAdc.condition).toBe(positionSession.conditionAfter);
+    expect(trainedAdc.form).toBe(positionSession.formAfter);
 
     const leagueFormatsResponse = await api
       .get(`/careers/${career.id}/league-splits/formats`)
       .set('Authorization', `Bearer ${tokenA}`)
       .expect(200);
 
-    expect(leagueFormatsResponse.body).toHaveLength(12);
+    expect(leagueFormatsResponse.body).toHaveLength(18);
     expect(leagueFormatsResponse.body).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ region: Region.LCK, splitNumber: 1 }),

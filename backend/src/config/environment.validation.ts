@@ -13,6 +13,7 @@ import {
   IsOptional,
   IsString,
   Max,
+  MaxLength,
   Min,
   MinLength,
   validateSync,
@@ -64,6 +65,20 @@ export class EnvironmentVariables {
   JWT_EXPIRES_IN_SECONDS!: number;
 
   @Transform(({ value }: TransformFnParams) =>
+    typeof value === 'string' ? value.trim() : (value as unknown),
+  )
+  @IsString()
+  @MaxLength(255)
+  GOOGLE_CLIENT_ID = '';
+
+  @Transform(({ value }: TransformFnParams) =>
+    typeof value === 'string' ? value.trim() : (value as unknown),
+  )
+  @IsString()
+  @MaxLength(2048)
+  GOOGLE_ALLOWED_ORIGIN = 'http://localhost:5173';
+
+  @Transform(({ value }: TransformFnParams) =>
     typeof value === 'string'
       ? value.trim() === ''
         ? []
@@ -109,6 +124,41 @@ export function validateEnvironment(
     throw new Error(
       `Invalid environment configuration: ${messages.join(', ')}`,
     );
+  }
+
+  if (validatedConfig.GOOGLE_CLIENT_ID) {
+    if (
+      !/^[A-Za-z0-9_-]+\.apps\.googleusercontent\.com$/.test(
+        validatedConfig.GOOGLE_CLIENT_ID,
+      )
+    ) {
+      throw new Error(
+        'Invalid environment configuration: GOOGLE_CLIENT_ID must be a Google web client ID',
+      );
+    }
+    let origin: URL;
+    try {
+      origin = new URL(validatedConfig.GOOGLE_ALLOWED_ORIGIN);
+    } catch {
+      throw new Error(
+        'Invalid environment configuration: GOOGLE_ALLOWED_ORIGIN must be an exact web origin',
+      );
+    }
+    const local = ['localhost', '127.0.0.1', '[::1]'].includes(origin.hostname);
+    if (
+      (origin.protocol !== 'https:' &&
+        !(origin.protocol === 'http:' && local)) ||
+      origin.username ||
+      origin.password ||
+      origin.search ||
+      origin.hash ||
+      origin.pathname !== '/'
+    ) {
+      throw new Error(
+        'Invalid environment configuration: GOOGLE_ALLOWED_ORIGIN requires HTTPS (HTTP is allowed only on localhost) and no path, query or credentials',
+      );
+    }
+    validatedConfig.GOOGLE_ALLOWED_ORIGIN = origin.origin;
   }
 
   return validatedConfig;

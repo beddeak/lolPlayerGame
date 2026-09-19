@@ -2,6 +2,8 @@ export interface LeagueScheduleSlot {
   roundNumber: number;
   teamAId: number;
   teamBId: number;
+  bestOf?: 1 | 3 | 5;
+  stageFixtureNumber?: number;
 }
 
 export interface SwissTeamSeed {

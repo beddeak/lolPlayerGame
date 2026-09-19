@@ -841,22 +841,13 @@
   text-align: center;
 }
 
-.fixture-team > div {
-  display: grid;
+.fixture-team > .club-logo {
   width: 5.4rem;
   height: 5.4rem;
   margin-bottom: 0.65rem;
-  clip-path: polygon(50% 0, 91% 21%, 86% 76%, 50% 100%, 14% 76%, 9% 21%);
-  color: #fff;
-  background: linear-gradient(145deg, #1f76b8, #113f72);
-  place-items: center;
-  font-family: "Barlow Condensed", sans-serif;
-  font-size: 1.55rem;
-  font-style: italic;
-  font-weight: 900;
 }
 
-.fixture-team.managed > div {
+.fixture-team.managed .club-logo-initials {
   background: linear-gradient(145deg, #ff8a36, #ef5700);
 }
 
@@ -866,7 +857,7 @@
   line-height: 1;
 }
 
-.fixture-team > span {
+.fixture-team > span:not(.club-logo) {
   max-width: 100%;
   margin-top: 0.25rem;
   overflow: hidden;
@@ -1213,20 +1204,7 @@
   gap: 0.65rem;
 }
 
-.standing-team > i {
-  display: grid;
-  width: 2.2rem;
-  height: 2.2rem;
-  flex: 0 0 auto;
-  color: #fff;
-  background: var(--season-blue);
-  place-items: center;
-  font-size: 0.62rem;
-  font-style: normal;
-  font-weight: 900;
-}
-
-.standing-row.managed .standing-team > i {
+.standing-row.managed .standing-team .club-logo-initials {
   background: var(--season-orange);
 }
 
@@ -1754,7 +1732,7 @@
     gap: 0.3rem;
   }
 
-  .fixture-team > div {
+  .fixture-team > .club-logo {
     width: 4.3rem;
     height: 4.3rem;
     font-size: 1.2rem;

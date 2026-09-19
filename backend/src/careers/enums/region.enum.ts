@@ -3,4 +3,6 @@ export enum Region {
   LPL = 'LPL',
   LEC = 'LEC',
   LCS = 'LCS',
+  LCP = 'LCP',
+  CBLOL = 'CBLOL',
 }

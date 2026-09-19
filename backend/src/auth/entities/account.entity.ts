@@ -18,8 +18,8 @@ export class Account {
   @Column({ type: 'varchar', length: 191 })
   email!: string;
 
-  @Column({ type: 'varchar', length: 255, select: false })
-  passwordHash!: string;
+  @Column({ type: 'varchar', length: 255, select: false, nullable: true })
+  passwordHash!: string | null;
 
   @Column({ type: 'varchar', length: 50 })
   displayName!: string;

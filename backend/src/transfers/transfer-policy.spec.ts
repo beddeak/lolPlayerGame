@@ -49,6 +49,16 @@ describe('transfer policy', () => {
     expect(prospect).toBeGreaterThan(prime);
   });
 
+  it.each([101, 119])(
+    'accepts current ability %i above the old 100 cap',
+    (ability) => {
+      const fee = calculateRequiredTransferFee({ ...input, ability });
+      expect(Number.isInteger(fee)).toBe(true);
+      expect(fee).toBeGreaterThanOrEqual(TRANSFER_CONFIG.fee.contractedMinimum);
+      expect(fee).toBeLessThanOrEqual(TRANSFER_CONFIG.fee.max);
+    },
+  );
+
   it('discounts veterans from the configured minimum veteran age', () => {
     const prime = calculateRequiredTransferFee({
       ...input,
@@ -139,7 +149,7 @@ describe('transfer policy', () => {
 
   it.each([
     { ability: -1 },
-    { ability: 101 },
+    { ability: 120 },
     { ability: Number.NaN },
     { currentAge: 0 },
     { currentAge: 20.5 },

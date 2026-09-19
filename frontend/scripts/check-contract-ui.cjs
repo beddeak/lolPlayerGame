@@ -7,6 +7,7 @@ const { createRequire } = require("node:module");
 const ts = require("typescript");
 const React = require("react");
 const { renderToStaticMarkup } = require("react-dom/server");
+const { loadClubLogo } = require("./check-club-logo.cjs");
 
 const settle = async () => {
   for (let index = 0; index < 3; index++) {
@@ -77,6 +78,10 @@ function harness(file, props, request) {
     (name) => {
       if (name === "react") return hooks;
       if (name === "./api") return { apiRequest: request, ApiError: Error };
+      if (name === "./money") return require('./load-source.cjs').loadSource('money');
+      if (name === "./PlayerSalesPanel") return { __esModule: true, default: () => null };
+      if (name === "./ClubLogo") return loadClubLogo();
+      if (name === "./InternationalPanel") return { __esModule: true, default: () => null };
       if (name === "./types")
         return { POSITIONS: ["TOP", "JUNGLE", "MID", "ADC", "SUPPORT"] };
       if (name.endsWith(".css")) return {};

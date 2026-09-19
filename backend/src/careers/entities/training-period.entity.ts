@@ -14,6 +14,7 @@ import { TrainingSession } from './training-session.entity';
 
 @Entity({ name: 'training_periods' })
 @Unique('UQ_training_periods_career_number', ['careerId', 'periodNumber'])
+@Unique('UQ_training_periods_career_week', ['careerId', 'weekStartsAt'])
 export class TrainingPeriod {
   @PrimaryGeneratedColumn({ type: 'int', unsigned: true })
   id!: number;
@@ -34,6 +35,10 @@ export class TrainingPeriod {
 
   @Column({ type: 'int', unsigned: true })
   periodNumber!: number;
+
+  // Null preserves historical, pre-weekly training records without relabelling them.
+  @Column({ type: 'date', nullable: true })
+  weekStartsAt!: string | null;
 
   @CreateDateColumn({
     type: 'timestamp',

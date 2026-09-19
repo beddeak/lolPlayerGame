@@ -45,6 +45,14 @@ export class TransfersController {
     return this.transfers.findAgreements(account.id, careerId);
   }
 
+  @Get('sale-candidates')
+  findSaleCandidates(
+    @CurrentAccount() account: AuthenticatedAccount,
+    @Param('careerId', ParseIntPipe) careerId: number,
+  ) {
+    return this.transfers.findSaleCandidates(account.id, careerId);
+  }
+
   @Get('history')
   findHistory(
     @CurrentAccount() account: AuthenticatedAccount,

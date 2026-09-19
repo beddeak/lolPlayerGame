@@ -7,6 +7,7 @@ import { LeagueStage } from '../leagues/entities/league-stage.entity';
 import { LeagueStageStatus } from '../leagues/enums/league-stage-status.enum';
 import { LeaguesService } from '../leagues/leagues.service';
 import { SeasonScheduleService } from './season-schedule.service';
+import { InternationalsService } from '../internationals/internationals.service';
 
 describe('SeasonScheduleService', () => {
   let teams: CareerTeam[];
@@ -16,6 +17,7 @@ describe('SeasonScheduleService', () => {
   const leagues = { ensureCalendarSplit: jest.fn() };
   const service = new SeasonScheduleService(
     leagues as unknown as LeaguesService,
+    { prepare: jest.fn() } as unknown as InternationalsService,
   );
   const em = manager as unknown as EntityManager;
 
@@ -99,8 +101,11 @@ describe('SeasonScheduleService', () => {
     career.autoSchedule = false;
     const before = JSON.stringify({ career, teams, splits });
     const result = await service.describe(em, career);
-    expect(result).toHaveLength(4);
-    expect(result.every((row) => row.status === 'READY')).toBe(true);
+    expect(result).toHaveLength(6);
+    expect(result.filter((row) => row.status === 'READY')).toHaveLength(4);
+    expect(
+      result.filter((row) => row.status === 'INSUFFICIENT_TEAMS'),
+    ).toHaveLength(2);
     expect(leagues.ensureCalendarSplit).not.toHaveBeenCalled();
     expect(JSON.stringify({ career, teams, splits })).toBe(before);
   });
@@ -194,11 +199,11 @@ describe('SeasonScheduleService', () => {
     career.currentYear = 2027;
     career.currentDate = '2027-01-01';
     await service.prepare(em, career);
-    expect(splits).toHaveLength(8);
-    expect(splits.slice(0, 4)).toEqual(oldRecords);
+    expect(splits).toHaveLength(oldRecords.length + 4);
+    expect(splits.slice(0, oldRecords.length)).toEqual(oldRecords);
     expect(
       splits
-        .slice(4)
+        .slice(oldRecords.length)
         .every((split) => split.year === 2027 && split.splitNumber === 1),
     ).toBe(true);
   });

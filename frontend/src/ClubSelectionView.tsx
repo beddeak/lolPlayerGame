@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { ApiError, apiRequest } from "./api";
+import ClubLogo from "./ClubLogo";
 import {
   POSITIONS,
-  type Club,
   type ClubsResponse,
   type CreateCareerFromClubPayload,
   type PlayerCard,
@@ -11,6 +11,7 @@ import "./ClubSelectionView.css";
 
 interface Props {
   token: string;
+  creatingClubCode?: string | null;
   onBack: () => void;
   onSubmit: (payload: CreateCareerFromClubPayload) => Promise<void>;
   onSessionError: (error: unknown) => void;
@@ -25,6 +26,7 @@ interface CatalogState {
 
 export default function ClubSelectionView({
   token,
+  creatingClubCode = null,
   onBack,
   onSubmit,
   onSessionError,
@@ -102,19 +104,20 @@ export default function ClubSelectionView({
     [];
   const selectedClub =
     data?.clubs.find((club) => club.code === selectedCode) ?? null;
+  const busy = submitting || creatingClubCode !== null;
   const canStart = Boolean(
-    data?.ready && selectedClub?.selectable && !loading && !submitting,
+    data?.ready && selectedClub?.selectable && !loading && !busy,
   );
 
   function retry() {
-    if (pendingSubmit.current) return;
+    if (pendingSubmit.current || busy) return;
     requestVersion.current++;
     setCatalog({ token, data: null, loading: true, error: "" });
     setReload((value) => value + 1);
   }
 
   function changeRegion(nextRegion: string) {
-    if (pendingSubmit.current) return;
+    if (pendingSubmit.current || busy) return;
     setRegion(nextRegion);
     const candidates =
       data?.clubs.filter(
@@ -213,7 +216,7 @@ export default function ClubSelectionView({
         <div className="club-state-panel">
           <h2>구단 목록을 불러오지 못했습니다.</h2>
           <p role="alert">{catalog.error}</p>
-          <button className="secondary-button" onClick={retry}>
+          <button className="secondary-button" onClick={retry} disabled={busy}>
             다시 불러오기
           </button>
         </div>
@@ -221,7 +224,7 @@ export default function ClubSelectionView({
         <div className="club-state-panel">
           <h2>등록된 구단이 없습니다.</h2>
           <p>구단과 로스터가 등록되면 새 커리어를 시작할 수 있습니다.</p>
-          <button className="secondary-button" onClick={retry}>
+          <button className="secondary-button" onClick={retry} disabled={busy}>
             다시 불러오기
           </button>
         </div>
@@ -234,7 +237,7 @@ export default function ClubSelectionView({
                 {data.unavailableReason ??
                   "등록된 전체 구단의 로스터 준비가 끝나면 시즌을 시작할 수 있습니다."}
               </span>
-              <button className="text-button" onClick={retry}>
+              <button className="text-button" onClick={retry} disabled={busy}>
                 다시 확인
               </button>
             </div>
@@ -259,7 +262,7 @@ export default function ClubSelectionView({
                     aria-selected={region === filter}
                     aria-controls="club-league-panel"
                     tabIndex={region === filter ? 0 : -1}
-                    disabled={submitting}
+                    disabled={busy}
                     onKeyDown={(event) => navigateLeagues(event, index)}
                     onClick={() => changeRegion(filter)}
                   >
@@ -287,10 +290,10 @@ export default function ClubSelectionView({
                       className={`club-tile${selectedCode === club.code ? " is-selected" : ""}`}
                       aria-pressed={selectedCode === club.code}
                       aria-label={`${club.name} · ${club.region}${club.selectable ? "" : ` · ${club.unavailableReason ?? "로스터 준비 중"}`}`}
-                      disabled={!club.selectable || submitting}
+                      disabled={!club.selectable || busy}
                       title={club.unavailableReason ?? club.name}
                       onClick={() => {
-                        if (!pendingSubmit.current && club.selectable) {
+                        if (!pendingSubmit.current && !busy && club.selectable) {
                           setSelectedCode(club.code);
                           setSubmitError("");
                         }
@@ -335,7 +338,7 @@ export default function ClubSelectionView({
               className="club-preview"
               aria-label="선택한 구단 미리보기"
               aria-live="polite"
-              aria-busy={submitting}
+              aria-busy={busy}
             >
               {selectedClub ? (
                 <>
@@ -452,36 +455,21 @@ export default function ClubSelectionView({
                 disabled={!canStart}
                 onClick={() => void startCareer()}
               >
-                {submitting ? "시즌 생성 중..." : "이 구단으로 시작하기"}
+                {busy ? "시즌 생성 중..." : "이 구단으로 시작하기"}
                 <span aria-hidden="true">→</span>
               </button>
               <p className="club-start-note">
-                {submitting
-                  ? "전체 리그와 로스터를 생성하고 있습니다."
-                  : `${data.startYear} 시즌 · 생성한 커리어는 자동 저장됩니다.`}
+                {creatingClubCode
+                  ? `${creatingClubCode} 새 게임 생성이 끝날 때까지 기다려 주세요. 완료한 게임은 커리어 목록에서 확인할 수 있습니다.`
+                  : submitting
+                    ? "전체 리그와 로스터를 생성하고 있습니다."
+                    : `${data.startYear} 시즌 · 생성한 커리어는 자동 저장됩니다.`}
               </p>
             </aside>
           </div>
         </>
       )}
     </section>
-  );
-}
-
-export function ClubLogo({
-  club,
-}: {
-  club: Pick<Club, "code" | "name" | "logoUrl">;
-}) {
-  const [failed, setFailed] = useState(false);
-  return (
-    <span className="club-logo" aria-hidden="true">
-      {club.logoUrl && !failed ? (
-        <img src={club.logoUrl} alt="" onError={() => setFailed(true)} />
-      ) : (
-        <span className="club-logo-initials">{club.code.slice(0, 3)}</span>
-      )}
-    </span>
   );
 }
 

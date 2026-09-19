@@ -179,6 +179,106 @@ describe('MatchStatsSimulationService', () => {
     }
   });
 
+  it('uses abilities above 100 in damage, gold and lane stats', () => {
+    const capped = createTeam(1, 'TEAM_A', 100);
+    const elite = createTeam(1, 'TEAM_A', 119);
+    for (const player of [...capped.players, ...elite.players]) {
+      player.mental = 50;
+    }
+    const matchResult = matchSimulationService.simulate(
+      capped,
+      teamB,
+      123,
+      TeamStrategy.BALANCED,
+    );
+    const baseline = statsSimulationService.simulate(
+      capped,
+      teamB,
+      matchResult,
+      123,
+    );
+    const improved = statsSimulationService.simulate(
+      elite,
+      teamB,
+      matchResult,
+      123,
+    );
+
+    for (let index = 0; index < capped.players.length; index++) {
+      const before = baseline.teams[0].playerStats[index];
+      const after = improved.teams[0].playerStats[index];
+      expect(after.dpm - before.dpm).toBeCloseTo(19 * 5);
+      expect(after.gold).toBeGreaterThan(before.gold);
+      expect(after.gdAt15 - before.gdAt15).toBeCloseTo(19 * 20);
+    }
+  });
+
+  it('caps positive state boosts to effective ability 119', () => {
+    const elite = createTeam(1, 'TEAM_A', 119);
+    const boosted = {
+      ...elite,
+      players: elite.players.map((player) => ({ ...player, form: 100 })),
+    };
+    const matchResult = matchSimulationService.simulate(
+      elite,
+      teamB,
+      123,
+      TeamStrategy.BALANCED,
+    );
+    const baseline = statsSimulationService.simulate(
+      elite,
+      teamB,
+      matchResult,
+      123,
+    );
+    const result = statsSimulationService.simulate(
+      boosted,
+      teamB,
+      matchResult,
+      123,
+    );
+    for (let index = 0; index < elite.players.length; index++) {
+      expect(result.teams[0].playerStats[index].dpm).toBe(
+        baseline.teams[0].playerStats[index].dpm,
+      );
+      expect(result.teams[0].playerStats[index].gold).toBe(
+        baseline.teams[0].playerStats[index].gold,
+      );
+    }
+  });
+
+  it.each([1, 77, 12345])(
+    'keeps mixed 100..119 Mental death allocation nonnegative for seed %i',
+    (seed) => {
+      const elite = createTeam(1, 'TEAM_A', 119);
+      elite.players.forEach((player, index) => {
+        player.mental = [119, 118, 110, 100, 80][index];
+      });
+      const matchResult = matchSimulationService.simulate(
+        elite,
+        teamB,
+        seed,
+        TeamStrategy.BALANCED,
+      );
+      const result = statsSimulationService.simulate(
+        elite,
+        teamB,
+        matchResult,
+        seed,
+      );
+      expect(
+        result.teams[0].playerStats.reduce(
+          (sum, player) => sum + player.deaths,
+          0,
+        ),
+      ).toBe(result.teams[1].teamKills);
+      for (const player of result.teams[0].playerStats) {
+        expect(Number.isInteger(player.deaths)).toBe(true);
+        expect(player.deaths).toBeGreaterThanOrEqual(0);
+      }
+    },
+  );
+
   it('snapshots state modifiers and calculates the next match state', () => {
     const matchResult = matchSimulationService.simulate(
       teamA,

@@ -3,22 +3,26 @@ import { TrainingType } from '../enums/training-type.enum';
 
 export const TRAINING_CONFIG = {
   usesPerPeriod: {
-    team: 2,
-    individual: 2,
+    team: 1,
+    individual: 1, // per player, preparation only; unavailable during a rest week
   },
+  restConditionRecovery: 20,
+  scrimConditionLoss: 5,
   growth: {
     [TrainingType.STRATEGY]: 4,
     [TrainingType.CHEMISTRY]: 3,
-    [TrainingType.LANING]: 1,
-    [TrainingType.CHAMPION_POOL]: 2,
-    [TrainingType.ROLE]: 4,
-    [TrainingType.POSITION]: 5,
   },
   conditionLoss: {
     [TrainingType.LANING]: 8,
     [TrainingType.CHAMPION_POOL]: 6,
     [TrainingType.ROLE]: 7,
     [TrainingType.POSITION]: 9,
+    [TrainingType.MECHANICS]: 8,
+    [TrainingType.GAME_SENSE]: 6,
+    [TrainingType.TEAM_FIGHT]: 8,
+    [TrainingType.MACRO]: 6,
+    [TrainingType.TEAM_PLAY]: 6,
+    [TrainingType.MENTAL]: 5,
   },
   personalityConditionAdjustment: {
     [PlayerPersonality.DEVOTED]: -1,
@@ -27,15 +31,7 @@ export const TRAINING_CONFIG = {
     [PlayerPersonality.PROFESSIONAL]: -1,
     [PlayerPersonality.SENSITIVE]: 2,
   },
-  overload: {
-    additionalConditionLoss: 5,
-    baseFormDropChance: 0.35,
-    sensitiveFormDropChanceBonus: 0.2,
-    lowConditionThreshold: 40,
-    lowConditionFormDropChanceBonus: 0.2,
-    formDrop: 2,
-  },
-  laningGrowthChance: {
+  statGrowthChance: {
     base: 0.35,
     perPotentialGap: 0.015,
     min: 0.2,

@@ -12,6 +12,7 @@ import {
 import { PlayerCard } from '../../players/entities/player-card.entity';
 import { Position } from '../../players/enums/position.enum';
 import { PlayerPersonality } from '../../players/enums/player-personality.enum';
+import { PLAYER_STAT_TRANSFORMER } from '../../players/utils/player-stat.transformer';
 import { CAREER_PLAYER_STATE_CONFIG } from '../config/player-state.config';
 import { Career } from './career.entity';
 import { CareerPlayerPositionProficiency } from './career-player-position-proficiency.entity';
@@ -73,28 +74,60 @@ export class CareerPlayer {
   @Column({ type: 'enum', enum: Position })
   currentPosition!: Position;
 
-  @Column({ type: 'tinyint', unsigned: true })
+  @Column({
+    type: 'tinyint',
+    unsigned: true,
+    transformer: PLAYER_STAT_TRANSFORMER,
+  })
   currentMechanics!: number;
 
-  @Column({ type: 'tinyint', unsigned: true })
+  @Column({
+    type: 'tinyint',
+    unsigned: true,
+    transformer: PLAYER_STAT_TRANSFORMER,
+  })
   currentGameSense!: number;
 
-  @Column({ type: 'tinyint', unsigned: true })
+  @Column({
+    type: 'tinyint',
+    unsigned: true,
+    transformer: PLAYER_STAT_TRANSFORMER,
+  })
   currentLaning!: number;
 
-  @Column({ type: 'tinyint', unsigned: true })
+  @Column({
+    type: 'tinyint',
+    unsigned: true,
+    transformer: PLAYER_STAT_TRANSFORMER,
+  })
   currentTeamFight!: number;
 
-  @Column({ type: 'tinyint', unsigned: true })
+  @Column({
+    type: 'tinyint',
+    unsigned: true,
+    transformer: PLAYER_STAT_TRANSFORMER,
+  })
   currentMacro!: number;
 
-  @Column({ type: 'tinyint', unsigned: true })
+  @Column({
+    type: 'tinyint',
+    unsigned: true,
+    transformer: PLAYER_STAT_TRANSFORMER,
+  })
   currentTeamPlay!: number;
 
-  @Column({ type: 'tinyint', unsigned: true })
+  @Column({
+    type: 'tinyint',
+    unsigned: true,
+    transformer: PLAYER_STAT_TRANSFORMER,
+  })
   currentMental!: number;
 
-  @Column({ type: 'tinyint', unsigned: true })
+  @Column({
+    type: 'tinyint',
+    unsigned: true,
+    transformer: PLAYER_STAT_TRANSFORMER,
+  })
   currentChampionPool!: number;
 
   @Column({

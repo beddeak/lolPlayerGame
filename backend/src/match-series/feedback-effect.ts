@@ -1,4 +1,9 @@
 import { PlayerPersonality } from '../players/enums/player-personality.enum';
+import { feedbackFormRecovery } from '../careers/config/form-recovery';
+import {
+  PLAYER_CARD_STAT_MAX,
+  PLAYER_CARD_STAT_MIN,
+} from '../players/constants/player-card.constants';
 import {
   FEEDBACK_OPTION_CONFIG,
   FEEDBACK_PERSONALITY_CONFIG,
@@ -58,16 +63,20 @@ export function calculateFeedbackPlayerEffect(
   const mentalDelta = roundSigned(
     optionConfig.mentalDelta * reactionMultiplier * mentalContext,
   );
-  const formDelta = roundSigned(
+  const reactionFormDelta = roundSigned(
     optionConfig.formDelta * reactionMultiplier * formContext,
   );
+  const formDelta = feedbackFormRecovery(state.mental, reactionFormDelta);
   const coachTrustDelta = roundSigned(
     optionConfig.coachTrustDelta *
       personalityConfig.coachTrustMultiplier *
       reactionMultiplier *
       trustContext,
   );
-  const mentalAfter = clampState(state.mental + mentalDelta);
+  const mentalAfter = Math.min(
+    PLAYER_CARD_STAT_MAX,
+    Math.max(PLAYER_CARD_STAT_MIN, state.mental + mentalDelta),
+  );
   const formAfter = clampState(state.form + formDelta);
   const coachTrustAfter = clampState(state.coachTrust + coachTrustDelta);
 

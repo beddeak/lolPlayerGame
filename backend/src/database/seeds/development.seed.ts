@@ -27,64 +27,17 @@ import { TeamStrategy } from '../../careers/enums/team-strategy.enum';
 import { PlayerCard } from '../../players/entities/player-card.entity';
 import { Player } from '../../players/entities/player.entity';
 import { Theme } from '../../players/entities/theme.entity';
-import { Position } from '../../players/enums/position.enum';
-import { PlayerPersonality } from '../../players/enums/player-personality.enum';
 import { SetBonus } from '../../set-bonuses/entities/set-bonus.entity';
 import { SetBonusRequirement } from '../../set-bonuses/entities/set-bonus-requirement.entity';
 import dataSource from '../data-source';
-import { seedClubCatalog, validateClubSeeds } from './club-catalog.seed';
-import type { ClubSeedData } from './club-catalog.seed';
+import { seedClubCatalog } from './club-catalog.seed';
 import { isCatalogOnlySeed } from './seed-mode';
-
-interface DevelopmentSeedData {
-  startYear: number;
-  managedTeamCode?: string;
-  themes: Array<{
-    code: string;
-    name: string;
-    description: string | null;
-  }>;
-  playerCards: DevelopmentPlayerCardData[];
-  setBonuses: Array<{
-    code: string;
-    name: string;
-    description: string | null;
-    requiredPlayerCardKeys: string[];
-    chemistryBonus: number;
-    laningBonus: number;
-    teamFightBonus: number;
-    macroBonus: number;
-    teamPlayBonus: number;
-  }>;
-  teams: ClubSeedData[];
-}
-
-interface DevelopmentPlayerCardData {
-  key: string;
-  nickname: string;
-  nationality?: string;
-  themeCode: string;
-  cardYear: number;
-  startingAge?: number;
-  mainPosition: Position;
-  imageUrl?: string;
-  mechanics: number;
-  gameSense: number;
-  laning: number;
-  teamFight: number;
-  macro: number;
-  teamPlay: number;
-  mental: number;
-  championPool: number;
-  personality?: PlayerPersonality;
-  potential?: number;
-}
-
-const DEVELOPMENT_PLAYER_DEFAULTS = {
-  nationality: 'UNKNOWN',
-  startingAge: 20,
-  personality: PlayerPersonality.PROFESSIONAL,
-} as const;
+import { validateDevelopmentSeed } from './development-seed.validation';
+import { DEVELOPMENT_PLAYER_DEFAULTS } from './development-seed.types';
+import type {
+  DevelopmentSeedData,
+  DevelopmentPlayerCardData,
+} from './development-seed.types';
 
 function getFallbackPotential(cardData: DevelopmentPlayerCardData): number {
   return Math.max(
@@ -155,18 +108,7 @@ async function loadSeedData(): Promise<DevelopmentSeedData> {
   const contents = await readFile(seedFilePath, 'utf8');
   const parsed = JSON.parse(contents) as unknown;
 
-  if (
-    typeof parsed !== 'object' ||
-    parsed === null ||
-    !('playerCards' in parsed) ||
-    !Array.isArray(parsed.playerCards) ||
-    !('teams' in parsed) ||
-    !Array.isArray(parsed.teams)
-  ) {
-    throw new Error('development-seed.json has an invalid structure');
-  }
-
-  return parsed as DevelopmentSeedData;
+  return validateDevelopmentSeed(parsed);
 }
 
 async function seedCatalog(
@@ -860,10 +802,6 @@ async function runSeed(): Promise<void> {
   const seedData = await loadSeedData();
   const catalogOnly = isCatalogOnlySeed(seedData.managedTeamCode, process.argv);
   const accountConfig = catalogOnly ? null : loadDevelopmentAccountConfig();
-  const keys = seedData.playerCards.map((card) => card.key);
-  if (new Set(keys).size !== keys.length)
-    throw new Error('중복 playerCards.key가 있습니다.');
-  validateClubSeeds(seedData.teams, new Set(keys));
 
   await dataSource.initialize();
 

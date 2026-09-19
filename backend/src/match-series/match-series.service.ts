@@ -25,6 +25,7 @@ import { MatchSeries } from './entities/match-series.entity';
 import { MatchSeriesStatus } from './enums/match-series-status.enum';
 import { deriveSeriesGameSeed } from './match-series.utils';
 import { lockActiveManagerCareer } from '../manager-career/manager-access';
+import { InternationalFixture } from '../internationals/entities/international-fixture.entity';
 
 @Injectable()
 export class MatchSeriesService {
@@ -114,6 +115,15 @@ export class MatchSeriesService {
       );
     }
 
+    if (
+      await this.dataSource.manager.existsBy(InternationalFixture, {
+        seriesId: id,
+      })
+    ) {
+      throw new ConflictException(
+        '국제대회 경기는 국제대회 화면에서 진행해 주세요.',
+      );
+    }
     return this.simulateNextGame(accountId, id);
   }
 

@@ -20,6 +20,7 @@ import { TransfersModule } from './transfers/transfers.module';
 import { LegendsModule } from './legends/legends.module';
 import { AiClubsModule } from './ai-clubs/ai-clubs.module';
 import { ManagerCareerModule } from './manager-career/manager-career.module';
+import { InternationalsModule } from './internationals/internationals.module';
 
 @Module({
   imports: [
@@ -64,6 +65,7 @@ import { ManagerCareerModule } from './manager-career/manager-career.module';
     LegendsModule,
     AiClubsModule,
     ManagerCareerModule,
+    InternationalsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

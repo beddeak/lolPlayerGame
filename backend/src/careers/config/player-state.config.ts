@@ -26,11 +26,11 @@ export const CAREER_PLAYER_STATE_CONFIG = {
   postMatch: {
     form: {
       neutralRating: 5,
-      ratingPointsPerDelta: 2,
+      ratingPointsPerDelta: 1,
       winnerDelta: 1,
       loserDelta: -1,
       minDelta: -4,
-      maxDelta: 4,
+      maxDelta: 8,
     },
     condition: {
       baseLoss: 2,

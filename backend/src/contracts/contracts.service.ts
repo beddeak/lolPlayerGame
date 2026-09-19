@@ -43,6 +43,9 @@ import { RosterRole } from '../careers/enums/roster-role.enum';
 import { MAX_BENCH_PLAYERS } from '../careers/constants/career.constants';
 import { LegendEventPlayer } from '../legends/entities/legend-event-player.entity';
 import { AiClubBudgetService } from '../ai-clubs/ai-club-budget.service';
+import { buildAiContractTerms } from '../ai-clubs/ai-contract-terms';
+import { CreatePlayerSaleDto } from './dto/create-player-sale.dto';
+import { isUserApprovedSale, USER_SALE_ACTION } from './user-sale';
 
 const OPEN_STATUSES = [
   ContractOfferStatus.WAITING_PLAYER_RESPONSE,
@@ -105,6 +108,22 @@ export class ContractsService {
         true,
       );
       const team = await this.findManagedTeam(manager, careerId);
+      if (
+        (
+          await manager.find(ContractOffer, {
+            where: {
+              careerId,
+              sourceCareerTeamId: team.id,
+              careerPlayerId: dto.careerPlayerId,
+              offerType: ContractOfferType.TRANSFER,
+              status: In(OPEN_STATUSES),
+            },
+          })
+        ).some(isUserApprovedSale)
+      )
+        throw new ConflictException(
+          '판매 협상을 먼저 철회한 뒤 재계약해 주세요.',
+        );
       const prepared = await this.transfersService.prepareContractOffer(
         manager,
         career,
@@ -292,6 +311,153 @@ export class ContractsService {
     await manager.save(ContractOffer, candidate);
     await this.scheduleResponse(manager, candidate, career.currentDate, false);
     return manager.save(ContractOffer, candidate);
+  }
+
+  async findSales(accountId: number, careerId: number) {
+    await this.assertOwnedCareer(this.dataSource.manager, accountId, careerId);
+    const team = await this.findManagedTeam(this.dataSource.manager, careerId);
+    const offers = await this.dataSource.manager.find(ContractOffer, {
+      where: {
+        careerId,
+        sourceCareerTeamId: team.id,
+        offerType: ContractOfferType.TRANSFER,
+      },
+      relations: {
+        transferAgreement: true,
+        careerTeam: true,
+        careerPlayer: { playerCard: { player: true } },
+      },
+      order: { id: 'DESC' },
+    });
+    return offers.filter(isUserApprovedSale).map((offer) => ({
+      id: offer.id,
+      careerPlayerId: offer.careerPlayerId,
+      status: offer.status,
+      nickname: offer.careerPlayer.playerCard.player.nickname,
+      buyerTeam: {
+        id: offer.careerTeam.id,
+        code: offer.careerTeam.code,
+        name: offer.careerTeam.name,
+      },
+      transferFee: offer.transferAgreement?.offeredFee ?? 0,
+      responseDate: offer.responseDate,
+      reason: offer.response?.reason ?? null,
+    }));
+  }
+
+  async createSale(
+    accountId: number,
+    careerId: number,
+    dto: CreatePlayerSaleDto,
+  ) {
+    return this.dataSource.transaction(async (manager) => {
+      const career = await this.assertOwnedCareer(
+        manager,
+        accountId,
+        careerId,
+        true,
+      );
+      const buyer = await manager.findOneBy(CareerTeam, {
+        id: dto.buyerCareerTeamId,
+        careerId,
+        isUserControlled: false,
+      });
+      if (!buyer) throw new NotFoundException('구매 구단을 찾을 수 없습니다.');
+      const agreement = await this.transfersService.createUserSaleAgreement(
+        manager,
+        career,
+        buyer,
+        dto.careerPlayerId,
+        dto.askingFee,
+      );
+      const player = await manager.findOneByOrFail(CareerPlayer, {
+        id: dto.careerPlayerId,
+        careerId,
+      });
+      const contract = await manager.findOneBy(PlayerContract, {
+        careerId,
+        careerPlayerId: player.id,
+        status: PlayerContractStatus.ACTIVE,
+      });
+      const terms = buildAiContractTerms(player, contract?.terms.annualSalary);
+      validateContractTerms(terms);
+      contractEndDate(career.currentDate, terms.years);
+      if (
+        !(await this.aiBudget.canAfford(
+          manager,
+          career,
+          buyer.id,
+          player.id,
+          terms.annualSalary,
+          dto.askingFee,
+        ))
+      )
+        throw new ConflictException(
+          '구매 구단의 이적료 또는 연봉 예산이 부족합니다.',
+        );
+      const offer = manager.create(ContractOffer, {
+        careerId,
+        careerTeamId: buyer.id,
+        careerPlayerId: player.id,
+        offerType: ContractOfferType.TRANSFER,
+        sourceCareerTeamId: agreement.sellerCareerTeamId,
+        transferAgreementId: agreement.id,
+        status: ContractOfferStatus.WAITING_PLAYER_RESPONSE,
+        revision: 1,
+        offeredDate: career.currentDate,
+        responseDate: career.currentDate,
+        responseEventId: null,
+        terms,
+        counterTerms: null,
+        response: null,
+        extensionsUsed: 0,
+        history: [
+          {
+            action: USER_SALE_ACTION,
+            date: career.currentDate,
+            revision: 1,
+            terms: structuredClone(terms),
+          },
+        ],
+      });
+      await manager.save(ContractOffer, offer);
+      await this.scheduleResponse(manager, offer, career.currentDate, false);
+      return manager.save(ContractOffer, offer);
+    });
+  }
+
+  async cancelSale(accountId: number, careerId: number, offerId: number) {
+    return this.dataSource.transaction(async (manager) => {
+      const career = await this.assertOwnedCareer(
+        manager,
+        accountId,
+        careerId,
+        true,
+      );
+      const team = await this.findManagedTeam(manager, careerId);
+      const offer = await manager.findOne(ContractOffer, {
+        where: { id: offerId, careerId, sourceCareerTeamId: team.id },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (!offer || !isUserApprovedSale(offer))
+        throw new NotFoundException('판매 제안을 찾을 수 없습니다.');
+      if (!OPEN_STATUSES.includes(offer.status))
+        throw new ConflictException('이미 종료된 판매 협상입니다.');
+      offer.status = ContractOfferStatus.WITHDRAWN;
+      this.recordDecision(offer, 'USER_CANCELLED_SALE', career.currentDate);
+      await this.cancelAiAgreement(manager, offer, career.currentDate);
+      if (offer.responseEventId !== null) {
+        const event = await manager.findOneBy(CalendarEvent, {
+          id: offer.responseEventId,
+          careerId,
+        });
+        if (event) {
+          event.requiresUserAction = false;
+          await this.completeEvent(manager, event);
+        }
+      }
+      return manager.save(ContractOffer, offer);
+    });
   }
 
   async respond(

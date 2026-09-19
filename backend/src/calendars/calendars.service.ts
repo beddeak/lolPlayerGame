@@ -8,6 +8,7 @@ import { DataSource, EntityManager, Repository } from 'typeorm';
 import { Career } from '../careers/entities/career.entity';
 import { CalendarEventResponseDto } from '../event-queue/dto/calendar-event-response.dto';
 import { CalendarEvent } from '../event-queue/entities/calendar-event.entity';
+import { CalendarEventType } from '../event-queue/enums/calendar-event-type.enum';
 import { EventQueueService } from '../event-queue/event-queue.service';
 import { getSeriesWinsRequired } from '../match-series/config/bo3-series.config';
 import { LeagueFixture } from '../leagues/entities/league-fixture.entity';
@@ -33,6 +34,7 @@ import { getLeagueSplitWindow } from './config/season-calendar.config';
 import { SeasonScheduleService } from './season-schedule.service';
 import { assertManagerActive } from '../manager-career/manager-access';
 import { ManagerCareerService } from '../manager-career/manager-career.service';
+import { DailyFormRecoveryService } from './daily-form-recovery.service';
 
 @Injectable()
 export class CalendarsService {
@@ -45,6 +47,7 @@ export class CalendarsService {
     private readonly eventQueueService: EventQueueService,
     private readonly seasonScheduleService: SeasonScheduleService,
     private readonly managerCareerService: ManagerCareerService,
+    private readonly dailyFormRecovery: DailyFormRecoveryService,
   ) {}
 
   async startSeason(
@@ -155,6 +158,11 @@ export class CalendarsService {
           }
           career.currentDate = addCalendarDays(career.currentDate, 1);
           career.currentYear = getCalendarYear(career.currentDate);
+          await this.dailyFormRecovery.apply(
+            manager,
+            careerId,
+            career.currentDate,
+          );
           const closeResult = await this.eventQueueService.processThroughDate(
             manager,
             careerId,
@@ -180,13 +188,18 @@ export class CalendarsService {
       } else if (this.hasDueMatch(fixtures, career.currentDate)) {
         stopReason = CalendarStopReason.MATCH_DAY;
       } else {
-        const nextEvent =
-          dto.mode === CalendarAdvanceMode.NEXT_EVENT
-            ? await this.eventQueueService.findNextScheduledEvent(
-                manager,
-                careerId,
-              )
-            : null;
+        const nextEvent = [
+          CalendarAdvanceMode.NEXT_EVENT,
+          CalendarAdvanceMode.NEXT_MATCH,
+        ].includes(dto.mode)
+          ? await this.eventQueueService.findNextScheduledEvent(
+              manager,
+              careerId,
+              dto.mode === CalendarAdvanceMode.NEXT_MATCH
+                ? CalendarEventType.SCHEDULED_GAME
+                : undefined,
+            )
+          : null;
         const requestedDate = this.getRequestedDate(
           career,
           fixtures,
@@ -197,6 +210,11 @@ export class CalendarsService {
         while (career.currentDate < requestedDate) {
           career.currentDate = addCalendarDays(career.currentDate, 1);
           career.currentYear = getCalendarYear(career.currentDate);
+          await this.dailyFormRecovery.apply(
+            manager,
+            careerId,
+            career.currentDate,
+          );
           const dayResult = await this.eventQueueService.processThroughDate(
             manager,
             careerId,
@@ -274,13 +292,18 @@ export class CalendarsService {
         .filter((date): date is string => !!date)
         .sort()[0];
     } else {
-      const nextMatch = fixtures[0];
-      if (!nextMatch) {
+      const nextMatchDate = [
+        fixtures[0]?.scheduledDate,
+        nextEvent?.scheduledDate,
+      ]
+        .filter((date): date is string => !!date)
+        .sort()[0];
+      if (!nextMatchDate) {
         throw new ConflictException(
           `Career ${career.id} does not have a scheduled match`,
         );
       }
-      requestedDate = nextMatch.scheduledDate;
+      requestedDate = nextMatchDate;
     }
     if (boundary && boundary > career.currentDate && boundary < requestedDate) {
       requestedDate = boundary;

@@ -9,6 +9,8 @@ import { CalendarsService } from './calendars.service';
 import { LeaguesModule } from '../leagues/leagues.module';
 import { SeasonScheduleService } from './season-schedule.service';
 import { ManagerCareerModule } from '../manager-career/manager-career.module';
+import { InternationalsModule } from '../internationals/internationals.module';
+import { DailyFormRecoveryService } from './daily-form-recovery.service';
 
 @Module({
   imports: [
@@ -16,10 +18,15 @@ import { ManagerCareerModule } from '../manager-career/manager-career.module';
     EventQueueModule,
     LeaguesModule,
     ManagerCareerModule,
+    InternationalsModule,
     TypeOrmModule.forFeature([Career, LeagueFixture]),
   ],
   controllers: [CalendarsController],
-  providers: [CalendarsService, SeasonScheduleService],
+  providers: [
+    CalendarsService,
+    SeasonScheduleService,
+    DailyFormRecoveryService,
+  ],
   exports: [CalendarsService],
 })
 export class CalendarsModule {}

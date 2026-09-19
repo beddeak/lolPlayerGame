@@ -16,6 +16,7 @@ import { TeamStrategy } from '../enums/team-strategy.enum';
 import { CareerPlayer } from './career-player.entity';
 import { CareerTeam } from './career-team.entity';
 import { TrainingPeriod } from './training-period.entity';
+import { TrainingPlayerEffect } from '../training-player-effect';
 
 @Entity({ name: 'training_sessions' })
 @Unique('UQ_training_sessions_period_category_sequence', [
@@ -110,6 +111,9 @@ export class TrainingSession {
 
   @Column({ type: 'tinyint', unsigned: true, nullable: true })
   formAfter!: number | null;
+
+  @Column({ type: 'json', nullable: true })
+  playerEffects!: TrainingPlayerEffect[] | null;
 
   @CreateDateColumn({
     type: 'timestamp',

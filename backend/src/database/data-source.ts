@@ -2,6 +2,15 @@ import { existsSync } from 'node:fs';
 import { loadEnvFile } from 'node:process';
 import { DataSource } from 'typeorm';
 import { Account } from '../auth/entities/account.entity';
+import { SocialIdentity } from '../auth/entities/social-identity.entity';
+import { GoogleAuthChallenge } from '../auth/entities/google-auth-challenge.entity';
+import { AddGoogleAuth1789077600000 } from './migrations/1789077600000-add-google-auth';
+import { WeeklyTraining1789164000000 } from './migrations/1789164000000-weekly-training';
+import { InternationalTournaments1789250400000 } from './migrations/1789250400000-international-tournaments';
+import { AddLcpCblol1789336800000 } from './migrations/1789336800000-add-lcp-cblol';
+import { TeamActivityEffects1789423200000 } from './migrations/1789423200000-team-activity-effects';
+import { InternationalTournament } from '../internationals/entities/international-tournament.entity';
+import { InternationalFixture } from '../internationals/entities/international-fixture.entity';
 import { Club } from '../clubs/entities/club.entity';
 import { ClubRoster } from '../clubs/entities/club-roster.entity';
 import { CreateClubCatalog1788991200000 } from './migrations/1788991200000-create-club-catalog';
@@ -84,6 +93,8 @@ const dataSource = new DataSource({
   database: environment.DB_DATABASE,
   entities: [
     Account,
+    SocialIdentity,
+    GoogleAuthChallenge,
     Club,
     ClubRoster,
     Player,
@@ -100,6 +111,8 @@ const dataSource = new DataSource({
     Roster,
     TrainingPeriod,
     TrainingSession,
+    InternationalTournament,
+    InternationalFixture,
     Match,
     MatchPlayerStat,
     MatchSeries,
@@ -150,6 +163,11 @@ const dataSource = new DataSource({
     AddFullSeasonCalendar1788818400000,
     CreateManagerCareer1788904800000,
     CreateClubCatalog1788991200000,
+    AddGoogleAuth1789077600000,
+    WeeklyTraining1789164000000,
+    InternationalTournaments1789250400000,
+    AddLcpCblol1789336800000,
+    TeamActivityEffects1789423200000,
   ],
   migrationsTableName: 'migrations',
   ssl: useSsl ? { rejectUnauthorized: true } : undefined,

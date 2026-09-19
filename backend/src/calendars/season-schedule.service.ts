@@ -8,6 +8,7 @@ import { LeagueStageStatus } from '../leagues/enums/league-stage-status.enum';
 import { LEAGUE_CONFIG } from '../leagues/config/league.config';
 import { LeaguesService } from '../leagues/leagues.service';
 import { getLeagueSplitWindow } from './config/season-calendar.config';
+import { InternationalsService } from '../internationals/internationals.service';
 
 export interface SeasonScheduleReadiness {
   region: Region;
@@ -24,7 +25,10 @@ export interface SeasonScheduleReadiness {
 /** Opt-in provisioning only; read endpoints never initialize or rewrite saves. */
 @Injectable()
 export class SeasonScheduleService {
-  constructor(private readonly leaguesService: LeaguesService) {}
+  constructor(
+    private readonly leaguesService: LeaguesService,
+    private readonly internationals: InternationalsService,
+  ) {}
 
   /** Runs inside the calendar transaction, after acquiring the Career lock. */
   async prepare(manager: EntityManager, career: Career): Promise<void> {
@@ -40,6 +44,7 @@ export class SeasonScheduleService {
         readiness.splitNumber!,
       );
     }
+    await this.internationals.prepare(manager, career);
   }
 
   async describe(
@@ -90,9 +95,18 @@ export class SeasonScheduleService {
         readiness.message = '올해 새로 생성할 지역리그가 없습니다.';
         return { readiness, exists };
       }
-      if (readiness.teamCount < LEAGUE_CONFIG.minTeams) {
+      const minimumTeams = [Region.LCP, Region.CBLOL].includes(region)
+        ? 8
+        : LEAGUE_CONFIG.minTeams;
+      if (
+        readiness.teamCount < minimumTeams ||
+        (minimumTeams === 8 && readiness.teamCount !== 8)
+      ) {
         readiness.status = 'INSUFFICIENT_TEAMS';
-        readiness.message = `리그를 생성하려면 최소 ${LEAGUE_CONFIG.minTeams}개 팀이 필요합니다.`;
+        readiness.message =
+          minimumTeams === 8
+            ? '이 지역의 정식 포맷에는 정확히 8개 팀이 필요합니다.'
+            : `리그를 생성하려면 최소 ${minimumTeams}개 팀이 필요합니다.`;
         return { readiness, exists };
       }
 
@@ -115,7 +129,7 @@ export class SeasonScheduleService {
       // Missing legacy history cannot be replaced with invented seed results.
       if (
         splitNumber === 3 &&
-        [Region.LCK, Region.LPL].includes(region) &&
+        [Region.LCK, Region.LPL, Region.LCP].includes(region) &&
         !regionalSplits.some(
           (split) =>
             split.year === career.currentYear &&

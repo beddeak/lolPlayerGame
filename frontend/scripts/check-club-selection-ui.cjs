@@ -6,6 +6,7 @@ const path = require("node:path");
 const ts = require("typescript");
 const React = require("react");
 const { renderToStaticMarkup } = require("react-dom/server");
+const { loadClubLogo } = require("./check-club-logo.cjs");
 
 class ApiError extends Error {
   constructor(status, message) {
@@ -158,6 +159,7 @@ function harness(props, request, exportName = "default") {
       if (name === "react") return hooks;
       if (name === "./api") return { apiRequest: request, ApiError };
       if (name === "./types") return { POSITIONS };
+      if (name === "./ClubLogo") return loadClubLogo();
       if (name.endsWith(".css")) return {};
       return require(name);
     },
@@ -537,20 +539,14 @@ test("unmounted creation rejection cannot write state", async () => {
   assert.equal(view.writes(), writes);
 });
 
-test("registered logo URL is used, with an initials fallback when it fails", async () => {
-  const view = harness(
-    { club: { code: "GEN", name: "Gen.G", logoUrl: "/team-logos/gen.png" } },
-    null,
-    "ClubLogo",
-  );
-  assert.match(view.render(), /team-logos\/gen.png/);
-  view
-    .nodes()
-    .find((node) => node.type === "img")
-    .props.onError();
-  const html = view.render();
-  assert.doesNotMatch(html, /<img/);
-  assert.match(html, /GEN/);
+test("catalogue renders bundled club images for older records without logoUrl", async () => {
+  const f = fixture();
+  const view = harness(f.props, f.request);
+  const html = await view.mount();
+  for (const code of ["t1", "gen", "g2"]) {
+    assert.match(html, new RegExp(`src="/club-logos/${code}.png"`));
+  }
+  assert.equal((html.match(/src="\/club-logos\/t1.png"/g) ?? []).length, 2);
 });
 
 test("missing player images show initials; registered images recover from failure", async () => {
@@ -568,13 +564,17 @@ test("missing player images show initials; registered images recover from failur
   assert.doesNotMatch(absent.render(), /<img/);
 });
 
-(async () => {
-  for (const { name, run } of cases) {
-    await run();
-    console.log(`PASS ${name}`);
-  }
-  console.log(`Club selection checks passed: ${cases.length} scenarios.`);
-})().catch((error) => {
-  console.error(error);
-  process.exitCode = 1;
-});
+module.exports = { harness, fixture };
+
+if (require.main === module) {
+  (async () => {
+    for (const { name, run } of cases) {
+      await run();
+      console.log(`PASS ${name}`);
+    }
+    console.log(`Club selection checks passed: ${cases.length} scenarios.`);
+  })().catch((error) => {
+    console.error(error);
+    process.exitCode = 1;
+  });
+}

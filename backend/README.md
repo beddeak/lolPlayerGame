@@ -31,6 +31,8 @@
 $ npm install
 ```
 
+Google 로그인 설정과 기존 계정 연결 방법은 [Google 로그인 안내](../docs/GOOGLE-LOGIN.md)를 참고하세요. 클라이언트 ID를 설정하지 않으면 기존 이메일 로그인만 활성화됩니다.
+
 ## Compile and run the project
 
 ```bash
@@ -50,8 +52,8 @@ $ npm run start:prod
 # unit tests
 $ npm run test
 
-# e2e tests
-$ npm run test:e2e
+# MySQL e2e tests (creates and removes a dedicated temporary database)
+$ npm run test:e2e:isolated
 
 # test coverage
 $ npm run test:cov

@@ -52,6 +52,12 @@ import { LeagueGroupPairingMode } from './league-format.types';
 import { rankTournamentStandings } from './league-standings';
 import type { RegionalLeagueFormat } from './league-format.types';
 import {
+  bracketRanking,
+  nextBracketSlots,
+  regionalBracket,
+} from './regional-brackets';
+import { lcpSwissRound } from './lcp-swiss';
+import {
   createCrossGroupSchedule,
   createRoundRobinSchedule,
   createSeededPairings,
@@ -162,6 +168,15 @@ export class LeaguesService {
       (await manager.find(CareerTeam, { where: { careerId } }));
     const regionalTeams = teams.filter((team) => team.region === dto.region);
 
+    if (
+      [Region.LCP, Region.CBLOL].includes(dto.region) &&
+      regionalTeams.length !== 8
+    ) {
+      throw new ConflictException(
+        `${dto.region}의 정식 지역 예선에는 8개 구단이 필요합니다.`,
+      );
+    }
+
     if (regionalTeams.length < LEAGUE_CONFIG.minTeams) {
       throw new ConflictException(
         `${dto.region} needs at least ${LEAGUE_CONFIG.minTeams} teams in Career ${careerId}`,
@@ -263,6 +278,19 @@ export class LeaguesService {
     return Object.values(REGIONAL_LEAGUE_FORMATS).flatMap((formats) =>
       Object.values(formats),
     );
+  }
+
+  /** Read using the caller's transaction, including just-finished regional results. */
+  async qualificationSplits(
+    manager: EntityManager,
+    careerId: number,
+    year: number,
+  ): Promise<LeagueSplitResponseDto[]> {
+    const splits = await manager.find(LeagueSplit, {
+      where: { careerId, year },
+      relations: this.splitRelations,
+    });
+    return splits.map((split) => this.toResponse(split));
   }
 
   async findOne(
@@ -506,7 +534,10 @@ export class LeaguesService {
       return fallback;
     }
 
-    if (splitNumber !== 3 || ![Region.LCK, Region.LPL].includes(region)) {
+    if (
+      splitNumber !== 3 ||
+      ![Region.LCK, Region.LPL, Region.LCP].includes(region)
+    ) {
       return fallback;
     }
 
@@ -531,25 +562,24 @@ export class LeaguesService {
     }
 
     const previousStages = this.sortedStages(previousSplit);
-    const rankedTeamIds =
-      region === Region.LPL
-        ? [
-            ...new Set(
-              [...previousStages]
-                .reverse()
-                .flatMap((stage) =>
-                  this.calculateStageStandings(stage).map(
-                    (standing) => standing.teamId,
-                  ),
+    const rankedTeamIds = [Region.LPL, Region.LCP].includes(region)
+      ? [
+          ...new Set(
+            [...previousStages]
+              .reverse()
+              .flatMap((stage) =>
+                this.calculateStageStandings(stage).map(
+                  (standing) => standing.teamId,
                 ),
-            ),
-          ].slice(
-            0,
-            getRegionalLeagueFormat(region, splitNumber).expectedTeamCount,
-          )
-        : this.calculateStageStandings(previousStages[0]).map(
-            (standing) => standing.teamId,
-          );
+              ),
+          ),
+        ].slice(
+          0,
+          getRegionalLeagueFormat(region, splitNumber).expectedTeamCount,
+        )
+      : this.calculateStageStandings(previousStages[0]).map(
+          (standing) => standing.teamId,
+        );
     const teamsById = new Map(teams.map((team) => [team.id, team]));
 
     return rankedTeamIds
@@ -604,6 +634,14 @@ export class LeaguesService {
     split: LeagueSplit,
     stage: LeagueStage,
   ): Promise<boolean> {
+    if (stage.settings.bracket) {
+      const slots = nextBracketSlots(this.getRegionalBracket(stage, split));
+      if (!slots.length) return false;
+      stage.currentRound = slots[0].roundNumber;
+      await manager.save(LeagueStage, stage);
+      await this.appendFixtures(manager, split, stage, slots);
+      return true;
+    }
     const maxScheduledRound = Math.max(
       0,
       ...stage.fixtures.map((fixture) => fixture.roundNumber),
@@ -624,6 +662,24 @@ export class LeaguesService {
     }
 
     if (stage.format === LeagueStageFormat.SWISS) {
+      if (stage.settings.advancementWins) {
+        const slots = lcpSwissRound(
+          [...stage.participants]
+            .sort((a, b) => a.initialSeed - b.initialSeed)
+            .map((row) => row.careerTeamId),
+          stage.fixtures.map((fixture) => ({
+            roundNumber: fixture.roundNumber,
+            teamAId: fixture.teamAId,
+            teamBId: fixture.teamBId,
+            winnerTeamId: this.calculateFixtureState(fixture).winnerTeamId!,
+          })),
+        );
+        if (!slots.length) return false;
+        stage.currentRound = slots[0].roundNumber;
+        await manager.save(stage);
+        await this.appendFixtures(manager, split, stage, slots);
+        return true;
+      }
       const totalRounds = stage.settings.swissRounds ?? 3;
 
       if (stage.currentRound >= totalRounds) {
@@ -853,6 +909,15 @@ export class LeaguesService {
           ...(groupRankings.get('ASCEND')?.slice(0, 6) ?? []),
           ...playInQualifiers,
         ]);
+      case `${Region.CBLOL}:1:PLAY_IN`:
+        return firstRanking.slice(4, 8);
+      case `${Region.CBLOL}:1:PLAYOFFS`:
+        return [
+          ...firstRanking.slice(0, 4),
+          ...this.calculateStageStandings(playIn!)
+            .slice(0, 2)
+            .map((row) => row.teamId),
+        ];
       default:
         return firstRanking.slice(
           0,
@@ -1012,7 +1077,9 @@ export class LeaguesService {
     );
     let slots: LeagueScheduleSlot[] = [];
 
-    if (stage.format === LeagueStageFormat.ROUND_ROBIN) {
+    if (stage.settings.bracket) {
+      slots = nextBracketSlots(this.getRegionalBracket(stage, split));
+    } else if (stage.format === LeagueStageFormat.ROUND_ROBIN) {
       slots = createRoundRobinSchedule(
         orderedParticipants.map((participant) => participant.careerTeamId),
         stage.settings.cycles ?? 1,
@@ -1020,15 +1087,20 @@ export class LeaguesService {
     } else if (stage.format === LeagueStageFormat.GROUP) {
       slots = this.createGroupSchedule(stage, orderedParticipants);
     } else if (stage.format === LeagueStageFormat.SWISS) {
-      slots = createSwissRoundSchedule(
-        orderedParticipants.map((participant) => ({
-          teamId: participant.careerTeamId,
-          wins: 0,
-          seed: participant.initialSeed,
-        })),
-        new Set(),
-        1,
-      );
+      slots = stage.settings.advancementWins
+        ? lcpSwissRound(
+            orderedParticipants.map((participant) => participant.careerTeamId),
+            [],
+          )
+        : createSwissRoundSchedule(
+            orderedParticipants.map((participant) => ({
+              teamId: participant.careerTeamId,
+              wins: 0,
+              seed: participant.initialSeed,
+            })),
+            new Set(),
+            1,
+          );
     } else if (stage.format === LeagueStageFormat.GAUNTLET) {
       const openingTeams = orderedParticipants
         .slice(-2)
@@ -1145,7 +1217,7 @@ export class LeaguesService {
         leagueStageId: stage.id,
         leagueStage: stage,
         fixtureNumber,
-        stageFixtureNumber: stageStart + index + 1,
+        stageFixtureNumber: slot.stageFixtureNumber ?? stageStart + index + 1,
         roundNumber: slot.roundNumber,
         scheduledDate,
         teamAId: slot.teamAId,
@@ -1158,7 +1230,7 @@ export class LeaguesService {
           split.splitNumber,
           fixtureNumber,
         ),
-        bestOf: stage.bestOf,
+        bestOf: slot.bestOf ?? stage.bestOf,
         seriesId: null,
         series: null,
       });
@@ -1267,13 +1339,70 @@ export class LeaguesService {
     };
   }
 
+  private getRegionalBracket(stage: LeagueStage, split: LeagueSplit) {
+    return regionalBracket(
+      stage.settings.bracket!,
+      [...stage.participants]
+        .sort((a, b) => a.initialSeed - b.initialSeed)
+        .map((row) => row.careerTeamId),
+      stage.fixtures.map((fixture) => ({
+        stageFixtureNumber: fixture.stageFixtureNumber,
+        winnerTeamId: this.calculateFixtureState(fixture).winnerTeamId,
+      })),
+      split.region === Region.CBLOL && split.splitNumber === 1,
+    );
+  }
+
   private calculateStageStandings(
     stage: LeagueStage,
   ): LeagueStandingResponseDto[] {
     const standings = this.calculateStandings(
-      stage.fixtures,
+      stage.settings.advancementWins
+        ? stage.fixtures.filter((fixture) => fixture.roundNumber <= 5)
+        : stage.fixtures,
       stage.participants.map((participant) => participant.team),
     );
+    if (stage.settings.advancementWins) {
+      const ranked = standings.sort(
+        (a, b) =>
+          b.seriesWins - a.seriesWins ||
+          a.seriesLosses - b.seriesLosses ||
+          a.rank - b.rank,
+      );
+      for (const fixture of stage.fixtures.filter(
+        (fixture) => fixture.roundNumber === 6,
+      )) {
+        const winner = this.calculateFixtureState(fixture).winnerTeamId;
+        if (!winner) continue;
+        const loser =
+          winner === fixture.teamAId ? fixture.teamBId : fixture.teamAId;
+        const wi = ranked.findIndex((row) => row.teamId === winner),
+          li = ranked.findIndex((row) => row.teamId === loser);
+        if (wi > li) [ranked[wi], ranked[li]] = [ranked[li], ranked[wi]];
+      }
+      return ranked.map((row, index) => ({ ...row, rank: index + 1 }));
+    }
+
+    if (
+      stage.settings.bracket &&
+      stage.status === LeagueStageStatus.COMPLETED
+    ) {
+      const ids = [...stage.participants]
+        .sort((a, b) => a.initialSeed - b.initialSeed)
+        .map((row) => row.careerTeamId);
+      const graph = regionalBracket(
+        stage.settings.bracket,
+        ids,
+        stage.fixtures.map((fixture) => ({
+          stageFixtureNumber: fixture.stageFixtureNumber,
+          winnerTeamId: this.calculateFixtureState(fixture).winnerTeamId,
+        })),
+      );
+      return bracketRanking(graph, ids).map((id, index) => ({
+        ...standings.find((row) => row.teamId === id)!,
+        rank: index + 1,
+      }));
+    }
 
     if (
       [

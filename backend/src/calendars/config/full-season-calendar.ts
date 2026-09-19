@@ -64,8 +64,8 @@ export function getFullSeasonCalendar(date: string): FullSeasonCalendar {
   };
   const preparation = ['훈련', '전략 준비', '팀 합 준비'];
   const international = [
-    '국제대회 기간 예약',
-    '경기 · 진출 · 로스터 등록 시스템 미구현',
+    '지역 예선 진출팀 · 로스터 등록',
+    '국제대회 경기 · 대진 진행 (참가 데이터 충족 시)',
   ];
   add('PRESEASON', '프리시즌', 'PRESEASON', day(1, 1), day(1, 11), preparation);
   addSplit(1);

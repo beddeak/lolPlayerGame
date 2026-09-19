@@ -67,11 +67,23 @@ describe('manager public-ability expectations', () => {
     expect(expectedLeagueRank(70, [70, 70, 70, 70])).toBe(2.5);
   });
 
-  it.each([NaN, Infinity, -1, 101])(
+  it.each([101, 119])(
+    'accepts public strength %i above the old 100 cap',
+    (strength) => {
+      expect(expectedSeriesWinChance(strength, strength)).toBe(0.5);
+      expect(expectedSeriesWinChance(strength, 0)).toBe(0.85);
+      expect(expectedSeriesWinChance(0, strength)).toBe(0.15);
+      expect(expectedLeagueRank(strength, [strength, 100])).toBe(1);
+      expect(expectedLeagueRank(100, [strength, 100])).toBe(2);
+    },
+  );
+
+  it.each([NaN, Infinity, -1, 120])(
     'rejects invalid public strength %s',
     (invalid) => {
       expect(() => expectedSeriesWinChance(invalid, 80)).toThrow();
       expect(() => expectedSeriesWinChance(80, invalid)).toThrow();
+      expect(() => expectedLeagueRank(invalid, [invalid, 80])).toThrow();
       expect(() => expectedLeagueRank(80, [80, invalid])).toThrow();
     },
   );

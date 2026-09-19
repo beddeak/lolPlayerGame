@@ -17,6 +17,10 @@ export function getLeagueStageRoundBudgets(
   initialTeamCount: number,
 ): number[] {
   return stages.map((stage) => {
+    if (stage.settings.bracket)
+      return { HYBRID_SIX: 5, DOUBLE_SIX: 6, DOUBLE_FOUR: 4, CBLOL_PLAY_IN: 2 }[
+        stage.settings.bracket
+      ];
     const teamCount =
       stage.participants?.length ||
       Math.min(
@@ -52,7 +56,9 @@ export function getLeagueStageRoundBudgets(
         );
       }
       case LeagueStageFormat.SWISS:
-        return stage.settings.swissRounds ?? 3;
+        return stage.settings.advancementWins
+          ? 6
+          : (stage.settings.swissRounds ?? 3);
       case LeagueStageFormat.PLAY_IN:
         return 1;
       case LeagueStageFormat.GAUNTLET:

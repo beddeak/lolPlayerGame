@@ -20,6 +20,80 @@ export const REGIONAL_LEAGUE_FORMATS: Record<
   Region,
   Record<number, RegionalLeagueFormat>
 > = {
+  [Region.LCP]: Object.fromEntries(
+    [1, 2, 3].map((splitNumber) => [
+      splitNumber,
+      {
+        region: Region.LCP,
+        splitNumber,
+        name: `LCP Split ${splitNumber}`,
+        expectedTeamCount: 8,
+        stages: [
+          {
+            code: splitNumber === 3 ? 'SWISS_STAGE' : 'REGULAR_SEASON',
+            name:
+              splitNumber === 3
+                ? 'Swiss (3 wins / 3 losses)'
+                : 'Single Round Robin',
+            format:
+              splitNumber === 3
+                ? LeagueStageFormat.SWISS
+                : LeagueStageFormat.ROUND_ROBIN,
+            bestOf: 3,
+            settings:
+              splitNumber === 3
+                ? { swissRounds: 5, advancementWins: 3 }
+                : { cycles: 1 },
+          },
+          {
+            ...bo5Playoffs(splitNumber === 3 ? 4 : 6),
+            settings: {
+              qualifierCount: splitNumber === 3 ? 4 : 6,
+              bracket: splitNumber === 3 ? 'DOUBLE_FOUR' : 'HYBRID_SIX',
+            },
+          },
+        ],
+      } satisfies RegionalLeagueFormat,
+    ]),
+  ),
+  [Region.CBLOL]: Object.fromEntries(
+    [1, 2, 3].map((splitNumber) => [
+      splitNumber,
+      {
+        region: Region.CBLOL,
+        splitNumber,
+        name: `CBLOL Split ${splitNumber}`,
+        expectedTeamCount: 8,
+        stages: [
+          {
+            code: 'REGULAR_SEASON',
+            name: 'Single Round Robin',
+            format: LeagueStageFormat.ROUND_ROBIN,
+            bestOf: splitNumber === 1 ? 1 : 3,
+            settings: { cycles: 1 },
+          },
+          ...(splitNumber === 1
+            ? [
+                {
+                  code: 'PLAY_IN',
+                  name: '5th–8th Seed Play-In',
+                  format: LeagueStageFormat.PLAY_IN,
+                  bestOf: 3 as const,
+                  settings: {
+                    qualifierCount: 4,
+                    bracket: 'CBLOL_PLAY_IN' as const,
+                  },
+                },
+              ]
+            : []),
+          {
+            ...bo5Playoffs(6),
+            settings: { qualifierCount: 6, bracket: 'DOUBLE_SIX' },
+          },
+        ],
+      } satisfies RegionalLeagueFormat,
+    ]),
+  ),
   [Region.LCK]: {
     1: {
       region: Region.LCK,

@@ -8,10 +8,15 @@ import { CatalogAdminGuard } from './catalog-admin.guard';
 import { Account } from './entities/account.entity';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { PasswordService } from './password.service';
+import { SocialIdentity } from './entities/social-identity.entity';
+import { GoogleAuthChallenge } from './entities/google-auth-challenge.entity';
+import { GoogleAuthController } from './google-auth.controller';
+import { GoogleAuthService } from './google-auth.service';
+import { GoogleTokenVerifier } from './google-token-verifier.service';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Account]),
+    TypeOrmModule.forFeature([Account, SocialIdentity, GoogleAuthChallenge]),
     JwtModule.registerAsync({
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => ({
@@ -22,8 +27,15 @@ import { PasswordService } from './password.service';
       }),
     }),
   ],
-  controllers: [AuthController],
-  providers: [AuthService, PasswordService, JwtAuthGuard, CatalogAdminGuard],
+  controllers: [AuthController, GoogleAuthController],
+  providers: [
+    AuthService,
+    PasswordService,
+    JwtAuthGuard,
+    CatalogAdminGuard,
+    GoogleAuthService,
+    GoogleTokenVerifier,
+  ],
   exports: [
     TypeOrmModule,
     JwtModule,

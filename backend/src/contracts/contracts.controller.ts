@@ -13,6 +13,7 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { ContractsService } from './contracts.service';
 import { CreateContractOfferDto } from './dto/create-contract-offer.dto';
 import { RespondContractOfferDto } from './dto/respond-contract-offer.dto';
+import { CreatePlayerSaleDto } from './dto/create-player-sale.dto';
 
 @Controller('careers/:careerId/contracts')
 @UseGuards(JwtAuthGuard)
@@ -42,6 +43,32 @@ export class ContractsController {
     @Body() dto: CreateContractOfferDto,
   ) {
     return this.contracts.createOffer(account.id, careerId, dto);
+  }
+
+  @Get('sales')
+  findSales(
+    @CurrentAccount() account: AuthenticatedAccount,
+    @Param('careerId', ParseIntPipe) careerId: number,
+  ) {
+    return this.contracts.findSales(account.id, careerId);
+  }
+
+  @Post('sales')
+  createSale(
+    @CurrentAccount() account: AuthenticatedAccount,
+    @Param('careerId', ParseIntPipe) careerId: number,
+    @Body() dto: CreatePlayerSaleDto,
+  ) {
+    return this.contracts.createSale(account.id, careerId, dto);
+  }
+
+  @Post('sales/:offerId/cancel')
+  cancelSale(
+    @CurrentAccount() account: AuthenticatedAccount,
+    @Param('careerId', ParseIntPipe) careerId: number,
+    @Param('offerId', ParseIntPipe) offerId: number,
+  ) {
+    return this.contracts.cancelSale(account.id, careerId, offerId);
   }
 
   @Post('offers/:offerId/respond')

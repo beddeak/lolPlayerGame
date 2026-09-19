@@ -1,5 +1,7 @@
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import InternationalPanel from './InternationalPanel';
 import { ApiError, apiRequest } from "./api";
+import ClubLogo from "./ClubLogo";
 import "./SeasonHubView.css";
 import type {
   CalendarAdvanceMode,
@@ -271,6 +273,10 @@ export default function SeasonHubView({
 
   function resolveEvent(event: CalendarEvent) {
     if (!managementAllowed.current || isManagerNewsEvent(event)) return;
+    if (event.payload?.tournamentId) {
+      document.getElementById('international-competitions')?.scrollIntoView({ behavior: 'smooth' });
+      return;
+    }
     if (event.type === "LEGEND_REVEAL") {
       onOpenLegends();
       return;
@@ -373,6 +379,7 @@ export default function SeasonHubView({
         <div>
           <span>CAREER #{String(career.id).padStart(4, "0")}</span>
           <i />
+          <ClubLogo club={managedTeam} className="club-logo--small" />
           <strong>{managedTeam.code}</strong>
         </div>
       </div>
@@ -513,6 +520,12 @@ export default function SeasonHubView({
         busy={mutationBlocked}
         onStart={startSeasonSchedule}
       />
+
+      <InternationalPanel key={`${career.id}:${token}`} career={career} token={token} revision={calendar} busy={mutationBlocked}
+        onAction={(suffix) => { void performAction(`international-${suffix}`, async (isCurrent) => {
+          await apiRequest(`/careers/${career.id}/internationals/${suffix}`, { method: 'POST', token });
+          if (isCurrent()) await refreshAfterMutation();
+        }); }} />
 
       <div className="season-primary-grid">
         <NextMatchCard
@@ -946,7 +959,7 @@ function TeamBadge({
 }) {
   return (
     <div className={`fixture-team ${managed ? "managed" : ""}`}>
-      <div>{team.code.slice(0, 3)}</div>
+      <ClubLogo club={team} />
       <strong>{team.code}</strong>
       <span>{team.name}</span>
       {managed && <em>MY CLUB</em>}
@@ -982,7 +995,10 @@ function StandingsTable({
         >
           <strong className="standing-rank">{standing.rank}</strong>
           <div className="standing-team">
-            <i>{standing.teamCode.slice(0, 3)}</i>
+            <ClubLogo
+              club={{ code: standing.teamCode }}
+              className="club-logo--small"
+            />
             <span>
               <strong>{standing.teamCode}</strong>
               <small>{standing.teamName}</small>

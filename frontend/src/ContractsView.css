@@ -4,6 +4,20 @@
   padding: 2rem 0 5rem;
   color: #172a3b;
 }
+.contracts-sale-action {
+  margin: 1rem 0;
+}
+.contracts-sale-action > button {
+  background: #fff4e9;
+  color: #ac4700;
+  padding: 0.8rem 1.2rem;
+  border: 1px solid #f5c9a5;
+}
+.contracts-fields .money-preview {
+  color: #1768a8;
+  font-size: 1.15rem;
+  font-weight: 800;
+}
 .contracts-page button {
   border: 0;
   cursor: pointer;

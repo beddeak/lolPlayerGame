@@ -63,7 +63,7 @@ describe('calculateFeedbackPlayerEffect', () => {
     );
   });
 
-  it('clamps every resulting state to the 0 to 100 range', () => {
+  it('does not allow negative Mental, Form or Coach Trust', () => {
     const result = calculateFeedbackPlayerEffect(
       {
         personality: PlayerPersonality.SENSITIVE,
@@ -77,5 +77,46 @@ describe('calculateFeedbackPlayerEffect', () => {
     expect(result.mentalAfter).toBe(0);
     expect(result.formAfter).toBe(0);
     expect(result.coachTrustAfter).toBe(0);
+  });
+
+  it('caps Mental at 119 but keeps Form and Coach Trust capped at 100', () => {
+    const result = calculateFeedbackPlayerEffect(
+      {
+        personality: PlayerPersonality.PROFESSIONAL,
+        mental: 118,
+        form: 100,
+        coachTrust: 100,
+      },
+      FeedbackOption.PRAISE_TEAM,
+    );
+    expect(result.mentalAfter).toBe(119);
+    expect(result.mentalDelta).toBe(1);
+    expect(result.formAfter).toBe(100);
+    expect(result.coachTrustAfter).toBe(100);
+    const maxed = calculateFeedbackPlayerEffect(
+      {
+        personality: PlayerPersonality.PROFESSIONAL,
+        mental: 119,
+        form: 100,
+        coachTrust: 100,
+      },
+      FeedbackOption.TRUST_PLAYER,
+    );
+    expect(maxed.mentalAfter).toBe(119);
+    expect(maxed.mentalDelta).toBe(0);
+  });
+
+  it('applies a small high-Mental penalty without dropping 119 straight to 100', () => {
+    const result = calculateFeedbackPlayerEffect(
+      {
+        personality: PlayerPersonality.PROFESSIONAL,
+        mental: 119,
+        form: 100,
+        coachTrust: 100,
+      },
+      FeedbackOption.BLAME_PLAYER,
+    );
+    expect(result.mentalAfter).toBe(118);
+    expect(result.mentalDelta).toBe(-1);
   });
 });

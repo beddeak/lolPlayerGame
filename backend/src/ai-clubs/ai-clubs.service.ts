@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { buildAiContractTerms } from './ai-contract-terms';
 import { DataSource, EntityManager } from 'typeorm';
 import {
   addCalendarDays,
@@ -13,11 +14,9 @@ import { RosterRole } from '../careers/enums/roster-role.enum';
 import { ContractsService } from '../contracts/contracts.service';
 import { PlayerContract } from '../contracts/entities/player-contract.entity';
 import {
-  ContractExpectedRole,
   PlayerContractStatus,
   type ContractTerms,
 } from '../contracts/contract.types';
-import { CONTRACT_CONFIG } from '../contracts/config/contract.config';
 import { CalendarEvent } from '../event-queue/entities/calendar-event.entity';
 import { CalendarEventStatus } from '../event-queue/enums/calendar-event-status.enum';
 import { CalendarEventType } from '../event-queue/enums/calendar-event-type.enum';
@@ -25,10 +24,7 @@ import { MatchSeries } from '../match-series/entities/match-series.entity';
 import { getSeriesWinsRequired } from '../match-series/config/bo3-series.config';
 import { LegendEventPlayer } from '../legends/entities/legend-event-player.entity';
 import { getTransferWindow } from '../transfers/transfer-window';
-import {
-  AiClubBudgetService,
-  estimateAiAnnualSalary,
-} from './ai-club-budget.service';
+import { AiClubBudgetService } from './ai-club-budget.service';
 import {
   assessAiRoster,
   chooseAiBenchPromotion,
@@ -284,20 +280,7 @@ export class AiClubsService {
   }
 
   private terms(player: CareerPlayer, currentSalary?: number): ContractTerms {
-    const salary = Math.max(estimateAiAnnualSalary(player), currentSalary ?? 0);
-    return {
-      annualSalary: Math.min(
-        CONTRACT_CONFIG.limits.maxAnnualSalary,
-        Math.ceil(
-          (salary * AI_CLUB_CONFIG.salaryOfferRatio) /
-            CONTRACT_CONFIG.negotiation.salaryRounding,
-        ) * CONTRACT_CONFIG.negotiation.salaryRounding,
-      ),
-      years: AI_CLUB_CONFIG.contractYears,
-      starterGuarantee: true,
-      expectedRole: ContractExpectedRole.CORE,
-      promises: [],
-    };
+    return buildAiContractTerms(player, currentSalary);
   }
 
   private loadRoster(manager: EntityManager, teamId: number) {

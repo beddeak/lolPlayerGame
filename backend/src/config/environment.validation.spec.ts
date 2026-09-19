@@ -55,4 +55,56 @@ describe('validateEnvironment', () => {
       }),
     ).toThrow('Invalid environment configuration');
   });
+
+  it('keeps Google login disabled until a client ID is supplied', () => {
+    expect(validateEnvironment(validConfig).GOOGLE_CLIENT_ID).toBe('');
+    expect(validateEnvironment(validConfig).GOOGLE_ALLOWED_ORIGIN).toBe(
+      'http://localhost:5173',
+    );
+  });
+
+  it.each([
+    'http://localhost:5173',
+    'http://127.0.0.1:5173',
+    'http://[::1]:5173',
+    'https://game.example.com/',
+  ])('accepts an exact secure or local Google origin: %s', (origin) => {
+    const config = validateEnvironment({
+      ...validConfig,
+      GOOGLE_CLIENT_ID: ' 123-test.apps.googleusercontent.com ',
+      GOOGLE_ALLOWED_ORIGIN: origin,
+    });
+    expect(config.GOOGLE_CLIENT_ID).toBe('123-test.apps.googleusercontent.com');
+    expect(config.GOOGLE_ALLOWED_ORIGIN).toBe(new URL(origin).origin);
+  });
+
+  it.each([
+    'http://game.example.com',
+    'https://game.example.com/callback',
+    'https://game.example.com?x=1',
+    'https://game.example.com#x',
+    'https://user:pass@game.example.com',
+    'javascript:alert(1)',
+    '*',
+    'null',
+    '',
+  ])('rejects an unsafe Google origin: %s', (origin) => {
+    expect(() =>
+      validateEnvironment({
+        ...validConfig,
+        GOOGLE_CLIENT_ID: '123-test.apps.googleusercontent.com',
+        GOOGLE_ALLOWED_ORIGIN: origin,
+      }),
+    ).toThrow('Invalid environment configuration');
+  });
+
+  it.each([
+    'secret-not-a-client-id',
+    '123.apps.googleusercontent.com.attacker.test',
+    'https://123.apps.googleusercontent.com',
+  ])('rejects invalid Google client configuration: %s', (clientId) => {
+    expect(() =>
+      validateEnvironment({ ...validConfig, GOOGLE_CLIENT_ID: clientId }),
+    ).toThrow('Invalid environment configuration');
+  });
 });

@@ -1,0 +1,18 @@
+{
+  "season": 2026,
+  "checkedAt": "2026-09-20",
+  "sourcePage": "https://lolesports.com/en-SG/season/115547545029543948/handbook",
+  "usage": "Official team identification assets. Original trademarks and copyrights belong to their respective owners; inclusion is not a license or endorsement.",
+  "logos": [
+    { "code": "T1", "file": "t1.png", "sourceUrl": "https://static.lolesports.com/teams/1726801573959_539px-T1_2019_full_allmode.png" },
+    { "code": "HLE", "file": "hle.png", "sourceUrl": "https://static.lolesports.com/teams/1631819564399_hle-2021-worlds.png" },
+    { "code": "GEN", "file": "gen.png", "sourceUrl": "https://static.lolesports.com/teams/1773829250929_GENGLOGO_GOLD.png" },
+    { "code": "DK", "file": "dk.png", "sourceUrl": "https://static.lolesports.com/teams/1673260049703_DPlusKIALOGO11.png" },
+    { "code": "BLG", "file": "blg.png", "sourceUrl": "https://static.lolesports.com/teams/1682322954525_Bilibili_Gaming_logo_20211.png" },
+    { "code": "AL", "file": "al.png", "sourceUrl": "https://static.lolesports.com/teams/1641199582689_.png" },
+    { "code": "G2", "file": "g2.png", "sourceUrl": "https://static.lolesports.com/teams/G2-FullonDark.png" },
+    { "code": "FNC", "file": "fnc.png", "sourceUrl": "https://static.lolesports.com/teams/1631819669150_fnc-2021-worlds.png" },
+    { "code": "LYON", "file": "lyon.png", "sourceUrl": "https://static.lolesports.com/teams/1743717443673_isotypelyon-03.png" },
+    { "code": "FLY", "file": "fly.png", "sourceUrl": "https://static.lolesports.com/teams/flyquest-new-on-dark.png" }
+  ]
+}

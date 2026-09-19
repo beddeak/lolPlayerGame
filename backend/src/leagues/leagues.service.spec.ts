@@ -282,6 +282,8 @@ describe('LeaguesService', () => {
     [Region.LEC, 10],
     [Region.LCS, 2],
     [Region.LCS, 8],
+    [Region.LCP, 8],
+    [Region.CBLOL, 8],
   ] as const)(
     'finishes real dynamic %s brackets for %i teams within all three windows',
     async (region, teamCount) => {
@@ -384,10 +386,10 @@ describe('LeaguesService', () => {
     },
   );
 
-  it('returns all twelve regional split format definitions', async () => {
+  it('returns all eighteen regional split format definitions', async () => {
     const formats = await service.findFormats(7, career.id);
 
-    expect(formats).toHaveLength(12);
+    expect(formats).toHaveLength(18);
     expect(
       formats.map((format) => `${format.region}:${format.splitNumber}`),
     ).toEqual(

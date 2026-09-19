@@ -3,7 +3,7 @@ import { LeagueStageFormat } from '../enums/league-stage-format.enum';
 import { REGIONAL_LEAGUE_FORMATS } from './regional-league-formats';
 
 describe('regional league formats', () => {
-  it('defines all three splits for all four regions', () => {
+  it('defines all three splits for all six regions', () => {
     for (const region of Object.values(Region)) {
       expect(Object.keys(REGIONAL_LEAGUE_FORMATS[region])).toEqual([
         '1',
@@ -34,7 +34,7 @@ describe('regional league formats', () => {
         ),
     );
 
-    expect(playoffStages).toHaveLength(12);
+    expect(playoffStages).toHaveLength(18);
     expect(playoffStages.every((stage) => stage.bestOf === 5)).toBe(true);
   });
 });

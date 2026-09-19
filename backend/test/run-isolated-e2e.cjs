@@ -64,7 +64,7 @@ async function main() {
 
     runNpm(['run', 'migration:run']);
     runNpm(['run', 'schema:verify']);
-    runNpm(['run', 'test:e2e', '--', '--runInBand']);
+    runNpm(['run', 'test:e2e', '--', '--runInBand', ...process.argv.slice(2)]);
   } finally {
     if (created) {
       await connection.query(`DROP DATABASE \`${database}\``);

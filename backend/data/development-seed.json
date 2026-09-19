@@ -7,7 +7,8 @@
       "description": "2026 시즌 기본 선수 카드"
     }
   ],
-  "playerCards": [ {
+  "playerCards": [
+    {
       "key": "t1_doran_2025",
       "nickname": "Doran",
       "nationality": "KR",
@@ -319,7 +320,7 @@
       "nationality": "KR",
       "themeCode": "DEV_2026",
       "cardYear": 2026,
-      "startingAge": 30,
+      "startingAge": 20,
       "mainPosition": "ADC",
       "mechanics": 94,
       "gameSense": 95,
@@ -353,6 +354,7 @@
       "nationality": "CN",
       "themeCode": "DEV_2026",
       "cardYear": 2026,
+      "startingAge": 22,
       "mainPosition": "TOP",
       "mechanics": 97,
       "gameSense": 86,
@@ -369,6 +371,7 @@
       "nationality": "CN",
       "themeCode": "DEV_2026",
       "cardYear": 2026,
+      "startingAge": 24,
       "mainPosition": "JUNGLE",
       "mechanics": 94,
       "gameSense": 98,
@@ -385,6 +388,7 @@
       "nationality": "CN",
       "themeCode": "DEV_2026",
       "cardYear": 2026,
+      "startingAge": 26,
       "mainPosition": "MID",
       "mechanics": 97,
       "gameSense": 96,
@@ -401,6 +405,7 @@
       "nationality": "KR",
       "themeCode": "DEV_2026",
       "cardYear": 2026,
+      "startingAge": 25,
       "mainPosition": "ADC",
       "mechanics": 96,
       "gameSense": 98,
@@ -417,6 +422,7 @@
       "nationality": "CN",
       "themeCode": "DEV_2026",
       "cardYear": 2026,
+      "startingAge": 23,
       "mainPosition": "SUPPORT",
       "mechanics": 98,
       "gameSense": 97,
@@ -433,6 +439,7 @@
       "nationality": "CN",
       "themeCode": "DEV_2026",
       "cardYear": 2026,
+      "startingAge": 25,
       "mainPosition": "TOP",
       "mechanics": 94,
       "gameSense": 92,
@@ -449,6 +456,7 @@
       "nationality": "KR",
       "themeCode": "DEV_2026",
       "cardYear": 2026,
+      "startingAge": 27,
       "mainPosition": "JUNGLE",
       "mechanics": 94,
       "gameSense": 97,
@@ -465,6 +473,7 @@
       "nationality": "CN",
       "themeCode": "DEV_2026",
       "cardYear": 2026,
+      "startingAge": 25,
       "mainPosition": "MID",
       "mechanics": 93,
       "gameSense": 94,
@@ -481,6 +490,7 @@
       "nationality": "CN",
       "themeCode": "DEV_2026",
       "cardYear": 2026,
+      "startingAge": 25,
       "mainPosition": "ADC",
       "mechanics": 88,
       "gameSense": 88,
@@ -497,6 +507,7 @@
       "nationality": "KR",
       "themeCode": "DEV_2026",
       "cardYear": 2026,
+      "startingAge": 22,
       "mainPosition": "SUPPORT",
       "mechanics": 92,
       "gameSense": 95,
@@ -851,10 +862,39 @@
   "setBonuses": [],
   "teams": [
     {
+      "code": "T1",
+      "name": "T1",
+      "region": "LCK",
+      "logoUrl": "/club-logos/t1.png",
+      "starters": [
+        {
+          "position": "TOP",
+          "playerCardKey": "t1_doran_2025"
+        },
+        {
+          "position": "JUNGLE",
+          "playerCardKey": "t1_oner_2026"
+        },
+        {
+          "position": "MID",
+          "playerCardKey": "t1_faker_2026"
+        },
+        {
+          "position": "ADC",
+          "playerCardKey": "t1_peyz_2026"
+        },
+        {
+          "position": "SUPPORT",
+          "playerCardKey": "t1_keria_2026"
+        }
+      ],
+      "benches": []
+    },
+    {
       "code": "HLE",
       "name": "Hanwha Life Esports",
       "enabled": true,
-      "logoUrl": null,
+      "logoUrl": "/club-logos/hle.png",
       "region": "LCK",
       "initialChemistry": 98,
       "starters": [
@@ -895,7 +935,7 @@
       "code": "GEN",
       "name": "Gen.G",
       "enabled": true,
-      "logoUrl": null,
+      "logoUrl": "/club-logos/gen.png",
       "region": "LCK",
       "initialChemistry": 100,
       "starters": [
@@ -936,7 +976,7 @@
       "code": "BLG",
       "name": "Bilibili Gaming",
       "enabled": true,
-      "logoUrl": null,
+      "logoUrl": "/club-logos/blg.png",
       "region": "LPL",
       "initialChemistry": 99,
       "starters": [
@@ -977,7 +1017,7 @@
       "code": "AL",
       "name": "Anyone's Legend",
       "enabled": true,
-      "logoUrl": null,
+      "logoUrl": "/club-logos/al.png",
       "region": "LPL",
       "initialChemistry": 100,
       "starters": [
@@ -1018,7 +1058,7 @@
       "code": "G2",
       "name": "G2 Esports",
       "enabled": true,
-      "logoUrl": null,
+      "logoUrl": "/club-logos/g2.png",
       "region": "LEC",
       "initialChemistry": 100,
       "starters": [
@@ -1059,7 +1099,7 @@
       "code": "FNC",
       "name": "Fnatic",
       "enabled": true,
-      "logoUrl": null,
+      "logoUrl": "/club-logos/fnc.png",
       "region": "LEC",
       "initialChemistry": 95,
       "starters": [
@@ -1100,7 +1140,7 @@
       "code": "LYON",
       "name": "LYON",
       "enabled": true,
-      "logoUrl": null,
+      "logoUrl": "/club-logos/lyon.png",
       "region": "LCS",
       "initialChemistry": 100,
       "starters": [
@@ -1141,7 +1181,7 @@
       "code": "FLY",
       "name": "FlyQuest",
       "enabled": true,
-      "logoUrl": null,
+      "logoUrl": "/club-logos/fly.png",
       "region": "LCS",
       "initialChemistry": 98,
       "starters": [
@@ -1182,7 +1222,7 @@
       "code": "DK",
       "name": "Dplus Kia",
       "enabled": true,
-      "logoUrl": null,
+      "logoUrl": "/club-logos/dk.png",
       "region": "LCK",
       "initialChemistry": 100,
       "starters": [

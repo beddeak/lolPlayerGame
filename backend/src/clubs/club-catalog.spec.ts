@@ -84,11 +84,13 @@ describe('club catalog', () => {
     clubs[1].rosters.pop();
     const response = toClubCatalogResponse(clubs);
     expect(response.ready).toBe(false);
+    expect(response.clubs).toHaveLength(2);
+    expect(response.clubs[1].unavailableReason).toBeTruthy();
     expect(response.clubs.every((club) => !club.selectable)).toBe(true);
     expect(() => buildClubCareer(clubs, 'TEST_A')).toThrow(ConflictException);
   });
 
-  it('allows unfinished disabled clubs to remain in the catalog without joining a career', () => {
+  it('keeps disabled templates internal, outside selection counts and new careers', () => {
     const clubs = makeClubs();
     clubs.push(
       Object.assign(new Club(), {
@@ -102,9 +104,23 @@ describe('club catalog', () => {
       ready: true,
       worldTeamCount: 2,
     });
+    expect(toClubCatalogResponse(clubs).clubs.map((club) => club.code)).toEqual(
+      ['TEST_A', 'TEST_B'],
+    );
+    expect(clubs).toHaveLength(3);
     expect(buildClubCareer(clubs, 'TEST_A').teams).toHaveLength(2);
     expect(() => buildClubCareer(clubs, 'DRAFT')).toThrow(ConflictException);
     expect(() => buildClubCareer(clubs, 'MISSING')).toThrow(NotFoundException);
+  });
+
+  it('publishes an empty list when only disabled test clubs remain', () => {
+    const clubs = makeClubs();
+    clubs.forEach((club) => (club.enabled = false));
+    expect(toClubCatalogResponse(clubs)).toMatchObject({
+      ready: false,
+      worldTeamCount: 0,
+      clubs: [],
+    });
   });
 
   it('rejects alternate cards belonging to the same real player across clubs', () => {
