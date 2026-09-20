@@ -9,9 +9,25 @@ import {
   assertManagerActive,
   getManagedLineupStrength,
   lockActiveManagerCareer,
+  withExpectedManagerTeam,
 } from './manager-access';
 
 describe('Manager mutation access', () => {
+  it('stops a simulation after the manager changes clubs between transactions without leaking the guard to other requests', async () => {
+    const state = { status: 'ACTIVE', careerTeamId: 10 };
+    const manager = {
+      findOne: jest.fn(() => Promise.resolve({ ...state })),
+    } as unknown as EntityManager;
+    await withExpectedManagerTeam(1, 10, async () => {
+      await expect(assertManagerActive(manager, 1)).resolves.toBeUndefined();
+      state.careerTeamId = 20;
+      await expect(assertManagerActive(manager, 1)).rejects.toThrow(
+        '소속 구단이 변경',
+      );
+      await expect(assertManagerActive(manager, 2)).resolves.toBeUndefined();
+    });
+    await expect(assertManagerActive(manager, 1)).resolves.toBeUndefined();
+  });
   it.each([null, 'ACTIVE', 'WARNING'])(
     'allows legacy or employed state %s',
     async (status) => {

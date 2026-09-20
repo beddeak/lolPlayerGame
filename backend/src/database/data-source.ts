@@ -76,6 +76,8 @@ import { AddFullSeasonCalendar1788818400000 } from './migrations/1788818400000-a
 import { CreateManagerCareer1788904800000 } from './migrations/1788904800000-create-manager-career';
 import { ManagerCareerState } from '../manager-career/entities/manager-career-state.entity';
 import { ManagerReview } from '../manager-career/entities/manager-review.entity';
+import { ManagerJobOffer } from '../manager-career/entities/manager-job-offer.entity';
+import { CreateManagerJobOffers1789509600000 } from './migrations/1789509600000-create-manager-job-offers';
 
 if (existsSync('.env')) {
   loadEnvFile('.env');
@@ -133,6 +135,7 @@ const dataSource = new DataSource({
     AiClubState,
     ManagerCareerState,
     ManagerReview,
+    ManagerJobOffer,
   ],
   migrations: [
     CreatePlayerCatalog1787237754573,
@@ -168,6 +171,7 @@ const dataSource = new DataSource({
     InternationalTournaments1789250400000,
     AddLcpCblol1789336800000,
     TeamActivityEffects1789423200000,
+    CreateManagerJobOffers1789509600000,
   ],
   migrationsTableName: 'migrations',
   ssl: useSsl ? { rejectUnauthorized: true } : undefined,

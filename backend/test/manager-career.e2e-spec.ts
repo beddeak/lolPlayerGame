@@ -9,11 +9,13 @@ import { configureApplication } from '../src/application.setup';
 import { Account } from '../src/auth/entities/account.entity';
 import { Career } from '../src/careers/entities/career.entity';
 import { CareerPlayer } from '../src/careers/entities/career-player.entity';
+import { CareerTeam } from '../src/careers/entities/career-team.entity';
 import { Roster } from '../src/careers/entities/roster.entity';
 import { Region } from '../src/careers/enums/region.enum';
 import { RosterRole } from '../src/careers/enums/roster-role.enum';
 import { CalendarEvent } from '../src/event-queue/entities/calendar-event.entity';
 import { CalendarEventType } from '../src/event-queue/enums/calendar-event-type.enum';
+import { CalendarEventStatus } from '../src/event-queue/enums/calendar-event-status.enum';
 import {
   LeagueFixtureGameResponseDto,
   LeagueSplitResponseDto,
@@ -26,6 +28,8 @@ import { ManagerCareerState } from '../src/manager-career/entities/manager-caree
 import { ManagerReview } from '../src/manager-career/entities/manager-review.entity';
 import { ManagerCareerService } from '../src/manager-career/manager-career.service';
 import { ManagerOverview } from '../src/manager-career/manager-overview';
+import { ManagerJobOffer } from '../src/manager-career/entities/manager-job-offer.entity';
+import { ManagerJobOffersResponse } from '../src/manager-career/manager-job-offers';
 import { MatchSeriesResponseDto } from '../src/match-series/dto/match-series-response.dto';
 import { MatchSeriesStatus } from '../src/match-series/enums/match-series-status.enum';
 import { Match } from '../src/matches/entities/match.entity';
@@ -35,6 +39,14 @@ import { Theme } from '../src/players/entities/theme.entity';
 import { PlayerPersonality } from '../src/players/enums/player-personality.enum';
 import { Position } from '../src/players/enums/position.enum';
 import { TransferRecord } from '../src/transfers/entities/transfer-record.entity';
+import { TransferAgreement } from '../src/transfers/entities/transfer-agreement.entity';
+import { TransferAgreementStatus } from '../src/transfers/transfer.types';
+import { ContractOffer } from '../src/contracts/entities/contract-offer.entity';
+import {
+  ContractExpectedRole,
+  ContractOfferStatus,
+  ContractOfferType,
+} from '../src/contracts/contract.types';
 
 interface AuthResult {
   accessToken: string;
@@ -262,6 +274,385 @@ describe('manager approval, job security and career continuity (e2e)', () => {
     expect(result.series.status).toBe('COMPLETED');
     return result;
   }
+
+  async function checkJobs(
+    careerId: number,
+  ): Promise<ManagerJobOffersResponse> {
+    return json<ManagerJobOffersResponse>(
+      await api()
+        .post(`/careers/${careerId}/manager/job-offers/check`)
+        .set(auth())
+        .expect(201),
+    );
+  }
+
+  it('keeps job reads private and read-only, offers only within the stove league, and never repeats a declined batch', async () => {
+    const career = await createCareer('2026-11-18');
+    const path = `/careers/${career.id}/manager/job-offers`;
+    await api().get(path).expect(401);
+    await api().get(path).set(auth(otherToken)).expect(404);
+    await api().post(`${path}/check`).set(auth(otherToken)).expect(404);
+    expect(
+      json<ManagerJobOffersResponse>(
+        await api().get(path).set(auth()).expect(200),
+      ),
+    ).toMatchObject({
+      canCheckOffers: false,
+      offers: [],
+      window: { isOpen: false, opensAt: '2026-11-19', endsAt: '2026-12-31' },
+    });
+    expect(
+      await dataSource
+        .getRepository(ManagerCareerState)
+        .countBy({ careerId: career.id }),
+    ).toBe(0);
+    await api().post(`${path}/check`).set(auth()).expect(409);
+    await dataSource
+      .getRepository(Career)
+      .update(career.id, { currentDate: '2026-11-19' });
+    const first = await checkJobs(career.id);
+    expect(first.offers).toHaveLength(3);
+    expect(
+      first.offers.every(
+        (offer) =>
+          offer.toTeam.id !== managedId(career) &&
+          offer.canRespond &&
+          offer.reason.length > 0,
+      ),
+    ).toBe(true);
+    expect((await overview(career.id)).pendingJobOfferCount).toBe(3);
+    await api()
+      .post(`${path}/${first.offers[0].id}/decline`)
+      .set(auth(otherToken))
+      .expect(404);
+    await api()
+      .post(`${path}/${first.offers[0].id}/decline`)
+      .set(auth())
+      .expect(201);
+    await api()
+      .post(`${path}/${first.offers[0].id}/accept`)
+      .set(auth())
+      .expect(409);
+    await Promise.all([checkJobs(career.id), checkJobs(career.id)]);
+    expect(
+      await dataSource
+        .getRepository(ManagerJobOffer)
+        .countBy({ careerId: career.id }),
+    ).toBe(3);
+    expect(
+      await dataSource.getRepository(CalendarEvent).countBy({
+        careerId: career.id,
+        type: CalendarEventType.AI_CLUB_UPDATE,
+      }),
+    ).toBe(3);
+    await dataSource
+      .getRepository(Career)
+      .update(career.id, { currentDate: '2027-01-01', currentYear: 2027 });
+    const expired = json<ManagerJobOffersResponse>(
+      await api().get(path).set(auth()).expect(200),
+    );
+    expect(
+      expired.offers.filter((offer) => offer.status === 'EXPIRED'),
+    ).toHaveLength(2);
+    await api()
+      .post(`${path}/${first.offers[1].id}/accept`)
+      .set(auth())
+      .expect(409);
+    expect((await overview(career.id)).pendingJobOfferCount).toBe(0);
+    await dataSource
+      .getRepository(Career)
+      .update(career.id, { currentDate: '2027-11-19' });
+    expect(
+      (await checkJobs(career.id)).offers.filter(
+        (offer) => offer.seasonYear === 2027,
+      ),
+    ).toHaveLength(3);
+  });
+
+  it('atomically accepts one competing job request, preserves the world, closes both clubs negotiations and blocks stale club controls', async () => {
+    const career = await createCareer('2026-11-19');
+    const first = await checkJobs(career.id);
+    const sourceId = managedId(career);
+    const targetId = first.offers[0].toTeam.id;
+    const thirdId = first.offers[1].toTeam.id;
+    const targetPlayer = await dataSource
+      .getRepository(CareerPlayer)
+      .findOneByOrFail({ careerId: career.id, currentTeamId: targetId });
+    const agreement = await dataSource.getRepository(TransferAgreement).save({
+      careerId: career.id,
+      buyerCareerTeamId: thirdId,
+      sellerCareerTeamId: targetId,
+      careerPlayerId: targetPlayer.id,
+      offeredFee: 100,
+      requiredFee: 100,
+      status: TransferAgreementStatus.ACCEPTED,
+      offeredDate: '2026-11-19',
+      resolvedDate: '2026-11-19',
+      reason: 'Existing negotiations',
+    });
+    const offers: ContractOffer[] = [];
+    const events: CalendarEvent[] = [];
+    for (const clubId of [sourceId, targetId, thirdId]) {
+      const event = await dataSource.getRepository(CalendarEvent).save({
+        careerId: career.id,
+        scheduledDate: '2026-11-19',
+        type: CalendarEventType.CONTRACT_RESPONSE,
+        status: CalendarEventStatus.READY,
+        requiresUserAction: true,
+        payload: null,
+        completedAt: null,
+      });
+      const offer = await dataSource.getRepository(ContractOffer).save({
+        careerId: career.id,
+        careerTeamId: clubId,
+        careerPlayerId: targetPlayer.id,
+        sourceCareerTeamId: clubId === thirdId ? targetId : null,
+        transferAgreementId: clubId === thirdId ? agreement.id : null,
+        offerType:
+          clubId === thirdId
+            ? ContractOfferType.TRANSFER
+            : ContractOfferType.FREE_AGENT,
+        status: ContractOfferStatus.WAITING_PLAYER_RESPONSE,
+        revision: 1,
+        offeredDate: '2026-11-19',
+        responseDate: '2026-11-20',
+        responseEventId: event.id,
+        terms: {
+          annualSalary: 10000,
+          years: 2,
+          expectedRole: ContractExpectedRole.STARTER,
+          starterGuarantee: false,
+          promises: [],
+        },
+        counterTerms: null,
+        response: null,
+        extensionsUsed: 0,
+        history: [],
+      });
+      offers.push(offer);
+      events.push(event);
+    }
+    // Rejected renewals still await a user decision and otherwise strand the old club's inbox.
+    await dataSource.getRepository(ContractOffer).update(offers[0].id, {
+      status: ContractOfferStatus.REJECTED,
+      offerType: ContractOfferType.RENEWAL,
+    });
+    const globalReveal = await dataSource.getRepository(CalendarEvent).save({
+      careerId: career.id,
+      scheduledDate: '2026-11-19',
+      type: CalendarEventType.LEGEND_REVEAL,
+      status: CalendarEventStatus.READY,
+      requiresUserAction: true,
+      payload: {},
+      completedAt: null,
+    });
+    const playersBefore = await dataSource
+      .getRepository(CareerPlayer)
+      .find({ where: { careerId: career.id }, order: { id: 'ASC' } });
+    const rosterBefore = await dataSource.getRepository(Roster).find({
+      where: { careerTeam: { careerId: career.id } },
+      order: { id: 'ASC' },
+    });
+    await dataSource.getRepository(ManagerCareerState).update(
+      { careerId: career.id },
+      {
+        played: 8,
+        wins: 5,
+        expectedWins: 4.2,
+        fanApproval: 78,
+        boardConfidence: 80,
+      },
+    );
+    const responses = await Promise.all(
+      first.offers
+        .slice(0, 2)
+        .map((offer) =>
+          api()
+            .post(`/careers/${career.id}/manager/job-offers/${offer.id}/accept`)
+            .set(auth()),
+        ),
+    );
+    expect(responses.map((response) => response.status).sort()).toEqual([
+      201, 409,
+    ]);
+    const accepted = json<ManagerJobOffersResponse>(
+      responses.find((response) => response.status === 201)!,
+    ).offers.find((offer) => offer.status === 'ACCEPTED')!;
+    const activeId = accepted.toTeam.id;
+    expect(
+      await dataSource
+        .getRepository(CareerTeam)
+        .countBy({ careerId: career.id, isUserControlled: true }),
+    ).toBe(1);
+    expect(
+      (
+        await dataSource
+          .getRepository(CareerTeam)
+          .findOneByOrFail({ careerId: career.id, isUserControlled: true })
+      ).id,
+    ).toBe(activeId);
+    expect(await overview(career.id)).toMatchObject({
+      careerTeamId: activeId,
+      status: 'ACTIVE',
+      record: { played: 0 },
+      fanApproval: 65,
+      boardConfidence: 65,
+      pendingJobOfferCount: 0,
+    });
+    expect((await checkJobs(career.id)).offers).toHaveLength(3);
+    expect(
+      await dataSource
+        .getRepository(CareerPlayer)
+        .find({ where: { careerId: career.id }, order: { id: 'ASC' } }),
+    ).toEqual(playersBefore);
+    expect(
+      await dataSource.getRepository(Roster).find({
+        where: { careerTeam: { careerId: career.id } },
+        order: { id: 'ASC' },
+      }),
+    ).toEqual(rosterBefore);
+    const appointment = await dataSource
+      .getRepository(ManagerReview)
+      .findOneByOrFail({
+        careerId: career.id,
+        sourceKey: `APPOINTMENT:${activeId}:2026-11-19`,
+      });
+    expect(appointment.payload).toMatchObject({
+      previousManagerState: { careerTeamId: sourceId, played: 8, wins: 5 },
+    });
+    for (let index = 0; index < offers.length; index++) {
+      const involvesSwitchedTeam =
+        [sourceId, activeId].includes(offers[index].careerTeamId) ||
+        [sourceId, activeId].includes(offers[index].sourceCareerTeamId ?? -1);
+      if (!involvesSwitchedTeam) continue;
+      expect(
+        (
+          await dataSource
+            .getRepository(ContractOffer)
+            .findOneByOrFail({ id: offers[index].id })
+        ).status,
+      ).toBe(ContractOfferStatus.WITHDRAWN);
+      expect(
+        await dataSource
+          .getRepository(CalendarEvent)
+          .findOneByOrFail({ id: events[index].id }),
+      ).toMatchObject({
+        status: CalendarEventStatus.COMPLETED,
+        requiresUserAction: false,
+      });
+    }
+    if ([targetId, thirdId].includes(activeId))
+      expect(
+        (
+          await dataSource
+            .getRepository(TransferAgreement)
+            .findOneByOrFail({ id: agreement.id })
+        ).status,
+      ).toBe(TransferAgreementStatus.CANCELLED);
+    expect(
+      await dataSource
+        .getRepository(CalendarEvent)
+        .findOneByOrFail({ id: globalReveal.id }),
+    ).toMatchObject({
+      status: CalendarEventStatus.READY,
+      requiresUserAction: true,
+    });
+    await api()
+      .patch(`/careers/${career.id}/teams/${sourceId}/strategy`)
+      .set(auth())
+      .send({ strategy: 'BALANCED' })
+      .expect(404);
+    await api()
+      .patch(`/careers/${career.id}/teams/${sourceId}/starters/TOP/instruction`)
+      .set(auth())
+      .send({ instruction: 'WEAK_SIDE' })
+      .expect(404);
+    await api()
+      .patch(`/careers/${career.id}/teams/${sourceId}/starters/TOP/archetype`)
+      .set(auth())
+      .send({ archetype: 'TOP_TANK' })
+      .expect(404);
+    await api()
+      .patch(`/careers/${career.id}/teams/${activeId}/strategy`)
+      .set(auth())
+      .send({ strategy: 'BALANCED' })
+      .expect(200);
+  });
+
+  it('blocks appointments during a series and baselines completed target-club fixtures without retroactive assessment', async () => {
+    const career = await createCareer('2026-11-19');
+    const offers = await checkJobs(career.id);
+    const targetId = offers.offers[0].toTeam.id;
+    const split = await createSplit(career.id);
+    const fixture = nextFixture(split, targetId);
+    await game(career.id, split.id, fixture.id);
+    const path = `/careers/${career.id}/manager/job-offers/${offers.offers[0].id}/accept`;
+    await api().post(path).set(auth()).expect(409);
+    const completed = await completeFixture(career.id, split.id, fixture.id);
+    const matchesBefore = await dataSource
+      .getRepository(Match)
+      .find({ where: { careerId: career.id }, order: { id: 'ASC' } });
+    await api().post(path).set(auth()).expect(201);
+    const service = app.get(ManagerCareerService);
+    await locked(career.id, (manager, row) =>
+      service.reviewLeague(manager, row, completed.split),
+    );
+    expect((await overview(career.id)).record.played).toBe(0);
+    expect(
+      await dataSource
+        .getRepository(Match)
+        .find({ where: { careerId: career.id }, order: { id: 'ASC' } }),
+    ).toEqual(matchesBefore);
+    expect(
+      await dataSource
+        .getRepository(ManagerReview)
+        .countBy({ careerId: career.id, sourceKey: `SERIES:${fixture.id}` }),
+    ).toBe(1);
+  });
+
+  it('allows dismissed managers to accept during the stove league without enabling out-of-season calendar progression', async () => {
+    const career = await createCareer('2026-11-19');
+    await locked(career.id, (manager, row) =>
+      app.get(ManagerCareerService).initialize(manager, row),
+    );
+    await dataSource
+      .getRepository(ManagerCareerState)
+      .update(
+        { careerId: career.id },
+        { status: 'DISMISSED', dismissedDate: '2026-11-19' },
+      );
+    const jobs = await checkJobs(career.id);
+    await api()
+      .post(
+        `/careers/${career.id}/manager/job-offers/${jobs.offers[0].id}/accept`,
+      )
+      .set(auth())
+      .expect(201);
+    expect(await overview(career.id)).toMatchObject({
+      status: 'ACTIVE',
+      canManage: true,
+      dismissedDate: null,
+    });
+    const frozen = await createCareer('2026-07-01');
+    await locked(frozen.id, (manager, row) =>
+      app.get(ManagerCareerService).initialize(manager, row),
+    );
+    await dataSource
+      .getRepository(ManagerCareerState)
+      .update(
+        { careerId: frozen.id },
+        { status: 'DISMISSED', dismissedDate: '2026-07-01' },
+      );
+    await api()
+      .post(`/careers/${frozen.id}/manager/job-offers/check`)
+      .set(auth())
+      .expect(409);
+    await api()
+      .post(`/careers/${frozen.id}/calendar/advance`)
+      .set(auth())
+      .send({ mode: 'ONE_DAY' })
+      .expect(409);
+  });
 
   it('keeps GET read-only and private, and does not grade standalone games or series', async () => {
     const career = await createCareer();
@@ -764,6 +1155,68 @@ describe('manager approval, job security and career continuity (e2e)', () => {
         sourceKey: `TRANSFER:${transfer.id}`,
       }),
     ).toBe(1);
+  });
+
+  it('deletes only the owned save and cascades its data without deleting catalog or other saves', async () => {
+    const target = await createCareer('2026-11-23');
+    const preserved = await createCareer('2026-11-23');
+    await overview(target.id);
+    await checkJobs(target.id);
+    const split = await createSplit(target.id);
+    await game(target.id, split.id, nextFixture(split, managedId(target)).id);
+    expect(
+      await dataSource.getRepository(Match).countBy({ careerId: target.id }),
+    ).toBeGreaterThan(0);
+    await api().delete(`/careers/${target.id}`).expect(401);
+    await api()
+      .delete(`/careers/${target.id}`)
+      .set(auth(otherToken))
+      .expect(404);
+    expect(
+      await dataSource.getRepository(Career).existsBy({ id: target.id }),
+    ).toBe(true);
+    const response = await api()
+      .delete(`/careers/${target.id}`)
+      .set(auth())
+      .expect(200);
+    expect(response.body).toEqual({ id: target.id, deleted: true });
+    await api().get(`/careers/${target.id}`).set(auth()).expect(404);
+    await api().delete(`/careers/${target.id}`).set(auth()).expect(404);
+    for (const entity of [
+      CareerPlayer,
+      CareerTeam,
+      CalendarEvent,
+      LegendSeason,
+      ManagerCareerState,
+      ManagerReview,
+      ManagerJobOffer,
+      Match,
+    ]) {
+      expect(
+        await dataSource
+          .getRepository(dataSource.getMetadata(entity).tableName)
+          .countBy({ careerId: target.id }),
+      ).toBe(0);
+    }
+    expect(
+      await dataSource
+        .getRepository(Roster)
+        .countBy({ careerTeamId: In(target.teams.map((team) => team.id)) }),
+    ).toBe(0);
+    expect(
+      await dataSource.getRepository(Career).existsBy({ id: preserved.id }),
+    ).toBe(true);
+    expect(
+      await dataSource
+        .getRepository(CareerPlayer)
+        .countBy({ careerId: preserved.id }),
+    ).toBeGreaterThan(0);
+    expect(
+      await dataSource.getRepository(PlayerCard).countBy({ id: In(cardIds) }),
+    ).toBe(cardIds.length);
+    expect(
+      await dataSource.getRepository(Account).existsBy({ id: accountIds[0] }),
+    ).toBe(true);
   });
 
   afterAll(async () => {

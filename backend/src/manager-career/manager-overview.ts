@@ -8,6 +8,7 @@ export interface ManagerOverview {
   fanApproval: number;
   boardConfidence: number;
   canManage: boolean;
+  pendingJobOfferCount?: number;
   trackingStartedDate: string | null;
   reviewYear: number;
   record: {

@@ -1,10 +1,26 @@
 import { ConflictException, NotFoundException } from '@nestjs/common';
+import { AsyncLocalStorage } from 'node:async_hooks';
 import { EntityManager } from 'typeorm';
 import { Career } from '../careers/entities/career.entity';
 import { Roster } from '../careers/entities/roster.entity';
 import { RosterRole } from '../careers/enums/roster-role.enum';
 import { STARTER_POSITIONS } from '../careers/constants/career.constants';
 import { ManagerCareerState } from './entities/manager-career-state.entity';
+import { CareerTeam } from '../careers/entities/career-team.entity';
+
+const expectedManagerTeam = new AsyncLocalStorage<{
+  careerId: number;
+  teamId: number;
+}>();
+
+/** Carry ownership across a simulation's separate Career transactions. */
+export function withExpectedManagerTeam<T>(
+  careerId: number,
+  teamId: number,
+  action: () => Promise<T>,
+): Promise<T> {
+  return expectedManagerTeam.run({ careerId, teamId }, action);
+}
 
 /** Call only after taking the Career write lock in the current transaction. */
 export async function assertManagerActive(
@@ -18,6 +34,20 @@ export async function assertManagerActive(
     throw new ConflictException(
       '경질된 감독은 구단을 운영할 수 없습니다. 기존 커리어 기록은 계속 확인할 수 있습니다.',
     );
+  }
+  const expected = expectedManagerTeam.getStore();
+  if (expected?.careerId === careerId) {
+    const teamId =
+      state?.careerTeamId ??
+      (
+        await manager.findOne(CareerTeam, {
+          where: { careerId, isUserControlled: true },
+        })
+      )?.id;
+    if (teamId !== expected.teamId)
+      throw new ConflictException(
+        '감독 소속 구단이 변경되어 진행 중이던 시뮬레이션을 중단했습니다. 새 구단에서 다시 진행하세요.',
+      );
   }
 }
 

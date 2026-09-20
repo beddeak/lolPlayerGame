@@ -31,7 +31,10 @@ import {
 } from './dto/simulation-response.dto';
 import { FastSimStopReason } from './enums/fast-sim-stop-reason.enum';
 import { SimulationMode } from './enums/simulation-mode.enum';
-import { assertManagerActive } from '../manager-career/manager-access';
+import {
+  assertManagerActive,
+  withExpectedManagerTeam,
+} from '../manager-career/manager-access';
 
 interface PreparedSimulationDate {
   career: Career;
@@ -64,7 +67,10 @@ export class SimulationsService {
       );
     }
 
-    return this.runQuickSim(accountId, careerId, dto);
+    const managedTeam = await this.findManagedTeam(accountId, careerId);
+    return withExpectedManagerTeam(careerId, managedTeam.id, () =>
+      this.runQuickSim(accountId, careerId, dto),
+    );
   }
 
   async fastSim(
@@ -78,48 +84,11 @@ export class SimulationsService {
     const fixtureLimit =
       dto.maxFixtures ?? SIMULATION_CONFIG.defaultFastSimFixtureLimit;
     const managedTeam = await this.findManagedTeam(accountId, careerId);
-    const simulatedFixtures: FastSimFixtureResponseDto[] = [];
-    let calendar = await this.calendarsService.findOne(accountId, careerId);
+    return withExpectedManagerTeam(careerId, managedTeam.id, async () => {
+      const simulatedFixtures: FastSimFixtureResponseDto[] = [];
+      let calendar = await this.calendarsService.findOne(accountId, careerId);
 
-    if (prepared.blockingEvents.length > 0) {
-      const closedCalendar = await this.advancePastClosingTransferBlockers(
-        accountId,
-        careerId,
-        calendar,
-        targetDate,
-      );
-      if (closedCalendar) {
-        return this.toFastSimResponse(
-          previousDate,
-          targetDate,
-          fixtureLimit,
-          FastSimStopReason.TRANSFER_WINDOW_BOUNDARY,
-          simulatedFixtures,
-          closedCalendar,
-        );
-      }
-      return this.toFastSimResponse(
-        previousDate,
-        targetDate,
-        fixtureLimit,
-        FastSimStopReason.BLOCKING_EVENT,
-        simulatedFixtures,
-        calendar,
-      );
-    }
-
-    while (true) {
-      if (calendar.manager?.status === 'DISMISSED') {
-        return this.toFastSimResponse(
-          previousDate,
-          targetDate,
-          fixtureLimit,
-          FastSimStopReason.MANAGER_DISMISSED,
-          simulatedFixtures,
-          calendar,
-        );
-      }
-      if (calendar.blockingEvents.length > 0) {
+      if (prepared.blockingEvents.length > 0) {
         const closedCalendar = await this.advancePastClosingTransferBlockers(
           accountId,
           careerId,
@@ -146,91 +115,130 @@ export class SimulationsService {
         );
       }
 
-      const aiFixtures = calendar.dueMatches.filter(
-        (fixture) => !this.includesTeam(fixture, managedTeam.id),
-      );
-
-      for (const fixture of aiFixtures) {
-        if (simulatedFixtures.length >= fixtureLimit) {
-          calendar = await this.calendarsService.findOne(accountId, careerId);
-
+      while (true) {
+        if (calendar.manager?.status === 'DISMISSED') {
           return this.toFastSimResponse(
             previousDate,
             targetDate,
             fixtureLimit,
-            FastSimStopReason.FIXTURE_LIMIT,
+            FastSimStopReason.MANAGER_DISMISSED,
+            simulatedFixtures,
+            calendar,
+          );
+        }
+        if (calendar.blockingEvents.length > 0) {
+          const closedCalendar = await this.advancePastClosingTransferBlockers(
+            accountId,
+            careerId,
+            calendar,
+            targetDate,
+          );
+          if (closedCalendar) {
+            return this.toFastSimResponse(
+              previousDate,
+              targetDate,
+              fixtureLimit,
+              FastSimStopReason.TRANSFER_WINDOW_BOUNDARY,
+              simulatedFixtures,
+              closedCalendar,
+            );
+          }
+          return this.toFastSimResponse(
+            previousDate,
+            targetDate,
+            fixtureLimit,
+            FastSimStopReason.BLOCKING_EVENT,
             simulatedFixtures,
             calendar,
           );
         }
 
-        const result = await this.runQuickSim(accountId, careerId, {
-          leagueSplitId: fixture.leagueSplitId,
-          fixtureId: fixture.id,
-        });
-        simulatedFixtures.push(
-          this.toFastSimFixture(result, fixture.scheduledDate),
+        const aiFixtures = calendar.dueMatches.filter(
+          (fixture) => !this.includesTeam(fixture, managedTeam.id),
         );
-      }
 
-      calendar = await this.calendarsService.findOne(accountId, careerId);
+        for (const fixture of aiFixtures) {
+          if (simulatedFixtures.length >= fixtureLimit) {
+            calendar = await this.calendarsService.findOne(accountId, careerId);
 
-      if (
-        calendar.dueMatches.some((fixture) =>
-          this.includesTeam(fixture, managedTeam.id),
-        )
-      ) {
-        return this.toFastSimResponse(
-          previousDate,
-          targetDate,
-          fixtureLimit,
-          FastSimStopReason.MANAGED_MATCH,
-          simulatedFixtures,
-          calendar,
-        );
-      }
+            return this.toFastSimResponse(
+              previousDate,
+              targetDate,
+              fixtureLimit,
+              FastSimStopReason.FIXTURE_LIMIT,
+              simulatedFixtures,
+              calendar,
+            );
+          }
 
-      if (calendar.currentDate >= targetDate) {
-        return this.toFastSimResponse(
-          previousDate,
-          targetDate,
-          fixtureLimit,
-          FastSimStopReason.TARGET_REACHED,
-          simulatedFixtures,
-          calendar,
-        );
-      }
+          const result = await this.runQuickSim(accountId, careerId, {
+            leagueSplitId: fixture.leagueSplitId,
+            fixtureId: fixture.id,
+          });
+          simulatedFixtures.push(
+            this.toFastSimFixture(result, fixture.scheduledDate),
+          );
+        }
 
-      const wasWindowOpen = calendar.transferWindow.isOpen;
-      const advanced = await this.calendarsService.advance(
-        accountId,
-        careerId,
-        {
-          mode: CalendarAdvanceMode.ONE_DAY,
-        },
-      );
-      calendar = advanced;
-      if (calendar.transferWindow.isOpen !== wasWindowOpen) {
-        return this.toFastSimResponse(
-          previousDate,
-          targetDate,
-          fixtureLimit,
-          FastSimStopReason.TRANSFER_WINDOW_BOUNDARY,
-          simulatedFixtures,
-          calendar,
+        calendar = await this.calendarsService.findOne(accountId, careerId);
+
+        if (
+          calendar.dueMatches.some((fixture) =>
+            this.includesTeam(fixture, managedTeam.id),
+          )
+        ) {
+          return this.toFastSimResponse(
+            previousDate,
+            targetDate,
+            fixtureLimit,
+            FastSimStopReason.MANAGED_MATCH,
+            simulatedFixtures,
+            calendar,
+          );
+        }
+
+        if (calendar.currentDate >= targetDate) {
+          return this.toFastSimResponse(
+            previousDate,
+            targetDate,
+            fixtureLimit,
+            FastSimStopReason.TARGET_REACHED,
+            simulatedFixtures,
+            calendar,
+          );
+        }
+
+        const wasWindowOpen = calendar.transferWindow.isOpen;
+        const advanced = await this.calendarsService.advance(
+          accountId,
+          careerId,
+          {
+            mode: CalendarAdvanceMode.ONE_DAY,
+          },
         );
+        calendar = advanced;
+        if (calendar.transferWindow.isOpen !== wasWindowOpen) {
+          return this.toFastSimResponse(
+            previousDate,
+            targetDate,
+            fixtureLimit,
+            FastSimStopReason.TRANSFER_WINDOW_BOUNDARY,
+            simulatedFixtures,
+            calendar,
+          );
+        }
+        if (advanced.stopReason === CalendarStopReason.SEASON_BOUNDARY) {
+          return this.toFastSimResponse(
+            previousDate,
+            targetDate,
+            fixtureLimit,
+            FastSimStopReason.SEASON_BOUNDARY,
+            simulatedFixtures,
+            calendar,
+          );
+        }
       }
-      if (advanced.stopReason === CalendarStopReason.SEASON_BOUNDARY) {
-        return this.toFastSimResponse(
-          previousDate,
-          targetDate,
-          fixtureLimit,
-          FastSimStopReason.SEASON_BOUNDARY,
-          simulatedFixtures,
-          calendar,
-        );
-      }
-    }
+    });
   }
 
   private async advancePastClosingTransferBlockers(

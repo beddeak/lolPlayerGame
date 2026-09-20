@@ -1,5 +1,5 @@
 import { NotFoundException } from '@nestjs/common';
-import { DataSource, EntityManager } from 'typeorm';
+import { DataSource, EntityManager, FindOperator } from 'typeorm';
 import { Career } from '../careers/entities/career.entity';
 import { CareerPlayer } from '../careers/entities/career-player.entity';
 import { CareerTeam } from '../careers/entities/career-team.entity';
@@ -23,6 +23,11 @@ import { TransferRecord } from '../transfers/entities/transfer-record.entity';
 import { ManagerCareerState } from './entities/manager-career-state.entity';
 import { ManagerReview } from './entities/manager-review.entity';
 import { ManagerCareerService } from './manager-career.service';
+import { ManagerJobOffer } from './entities/manager-job-offer.entity';
+import {
+  describeManagerJobOffers,
+  prepareManagerJobOffers,
+} from './manager-job-offers';
 
 /** Fresh copies on every read/save make persistence assertions meaningful. */
 function memoryManager() {
@@ -45,9 +50,15 @@ function memoryManager() {
       return false;
     const record = row as Record<string, unknown>;
     return Object.entries(where).every(([key, value]) =>
-      value && typeof value === 'object'
-        ? matches(record[key], value)
-        : record[key] === value,
+      value instanceof FindOperator
+        ? value.type === 'in'
+          ? (value.value as unknown[]).includes(record[key])
+          : value.type === 'not'
+            ? !matches(row, { [key]: (value.child ?? value.value) as unknown })
+            : false
+        : value && typeof value === 'object'
+          ? matches(record[key], value)
+          : record[key] === value,
     );
   }
   function read(entity: object, query: Query = {}): object[] {
@@ -222,6 +233,145 @@ function setup() {
 }
 
 describe('ManagerCareerService persistence and integration rules', () => {
+  it('creates one stove-league invitation batch, never reissues declined offers, and keeps GET read-only', async () => {
+    const h = setup();
+    h.career.currentDate = '2026-11-19';
+    h.rows(CareerTeam).forEach((team) => {
+      team.name = `Club ${team.id}`;
+      team.code = `CLUB_${team.id}`;
+    });
+    const state = await h.service.initialize(h.manager, h.career);
+    const first = await prepareManagerJobOffers(h.manager, h.career, state);
+    expect(first).toHaveLength(1);
+    expect(first[0]).toMatchObject({
+      requiresUserAction: false,
+      status: CalendarEventStatus.COMPLETED,
+      payload: { managerJobOfferId: 1 },
+    });
+    expect(h.rows(ManagerJobOffer)[0]).toMatchObject({
+      fromCareerTeamId: 10,
+      toCareerTeamId: 11,
+      offeredDate: '2026-11-19',
+      expiresDate: '2026-12-31',
+    });
+    h.rows(ManagerJobOffer)[0].status = 'DECLINED';
+    expect(await prepareManagerJobOffers(h.manager, h.career, state)).toEqual(
+      [],
+    );
+    h.mock.save.mockClear();
+    expect(await describeManagerJobOffers(h.manager, h.career)).toMatchObject({
+      canCheckOffers: false,
+      offers: [{ status: 'DECLINED', canRespond: false }],
+    });
+    expect(h.mock.save).not.toHaveBeenCalled();
+  });
+
+  it('opens job invitations only on the shared stove dates and derives expired responses without GET writes', async () => {
+    const h = setup();
+    const state = await h.service.initialize(h.manager, h.career);
+    for (const date of ['2026-01-01', '2026-11-18']) {
+      h.career.currentDate = date;
+      expect(await prepareManagerJobOffers(h.manager, h.career, state)).toEqual(
+        [],
+      );
+      expect(h.rows(ManagerJobOffer)).toEqual([]);
+    }
+    h.career.currentDate = '2026-12-31';
+    await prepareManagerJobOffers(h.manager, h.career, state);
+    expect(
+      (await describeManagerJobOffers(h.manager, h.career)).offers[0]
+        .canRespond,
+    ).toBe(true);
+    h.career.currentDate = '2027-01-01';
+    h.mock.save.mockClear();
+    expect(
+      (await describeManagerJobOffers(h.manager, h.career)).offers[0],
+    ).toMatchObject({ status: 'EXPIRED', canRespond: false });
+    expect(h.mock.save).not.toHaveBeenCalled();
+    await prepareManagerJobOffers(h.manager, h.career, state);
+    expect(h.rows(ManagerJobOffer)[0].status).toBe('EXPIRED');
+    h.career.currentDate = '2027-11-19';
+    expect(
+      await prepareManagerJobOffers(h.manager, h.career, state),
+    ).toHaveLength(1);
+    expect(h.rows(ManagerJobOffer)).toHaveLength(2);
+  });
+
+  it('starts new club assessment from appointment while preserving old state and baselining its past matches and transfers', async () => {
+    const h = setup();
+    h.career.currentDate = '2026-11-20';
+    const state = await h.service.initialize(h.manager, h.career);
+    state.played = 10;
+    state.wins = 7;
+    state.status = 'WARNING';
+    state.warningAtPlayed = 9;
+    const previous = h.rows(CareerTeam)[0];
+    const target = h.rows(CareerTeam)[1];
+    previous.isUserControlled = false;
+    target.isUserControlled = true;
+    h.put(
+      LeagueFixture,
+      Object.assign(new LeagueFixture(), {
+        id: 888,
+        leagueSplitId: 20,
+        leagueSplit: { careerId: 1 },
+        teamAId: 11,
+        teamBId: 10,
+        bestOf: 3,
+        series: { games: [{ winnerTeamId: 11 }, { winnerTeamId: 11 }] },
+      }),
+    );
+    h.put(
+      TransferRecord,
+      Object.assign(new TransferRecord(), {
+        id: 777,
+        careerId: 1,
+        sourceCareerTeamId: 12,
+        destinationCareerTeamId: 11,
+        completedDate: '2026-11-19',
+        managerLineupBefore: 65,
+        managerLineupAfter: 85,
+      }),
+    );
+    await h.service.adoptTeam(h.manager, h.career, state, target, previous);
+    expect(h.state()).toMatchObject({
+      careerTeamId: 11,
+      status: 'ACTIVE',
+      played: 0,
+      wins: 0,
+      fanApproval: 65,
+      boardConfidence: 65,
+      warningAtPlayed: null,
+      trackingStartedDate: '2026-11-20',
+    });
+    expect(
+      h.reviews().find((review) => review.sourceKey.startsWith('APPOINTMENT:'))
+        ?.payload,
+    ).toMatchObject({
+      previousManagerState: {
+        careerTeamId: 10,
+        played: 10,
+        wins: 7,
+        status: 'WARNING',
+      },
+    });
+    for (const sourceKey of ['SERIES:888', 'SPLIT:20', 'TRANSFER:777'])
+      expect(
+        h.reviews().find((review) => review.sourceKey === sourceKey)?.type,
+      ).toBe('BASELINE');
+    await h.service.processDay(h.manager, h.career, h.career.currentDate);
+    h.dto.fixtures = [h.fixture(888, 11)];
+    await h.service.reviewLeague(h.manager, h.career, h.dto);
+    expect(h.state()).toMatchObject({
+      played: 0,
+      fanApproval: 65,
+      boardConfidence: 65,
+    });
+    expect(
+      h.reviews().filter((review) => review.sourceKey === 'TRANSFER:777'),
+    ).toHaveLength(1);
+  });
+
   it('returns legacy defaults without initializing state or writing on GET', async () => {
     const h = setup();
     const overview = await h.service.findOne(7, 1);
@@ -950,6 +1100,23 @@ describe('ManagerCareerService persistence and integration rules', () => {
           reviewedDate: '2026-02-01',
           title: `Review ${id}`,
           reason: 'Public',
+          fanApproval: 65,
+          boardConfidence: 65,
+          fanDelta: 0,
+          boardDelta: 0,
+        }),
+      );
+    for (let id = 36; id <= 80; id++)
+      h.put(
+        ManagerReview,
+        Object.assign(new ManagerReview(), {
+          id,
+          careerId: 1,
+          sourceKey: `BASELINE:${id}`,
+          type: 'BASELINE',
+          reviewedDate: '2026-02-01',
+          title: '부임 전 기록',
+          reason: 'Hidden bookkeeping',
           fanApproval: 65,
           boardConfidence: 65,
           fanDelta: 0,

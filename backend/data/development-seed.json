@@ -2,12 +2,36 @@
   "startYear": 2026,
   "themes": [
     {
+      "code": "WORLDS_2021_TEST",
+      "name": "2021 Worlds Legend · TEST",
+      "description": "BLG 벤치 카드 표시 테스트. 스탯은 2026 Viper의 임시 복사값이며 정식 레전드 밸런스가 아님."
+    },
+    {
       "code": "DEV_2026",
       "name": "2026 Season",
       "description": "2026 시즌 기본 선수 카드"
     }
   ],
   "playerCards": [
+    {
+      "key": "test_viper_worlds_2021",
+      "nickname": "Viper (2021 TEST)",
+      "nationality": "KR",
+      "themeCode": "WORLDS_2021_TEST",
+      "cardYear": 2021,
+      "startingAge": 21,
+      "mainPosition": "ADC",
+      "imageUrl": "/player-cards/2021viperEDG.png",
+      "mechanics": 96,
+      "gameSense": 98,
+      "laning": 95,
+      "teamFight": 97,
+      "macro": 97,
+      "teamPlay": 98,
+      "mental": 97,
+      "championPool": 100,
+      "potential": 119
+    },
     {
       "key": "t1_doran_2025",
       "nickname": "Doran",
@@ -857,7 +881,778 @@
       "teamPlay": 88,
       "mental": 89,
       "championPool": 91
-    }
+    },
+    {
+  "key": "kt_perfect_2026",
+  "nickname": "Perfect",
+  "nationality": "KR",
+  "themeCode": "DEV_2026",
+  "cardYear": 2026,
+  "startingAge": 22,
+  "mainPosition": "TOP",
+  "mechanics": 92,
+  "gameSense": 89,
+  "laning": 91,
+  "teamFight": 91,
+  "macro": 89,
+  "teamPlay": 90,
+  "mental": 91,
+  "championPool": 91
+},
+{
+  "key": "kt_cuzz_2026",
+  "nickname": "Cuzz",
+  "nationality": "KR",
+  "themeCode": "DEV_2026",
+  "cardYear": 2026,
+  "startingAge": 26,
+  "mainPosition": "JUNGLE",
+  "mechanics": 87,
+  "gameSense": 91,
+  "laning": 88,
+  "teamFight": 89,
+  "macro": 90,
+  "teamPlay": 90,
+  "mental": 87,
+  "championPool": 88
+},
+{
+  "key": "kt_bdd_2026",
+  "nickname": "Bdd",
+  "nationality": "KR",
+  "themeCode": "DEV_2026",
+  "cardYear": 2026,
+  "startingAge": 27,
+  "mainPosition": "MID",
+  "mechanics": 91,
+  "gameSense": 92,
+  "laning": 91,
+  "teamFight": 92,
+  "macro": 92,
+  "teamPlay": 91,
+  "mental": 92,
+  "championPool": 93
+},
+{
+  "key": "kt_jiwoo_2026",
+  "nickname": "Jiwoo",
+  "nationality": "KR",
+  "themeCode": "DEV_2026",
+  "cardYear": 2026,
+  "startingAge": 22,
+  "mainPosition": "ADC",
+  "mechanics": 90,
+  "gameSense": 86,
+  "laning": 86,
+  "teamFight": 89,
+  "macro": 86,
+  "teamPlay": 87,
+  "mental": 86,
+  "championPool": 89
+},
+{
+  "key": "kt_effort_2026",
+  "nickname": "Effort",
+  "nationality": "KR",
+  "themeCode": "DEV_2026",
+  "cardYear": 2026,
+  "startingAge": 25,
+  "mainPosition": "SUPPORT",
+  "mechanics": 85,
+  "gameSense": 90,
+  "laning": 86,
+  "teamFight": 89,
+  "macro": 90,
+  "teamPlay": 90,
+  "mental": 88,
+  "championPool": 89
+},
+
+{
+  "key": "bro_casting_2026",
+  "nickname": "Casting",
+  "nationality": "KR",
+  "themeCode": "DEV_2026",
+  "cardYear": 2026,
+  "startingAge": 22,
+  "mainPosition": "TOP",
+  "mechanics": 86,
+  "gameSense": 84,
+  "laning": 86,
+  "teamFight": 86,
+  "macro": 83,
+  "teamPlay": 84,
+  "mental": 89,
+  "championPool": 88
+},
+{
+  "key": "bro_gideon_2026",
+  "nickname": "GIDEON",
+  "nationality": "KR",
+  "themeCode": "DEV_2026",
+  "cardYear": 2026,
+  "startingAge": 23,
+  "mainPosition": "JUNGLE",
+  "mechanics": 84,
+  "gameSense": 84,
+  "laning": 84,
+  "teamFight": 86,
+  "macro": 85,
+  "teamPlay": 86,
+  "mental": 89,
+  "championPool": 88
+},
+{
+  "key": "bro_roamer_2026",
+  "nickname": "Roamer",
+  "nationality": "KR",
+  "themeCode": "DEV_2026",
+  "cardYear": 2026,
+  "startingAge": 23,
+  "mainPosition": "MID",
+  "mechanics": 88,
+  "gameSense": 85,
+  "laning": 87,
+  "teamFight": 87,
+  "macro": 84,
+  "teamPlay": 85,
+  "mental": 89,
+  "championPool": 89
+},
+{
+  "key": "bro_teddy_2026",
+  "nickname": "Teddy",
+  "nationality": "KR",
+  "themeCode": "DEV_2026",
+  "cardYear": 2026,
+  "startingAge": 28,
+  "mainPosition": "ADC",
+  "mechanics": 89,
+  "gameSense": 88,
+  "laning": 87,
+  "teamFight": 90,
+  "macro": 89,
+  "teamPlay": 89,
+  "mental": 92,
+  "championPool": 91
+},
+{
+  "key": "bro_namgung_2026",
+  "nickname": "Namgung",
+  "nationality": "KR",
+  "themeCode": "DEV_2026",
+  "cardYear": 2026,
+  "startingAge": 22,
+  "mainPosition": "SUPPORT",
+  "mechanics": 84,
+  "gameSense": 85,
+  "laning": 83,
+  "teamFight": 85,
+  "macro": 86,
+  "teamPlay": 87,
+  "mental": 88,
+  "championPool": 90
+},
+
+{
+  "key": "ns_kingen_2026",
+  "nickname": "Kingen",
+  "nationality": "KR",
+  "themeCode": "DEV_2026",
+  "cardYear": 2026,
+  "startingAge": 26,
+  "mainPosition": "TOP",
+  "mechanics": 87,
+  "gameSense": 86,
+  "laning": 87,
+  "teamFight": 88,
+  "macro": 86,
+  "teamPlay": 86,
+  "mental": 90,
+  "championPool": 88
+},
+{
+  "key": "ns_sponge_2026",
+  "nickname": "Sponge",
+  "nationality": "KR",
+  "themeCode": "DEV_2026",
+  "cardYear": 2026,
+  "startingAge": 22,
+  "mainPosition": "JUNGLE",
+  "mechanics": 84,
+  "gameSense": 85,
+  "laning": 85,
+  "teamFight": 86,
+  "macro": 86,
+  "teamPlay": 85,
+  "mental": 86,
+  "championPool": 85
+},
+{
+  "key": "ns_scout_2026",
+  "nickname": "Scout",
+  "nationality": "KR",
+  "themeCode": "DEV_2026",
+  "cardYear": 2026,
+  "startingAge": 28,
+  "mainPosition": "MID",
+  "mechanics": 90,
+  "gameSense": 92,
+  "laning": 89,
+  "teamFight": 93,
+  "macro": 91,
+  "teamPlay": 92,
+  "mental": 94,
+  "championPool": 91
+},
+{
+  "key": "ns_diable_2026",
+  "nickname": "Diable",
+  "nationality": "KR",
+  "themeCode": "DEV_2026",
+  "cardYear": 2026,
+  "startingAge": 18,
+  "mainPosition": "ADC",
+  "mechanics": 91,
+  "gameSense": 84,
+  "laning": 89,
+  "teamFight": 90,
+  "macro": 86,
+  "teamPlay": 86,
+  "mental": 85,
+  "championPool": 88
+},
+{
+  "key": "ns_lehends_2026",
+  "nickname": "Lehends",
+  "nationality": "KR",
+  "themeCode": "DEV_2026",
+  "cardYear": 2026,
+  "startingAge": 27,
+  "mainPosition": "SUPPORT",
+  "mechanics": 84,
+  "gameSense": 86,
+  "laning": 84,
+  "teamFight": 87,
+  "macro": 86,
+  "teamPlay": 87,
+  "mental": 90,
+  "championPool": 89
+},
+
+{
+  "key": "bnk_clear_2026",
+  "nickname": "Clear",
+  "nationality": "KR",
+  "themeCode": "DEV_2026",
+  "cardYear": 2026,
+  "startingAge": 23,
+  "mainPosition": "TOP",
+  "mechanics": 84,
+  "gameSense": 83,
+  "laning": 84,
+  "teamFight": 86,
+  "macro": 85,
+  "teamPlay": 86,
+  "mental": 87,
+  "championPool": 85
+},
+{
+  "key": "bnk_raptor_2026",
+  "nickname": "Raptor",
+  "nationality": "KR",
+  "themeCode": "DEV_2026",
+  "cardYear": 2026,
+  "startingAge": 21,
+  "mainPosition": "JUNGLE",
+  "mechanics": 86,
+  "gameSense": 85,
+  "laning": 85,
+  "teamFight": 86,
+  "macro": 86,
+  "teamPlay": 86,
+  "mental": 88,
+  "championPool": 88
+},
+{
+  "key": "bnk_vicla_2026",
+  "nickname": "VicLa",
+  "nationality": "KR",
+  "themeCode": "DEV_2026",
+  "cardYear": 2026,
+  "startingAge": 22,
+  "mainPosition": "MID",
+  "mechanics": 86,
+  "gameSense": 85,
+  "laning": 84,
+  "teamFight": 85,
+  "macro": 84,
+  "teamPlay": 85,
+  "mental": 86,
+  "championPool": 88
+},
+{
+  "key": "bnk_taeyoon_2026",
+  "nickname": "Taeyoon",
+  "nationality": "KR",
+  "themeCode": "DEV_2026",
+  "cardYear": 2026,
+  "startingAge": 24,
+  "mainPosition": "ADC",
+  "mechanics": 87,
+  "gameSense": 86,
+  "laning": 86,
+  "teamFight": 87,
+  "macro": 86,
+  "teamPlay": 87,
+  "mental": 91,
+  "championPool": 89
+},
+{
+  "key": "bnk_kellin_2026",
+  "nickname": "Kellin",
+  "nationality": "KR",
+  "themeCode": "DEV_2026",
+  "cardYear": 2026,
+  "startingAge": 25,
+  "mainPosition": "SUPPORT",
+  "mechanics": 87,
+  "gameSense": 86,
+  "laning": 89,
+  "teamFight": 90,
+  "macro": 88,
+  "teamPlay": 90,
+  "mental": 89,
+  "championPool": 89
+},
+{
+  "key": "bnk_daystar_2026",
+  "nickname": "Daystar",
+  "nationality": "KR",
+  "themeCode": "DEV_2026",
+  "cardYear": 2026,
+  "startingAge": 22,
+  "mainPosition": "MID",
+  "mechanics": 83,
+  "gameSense": 81,
+  "laning": 76,
+  "teamFight": 80,
+  "macro": 81,
+  "teamPlay": 80,
+  "mental": 87,
+  "championPool": 88
+},
+
+{
+  "key": "drx_rich_2026",
+  "nickname": "Rich",
+  "nationality": "KR",
+  "themeCode": "DEV_2026",
+  "cardYear": 2026,
+  "startingAge": 28,
+  "mainPosition": "TOP",
+  "mechanics": 83,
+  "gameSense": 85,
+  "laning": 82,
+  "teamFight": 85,
+  "macro": 84,
+  "teamPlay": 86,
+  "mental": 90,
+  "championPool": 88
+},
+{
+  "key": "drx_frog_2026",
+  "nickname": "Frog",
+  "nationality": "KR",
+  "themeCode": "DEV_2026",
+  "cardYear": 2026,
+  "startingAge": 21,
+  "mainPosition": "TOP",
+  "mechanics": 84,
+  "gameSense": 82,
+  "laning": 80,
+  "teamFight": 79,
+  "macro": 81,
+  "teamPlay": 82,
+  "mental": 89,
+  "championPool": 88
+},
+{
+  "key": "drx_willer_2026",
+  "nickname": "Willer",
+  "nationality": "KR",
+  "themeCode": "DEV_2026",
+  "cardYear": 2026,
+  "startingAge": 23,
+  "mainPosition": "JUNGLE",
+  "mechanics": 87,
+  "gameSense": 84,
+  "laning": 84,
+  "teamFight": 84,
+  "macro": 84,
+  "teamPlay": 85,
+  "mental": 87,
+  "championPool": 90
+},
+{
+  "key": "drx_ucal_2026",
+  "nickname": "Ucal",
+  "nationality": "KR",
+  "themeCode": "DEV_2026",
+  "cardYear": 2026,
+  "startingAge": 25,
+  "mainPosition": "MID",
+  "mechanics": 85,
+  "gameSense": 83,
+  "laning": 85,
+  "teamFight": 85,
+  "macro": 86,
+  "teamPlay": 87,
+  "mental": 90,
+  "championPool": 89
+},
+{
+  "key": "drx_aiming_2026",
+  "nickname": "Aiming",
+  "nationality": "KR",
+  "themeCode": "DEV_2026",
+  "cardYear": 2026,
+  "startingAge": 26,
+  "mainPosition": "ADC",
+  "mechanics": 89,
+  "gameSense": 87,
+  "laning": 87,
+  "teamFight": 89,
+  "macro": 87,
+  "teamPlay": 88,
+  "mental": 91,
+  "championPool": 90
+},
+{
+  "key": "drx_andil_2026",
+  "nickname": "Andil",
+  "nationality": "KR",
+  "themeCode": "DEV_2026",
+  "cardYear": 2026,
+  "startingAge": 23,
+  "mainPosition": "SUPPORT",
+  "mechanics": 84,
+  "gameSense": 87,
+  "laning": 84,
+  "teamFight": 84,
+  "macro": 87,
+  "teamPlay": 88,
+  "mental": 90,
+  "championPool": 91
+},
+
+{
+  "key": "dn_dudu_2026",
+  "nickname": "DuDu",
+  "nationality": "KR",
+  "themeCode": "DEV_2026",
+  "cardYear": 2026,
+  "startingAge": 25,
+  "mainPosition": "TOP",
+  "mechanics": 87,
+  "gameSense": 85,
+  "laning": 86,
+  "teamFight": 87,
+  "macro": 84,
+  "teamPlay": 85,
+  "mental": 88,
+  "championPool": 88
+},
+{
+  "key": "dn_sharvel_2026",
+  "nickname": "Sharvel",
+  "nationality": "KR",
+  "themeCode": "DEV_2026",
+  "cardYear": 2026,
+  "startingAge": 19,
+  "mainPosition": "JUNGLE",
+  "mechanics": 91,
+  "gameSense": 87,
+  "laning": 89,
+  "teamFight": 88,
+  "macro": 86,
+  "teamPlay": 87,
+  "mental": 90,
+  "championPool": 91
+},
+{
+  "key": "dn_clozer_2026",
+  "nickname": "Clozer",
+  "nationality": "KR",
+  "themeCode": "DEV_2026",
+  "cardYear": 2026,
+  "startingAge": 23,
+  "mainPosition": "MID",
+  "mechanics": 88,
+  "gameSense": 82,
+  "laning": 85,
+  "teamFight": 85,
+  "macro": 82,
+  "teamPlay": 83,
+  "mental": 87,
+  "championPool": 88
+},
+{
+  "key": "dn_deokdam_2026",
+  "nickname": "deokdam",
+  "nationality": "KR",
+  "themeCode": "DEV_2026",
+  "cardYear": 2026,
+  "startingAge": 26,
+  "mainPosition": "ADC",
+  "mechanics": 84,
+  "gameSense": 82,
+  "laning": 81,
+  "teamFight": 84,
+  "macro": 82,
+  "teamPlay": 83,
+  "mental": 86,
+  "championPool": 88
+},
+{
+  "key": "dn_peter_2026",
+  "nickname": "Peter",
+  "nationality": "KR",
+  "themeCode": "DEV_2026",
+  "cardYear": 2026,
+  "startingAge": 23,
+  "mainPosition": "SUPPORT",
+  "mechanics": 82,
+  "gameSense": 85,
+  "laning": 82,
+  "teamFight": 85,
+  "macro": 86,
+  "teamPlay": 87,
+  "mental": 88,
+  "championPool": 88
+},
+{
+  "key": "dn_pyosik_2026",
+  "nickname": "Pyosik",
+  "nationality": "KR",
+  "themeCode": "DEV_2026",
+  "cardYear": 2026,
+  "startingAge": 26,
+  "mainPosition": "JUNGLE",
+  "mechanics": 85,
+  "gameSense": 83,
+  "laning": 83,
+  "teamFight": 85,
+  "macro": 83,
+  "teamPlay": 84,
+  "mental": 89,
+  "championPool": 87
+},
+{
+  "key": "dn_life_2026",
+  "nickname": "Life",
+  "nationality": "KR",
+  "themeCode": "DEV_2026",
+  "cardYear": 2026,
+  "startingAge": 26,
+  "mainPosition": "SUPPORT",
+  "mechanics": 82,
+  "gameSense": 82,
+  "laning": 81,
+  "teamFight": 82,
+  "macro": 83,
+  "teamPlay": 84,
+  "mental": 86,
+  "championPool": 87
+},
+{
+  "key": "tes_zuian_2026",
+  "nickname": "ZUIAN",
+  "nationality": "CN",
+  "themeCode": "DEV_2026",
+  "cardYear": 2026,
+  "startingAge": 21,
+  "mainPosition": "TOP",
+  "mechanics": 92,
+  "gameSense": 89,
+  "laning": 93,
+  "teamFight": 93,
+  "macro": 89,
+  "teamPlay": 91,
+  "mental": 93,
+  "championPool": 93
+},
+{
+  "key": "tes_tian_2026",
+  "nickname": "Tian",
+  "nationality": "CN",
+  "themeCode": "DEV_2026",
+  "cardYear": 2026,
+  "startingAge": 26,
+  "mainPosition": "JUNGLE",
+  "mechanics": 91,
+  "gameSense": 92,
+  "laning": 93,
+  "teamFight": 92,
+  "macro": 92,
+  "teamPlay": 92,
+  "mental": 89,
+  "championPool": 91
+},
+{
+  "key": "tes_creme_2026",
+  "nickname": "Creme",
+  "nationality": "CN",
+  "themeCode": "DEV_2026",
+  "cardYear": 2026,
+  "startingAge": 22,
+  "mainPosition": "MID",
+  "mechanics": 94,
+  "gameSense": 91,
+  "laning": 93,
+  "teamFight": 92,
+  "macro": 89,
+  "teamPlay": 91,
+  "mental": 86,
+  "championPool": 92
+},
+{
+  "key": "tes_jackeylove_2026",
+  "nickname": "JackeyLove",
+  "nationality": "CN",
+  "themeCode": "DEV_2026",
+  "cardYear": 2026,
+  "startingAge": 25,
+  "mainPosition": "ADC",
+  "mechanics": 94,
+  "gameSense": 89,
+  "laning": 91,
+  "teamFight": 92,
+  "macro": 88,
+  "teamPlay": 90,
+  "mental": 86,
+  "championPool": 91
+},
+{
+  "key": "tes_zhuo_2026",
+  "nickname": "Zhuo",
+  "nationality": "CN",
+  "themeCode": "DEV_2026",
+  "cardYear": 2026,
+  "startingAge": 25,
+  "mainPosition": "SUPPORT",
+  "mechanics": 86,
+  "gameSense": 87,
+  "laning": 87,
+  "teamFight": 87,
+  "macro": 88,
+  "teamPlay": 89,
+  "mental": 86,
+  "championPool": 89
+},
+{
+  "key": "tes_369_2026",
+  "nickname": "369",
+  "nationality": "CN",
+  "themeCode": "DEV_2026",
+  "cardYear": 2026,
+  "startingAge": 25,
+  "mainPosition": "TOP",
+  "mechanics": 91,
+  "gameSense": 92,
+  "laning": 89,
+  "teamFight": 91,
+  "macro": 91,
+  "teamPlay": 90,
+  "mental": 90,
+  "championPool": 89
+},
+
+{
+  "key": "jdg_xiaoxu_2026",
+  "nickname": "Xiaoxu",
+  "nationality": "CN",
+  "themeCode": "DEV_2026",
+  "cardYear": 2026,
+  "startingAge": 23,
+  "mainPosition": "TOP",
+  "mechanics": 91,
+  "gameSense": 89,
+  "laning": 89,
+  "teamFight": 92,
+  "macro": 89,
+  "teamPlay": 91,
+  "mental": 91,
+  "championPool": 94
+},
+{
+  "key": "jdg_junjia_2026",
+  "nickname": "JunJia",
+  "nationality": "TW",
+  "themeCode": "DEV_2026",
+  "cardYear": 2026,
+  "startingAge": 24,
+  "mainPosition": "JUNGLE",
+  "mechanics": 88,
+  "gameSense": 89,
+  "laning": 89,
+  "teamFight": 89,
+  "macro": 90,
+  "teamPlay": 91,
+  "mental": 90,
+  "championPool": 91
+},
+{
+  "key": "jdg_hongq_2026",
+  "nickname": "HongQ",
+  "nationality": "CN",
+  "themeCode": "DEV_2026",
+  "cardYear": 2026,
+  "startingAge": 19,
+  "mainPosition": "MID",
+  "mechanics": 93,
+  "gameSense": 89,
+  "laning": 92,
+  "teamFight": 91,
+  "macro": 89,
+  "teamPlay": 90,
+  "mental": 90,
+  "championPool": 94
+},
+{
+  "key": "jdg_gala_2026",
+  "nickname": "GALA",
+  "nationality": "CN",
+  "themeCode": "DEV_2026",
+  "cardYear": 2026,
+  "startingAge": 25,
+  "mainPosition": "ADC",
+  "mechanics": 94,
+  "gameSense": 92,
+  "laning": 92,
+  "teamFight": 95,
+  "macro": 91,
+  "teamPlay": 93,
+  "mental": 93,
+  "championPool": 94
+},
+{
+  "key": "jdg_vampire_2026",
+  "nickname": "Vampire",
+  "nationality": "CN",
+  "themeCode": "DEV_2026",
+  "cardYear": 2026,
+  "startingAge": 21,
+  "mainPosition": "SUPPORT",
+  "mechanics": 90,
+  "gameSense": 91,
+  "laning": 90,
+  "teamFight": 92,
+  "macro": 92,
+  "teamPlay": 94,
+  "mental": 91,
+  "championPool": 94
+}
   ],
   "setBonuses": [],
   "teams": [
@@ -1006,12 +1801,14 @@
         },
         {
           "position": "SUPPORT",
-          "playerCardKey": "blg_on_2026",
+            "playerCardKey": "blg_on_2026",
           "championArchetype": "UTILITY",
           "initialCoachTrust": 100
         }
       ],
-      "benches": []
+      "benches": [
+        { "playerCardKey": "test_viper_worlds_2021" }
+      ]
     },
     {
       "code": "AL",
@@ -1258,6 +2055,335 @@
         }
       ],
       "benches": []
+    },
+    {
+  "code": "KT",
+  "name": "KT Rolster",
+  "enabled": true,
+  "logoUrl": null,
+  "region": "LCK",
+  "initialChemistry": 96,
+  "starters": [
+    {
+      "position": "TOP",
+      "playerCardKey": "kt_perfect_2026",
+      "championArchetype": "TOP_AD_BRUISER",
+      "initialCoachTrust": 100
+    },
+    {
+      "position": "JUNGLE",
+      "playerCardKey": "kt_cuzz_2026",
+      "championArchetype": "JUNGLE_ENGAGE",
+      "initialCoachTrust": 100
+    },
+    {
+      "position": "MID",
+      "playerCardKey": "kt_bdd_2026",
+      "championArchetype": "MID_STANDING_MAGE",
+      "initialCoachTrust": 100
+    },
+    {
+      "position": "ADC",
+      "playerCardKey": "kt_jiwoo_2026",
+      "championArchetype": "HYPER_CARRY",
+      "initialCoachTrust": 100
+    },
+    {
+      "position": "SUPPORT",
+      "playerCardKey": "kt_effort_2026",
+      "championArchetype": "TANK_ENGAGE",
+      "initialCoachTrust": 100
     }
+  ],
+  "benches": []
+},
+{
+  "code": "BRO",
+  "name": "BRION",
+  "enabled": true,
+  "logoUrl": null,
+  "region": "LCK",
+  "initialChemistry": 100,
+  "starters": [
+    {
+      "position": "TOP",
+      "playerCardKey": "bro_casting_2026",
+      "championArchetype": "TOP_AD_BRUISER",
+      "initialCoachTrust": 100
+    },
+    {
+      "position": "JUNGLE",
+      "playerCardKey": "bro_gideon_2026",
+      "championArchetype": "JUNGLE_ENGAGE",
+      "initialCoachTrust": 100
+    },
+    {
+      "position": "MID",
+      "playerCardKey": "bro_roamer_2026",
+      "championArchetype": "MID_STANDING_MAGE",
+      "initialCoachTrust": 100
+    },
+    {
+      "position": "ADC",
+      "playerCardKey": "bro_teddy_2026",
+      "championArchetype": "HYPER_CARRY",
+      "initialCoachTrust": 100
+    },
+    {
+      "position": "SUPPORT",
+      "playerCardKey": "bro_namgung_2026",
+      "championArchetype": "UTILITY",
+      "initialCoachTrust": 100
+    }
+  ],
+  "benches": []
+},
+{
+  "code": "NS",
+  "name": "Nongshim RedForce",
+  "enabled": true,
+  "logoUrl": null,
+  "region": "LCK",
+  "initialChemistry": 98,
+  "starters": [
+    {
+      "position": "TOP",
+      "playerCardKey": "ns_kingen_2026",
+      "championArchetype": "TOP_AD_BRUISER",
+      "initialCoachTrust": 100
+    },
+    {
+      "position": "JUNGLE",
+      "playerCardKey": "ns_sponge_2026",
+      "championArchetype": "JUNGLE_ENGAGE",
+      "initialCoachTrust": 100
+    },
+    {
+      "position": "MID",
+      "playerCardKey": "ns_scout_2026",
+      "championArchetype": "MID_STANDING_MAGE",
+      "initialCoachTrust": 100
+    },
+    {
+      "position": "ADC",
+      "playerCardKey": "ns_diable_2026",
+      "championArchetype": "HYPER_CARRY",
+      "initialCoachTrust": 90
+    },
+    {
+      "position": "SUPPORT",
+      "playerCardKey": "ns_lehends_2026",
+      "championArchetype": "TANK_ENGAGE",
+      "initialCoachTrust": 100
+    }
+  ],
+  "benches": []
+},
+{
+  "code": "BNK",
+  "name": "BNK FEARX",
+  "enabled": true,
+  "logoUrl": null,
+  "region": "LCK",
+  "initialChemistry": 100,
+  "starters": [
+    {
+      "position": "TOP",
+      "playerCardKey": "bnk_clear_2026",
+      "championArchetype": "TOP_TANK",
+      "initialCoachTrust": 100
+    },
+    {
+      "position": "JUNGLE",
+      "playerCardKey": "bnk_raptor_2026",
+      "championArchetype": "JUNGLE_EARLY_SNOWBALL",
+      "initialCoachTrust": 100
+    },
+    {
+      "position": "MID",
+      "playerCardKey": "bnk_vicla_2026",
+      "championArchetype": "MID_STANDING_MAGE",
+      "initialCoachTrust": 100
+    },
+    {
+      "position": "ADC",
+      "playerCardKey": "bnk_taeyoon_2026",
+      "championArchetype": "HYPER_CARRY",
+      "initialCoachTrust": 100
+    },
+    {
+      "position": "SUPPORT",
+      "playerCardKey": "bnk_kellin_2026",
+      "championArchetype": "UTILITY",
+      "initialCoachTrust": 100
+    }
+  ],
+  "benches": []
+},
+{
+  "code": "DRX",
+  "name": "DRX",
+  "enabled": true,
+  "logoUrl": null,
+  "region": "LCK",
+  "initialChemistry": 98,
+  "starters": [
+    {
+      "position": "TOP",
+      "playerCardKey": "drx_rich_2026",
+      "championArchetype": "TOP_TANK",
+      "initialCoachTrust": 100
+    },
+    {
+      "position": "JUNGLE",
+      "playerCardKey": "drx_willer_2026",
+      "championArchetype": "JUNGLE_EARLY_SNOWBALL",
+      "initialCoachTrust": 100
+    },
+    {
+      "position": "MID",
+      "playerCardKey": "drx_ucal_2026",
+      "championArchetype": "MID_STANDING_MAGE",
+      "initialCoachTrust": 100
+    },
+    {
+      "position": "ADC",
+      "playerCardKey": "drx_aiming_2026",
+      "championArchetype": "HYPER_CARRY",
+      "initialCoachTrust": 100
+    },
+    {
+      "position": "SUPPORT",
+      "playerCardKey": "drx_andil_2026",
+      "championArchetype": "UTILITY",
+      "initialCoachTrust": 100
+    }
+  ],
+  "benches": []
+},
+{
+  "code": "DN",
+  "name": "DN SOOPers",
+  "enabled": true,
+  "logoUrl": null,
+  "region": "LCK",
+  "initialChemistry": 100,
+  "starters": [
+    {
+      "position": "TOP",
+      "playerCardKey": "dn_dudu_2026",
+      "championArchetype": "TOP_AD_BRUISER",
+      "initialCoachTrust": 100
+    },
+    {
+      "position": "JUNGLE",
+      "playerCardKey": "dn_sharvel_2026",
+      "championArchetype": "JUNGLE_EARLY_SNOWBALL",
+      "initialCoachTrust": 100
+    },
+    {
+      "position": "MID",
+      "playerCardKey": "dn_clozer_2026",
+      "championArchetype": "MID_ASSASSIN",
+      "initialCoachTrust": 100
+    },
+    {
+      "position": "ADC",
+      "playerCardKey": "dn_deokdam_2026",
+      "championArchetype": "HYPER_CARRY",
+      "initialCoachTrust": 100
+    },
+    {
+      "position": "SUPPORT",
+      "playerCardKey": "dn_peter_2026",
+      "championArchetype": "TANK_ENGAGE",
+      "initialCoachTrust": 100
+    }
+  ],
+  "benches": []
+},
+{
+  "code": "TES",
+  "name": "Top Esports",
+  "enabled": true,
+  "logoUrl": null,
+  "region": "LPL",
+  "initialChemistry": 97,
+  "starters": [
+    {
+      "position": "TOP",
+      "playerCardKey": "tes_zuian_2026",
+      "championArchetype": "TOP_AD_BRUISER",
+      "initialCoachTrust": 100
+    },
+    {
+      "position": "JUNGLE",
+      "playerCardKey": "tes_tian_2026",
+      "championArchetype": "JUNGLE_EARLY_SNOWBALL",
+      "initialCoachTrust": 100
+    },
+    {
+      "position": "MID",
+      "playerCardKey": "tes_creme_2026",
+      "championArchetype": "MID_ASSASSIN",
+      "initialCoachTrust": 100
+    },
+    {
+      "position": "ADC",
+      "playerCardKey": "tes_jackeylove_2026",
+      "championArchetype": "HYPER_CARRY",
+      "initialCoachTrust": 100
+    },
+    {
+      "position": "SUPPORT",
+      "playerCardKey": "tes_zhuo_2026",
+      "championArchetype": "UTILITY",
+      "initialCoachTrust": 100
+    }
+  ],
+  "benches": [{ "playerCardKey": "tes_369_2026" }
+]
+},
+{
+  "code": "JDG",
+  "name": "JD Gaming",
+  "enabled": true,
+  "logoUrl": null,
+  "region": "LPL",
+  "initialChemistry": 100,
+  "starters": [
+    {
+      "position": "TOP",
+      "playerCardKey": "jdg_xiaoxu_2026",
+      "championArchetype": "TOP_TANK",
+      "initialCoachTrust": 100
+    },
+    {
+      "position": "JUNGLE",
+      "playerCardKey": "jdg_junjia_2026",
+      "championArchetype": "JUNGLE_ENGAGE",
+      "initialCoachTrust": 100
+    },
+    {
+      "position": "MID",
+      "playerCardKey": "jdg_hongq_2026",
+      "championArchetype": "MID_STANDING_MAGE",
+      "initialCoachTrust": 100
+    },
+    {
+      "position": "ADC",
+      "playerCardKey": "jdg_gala_2026",
+      "championArchetype": "HYPER_CARRY",
+      "initialCoachTrust": 100
+    },
+    {
+      "position": "SUPPORT",
+      "playerCardKey": "jdg_vampire_2026",
+      "championArchetype": "UTILITY",
+      "initialCoachTrust": 100
+    }
+  ],
+  "benches": []
+}
   ]
 }

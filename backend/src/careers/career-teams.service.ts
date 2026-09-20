@@ -58,6 +58,7 @@ export class CareerTeamsService {
         where: {
           id: careerTeamId,
           careerId,
+          isUserControlled: true,
           career: { accountId },
         },
       });
@@ -111,6 +112,7 @@ export class CareerTeamsService {
 
       if (
         !roster ||
+        !roster.careerTeam.isUserControlled ||
         roster.careerTeam.careerId !== careerId ||
         roster.careerTeam.career.accountId !== accountId
       ) {
@@ -180,6 +182,7 @@ export class CareerTeamsService {
 
       if (
         !roster ||
+        !roster.careerTeam.isUserControlled ||
         roster.careerTeam.careerId !== careerId ||
         roster.careerTeam.career.accountId !== accountId
       ) {

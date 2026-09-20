@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   ParseIntPipe,
@@ -59,6 +60,14 @@ export class CareersController {
     @Param('id', ParseIntPipe) id: number,
   ): Promise<CareerResponseDto> {
     return this.careersService.findOne(id, account.id);
+  }
+
+  @Delete(':id')
+  remove(
+    @CurrentAccount() account: AuthenticatedAccount,
+    @Param('id', ParseIntPipe) id: number,
+  ) {
+    return this.careersService.remove(id, account.id);
   }
 
   @Patch(':id/meta')

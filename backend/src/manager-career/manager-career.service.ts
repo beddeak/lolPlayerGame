@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { DataSource, EntityManager } from 'typeorm';
+import { DataSource, EntityManager, In, Not } from 'typeorm';
 import { Career } from '../careers/entities/career.entity';
 import { CareerTeam } from '../careers/entities/career-team.entity';
 import { Roster } from '../careers/entities/roster.entity';
@@ -15,6 +15,12 @@ import { LeagueSplitStatus } from '../leagues/enums/league-split-status.enum';
 import { LeagueSplitResponseDto } from '../leagues/dto/league-split-response.dto';
 import { getSeriesWinsRequired } from '../match-series/config/bo3-series.config';
 import { TransferRecord } from '../transfers/entities/transfer-record.entity';
+import { getTransferWindow } from '../transfers/transfer-window';
+import { ManagerJobOffer } from './entities/manager-job-offer.entity';
+import {
+  isCurrentJobOffer,
+  prepareManagerJobOffers,
+} from './manager-job-offers';
 import { MANAGER_CAREER_CONFIG as CONFIG } from './config/manager-career.config';
 import { ManagerCareerState } from './entities/manager-career-state.entity';
 import {
@@ -55,11 +61,23 @@ export class ManagerCareerService {
     });
     const teamId =
       state?.careerTeamId ?? (await this.managedTeam(manager, career.id)).id;
+    const jobOffers = getTransferWindow(career.currentDate).isOpen
+      ? await manager.find(ManagerJobOffer, {
+          where: {
+            careerId: career.id,
+            fromCareerTeamId: teamId,
+            status: 'PENDING',
+          },
+        })
+      : [];
     const reviews = state
       ? await manager.find(ManagerReview, {
-          where: { careerId: career.id },
+          where: {
+            careerId: career.id,
+            type: Not(In(['EXPECTATION', 'BASELINE'])),
+          },
           order: { id: 'DESC' },
-          take: 30,
+          take: 15,
         })
       : [];
     return {
@@ -69,6 +87,9 @@ export class ManagerCareerService {
       fanApproval: state?.fanApproval ?? CONFIG.initialFanApproval,
       boardConfidence: state?.boardConfidence ?? CONFIG.initialBoardConfidence,
       canManage: state?.status !== 'DISMISSED',
+      pendingJobOfferCount: jobOffers.filter((offer) =>
+        isCurrentJobOffer(offer, career),
+      ).length,
       trackingStartedDate: state?.trackingStartedDate ?? null,
       reviewYear: state?.reviewYear ?? career.currentYear,
       record: {
@@ -180,6 +201,110 @@ export class ManagerCareerService {
       }
     }
     return state;
+  }
+
+  /** The caller holds the Career lock and has switched the two club ownership flags. */
+  async adoptTeam(
+    manager: EntityManager,
+    career: Career,
+    state: ManagerCareerState,
+    target: CareerTeam,
+    previous: CareerTeam,
+  ): Promise<void> {
+    const previousRecord = { ...state };
+    Object.assign(state, {
+      careerTeamId: target.id,
+      status: 'ACTIVE',
+      fanApproval: CONFIG.initialFanApproval,
+      boardConfidence: CONFIG.initialBoardConfidence,
+      trackingStartedDate: career.currentDate,
+      reviewYear: career.currentYear,
+      played: 0,
+      wins: 0,
+      expectedWins: 0,
+      winningStreak: 0,
+      losingStreak: 0,
+      warningAtPlayed: null,
+      warnedDate: null,
+      dismissedDate: null,
+    });
+    const baseline = async (sourceKey: string, reason: string) => {
+      if (await this.hasReview(manager, career.id, sourceKey)) return;
+      await this.record(
+        manager,
+        state,
+        career.currentDate,
+        sourceKey,
+        'BASELINE',
+        '부임 전 기록 보존',
+        reason,
+      );
+    };
+    const fixtures = await manager.find(LeagueFixture, {
+      where: [
+        { leagueSplit: { careerId: career.id }, teamAId: target.id },
+        { leagueSplit: { careerId: career.id }, teamBId: target.id },
+      ],
+      relations: { series: { games: true } },
+    });
+    const startedSplits = new Set<number>();
+    for (const fixture of fixtures) {
+      if (!fixture.series?.games.length) continue;
+      startedSplits.add(fixture.leagueSplitId);
+      await baseline(
+        `SERIES:${fixture.id}`,
+        '부임 전에 진행된 경기는 새 구단 감독의 평가에 소급 반영하지 않습니다.',
+      );
+    }
+    const splits = await manager.find(LeagueSplit, {
+      where: { careerId: career.id, region: target.region },
+      relations: { stages: true },
+    });
+    for (const split of splits) {
+      if (
+        startedSplits.has(split.id) ||
+        (split.stages.length > 0 &&
+          split.stages.every(
+            (stage) => stage.status === LeagueStageStatus.COMPLETED,
+          ))
+      ) {
+        await baseline(
+          `SPLIT:${split.id}`,
+          '부임 전에 시작된 스플릿의 최종 순위는 새 감독의 평가에 소급 반영하지 않습니다.',
+        );
+      }
+    }
+    const transfers = await manager.find(TransferRecord, {
+      where: [
+        { careerId: career.id, sourceCareerTeamId: target.id },
+        { careerId: career.id, destinationCareerTeamId: target.id },
+      ],
+    });
+    for (const transfer of transfers) {
+      if (transfer.completedDate <= career.currentDate)
+        await baseline(
+          `TRANSFER:${transfer.id}`,
+          '부임 전에 완료된 선수 이동은 새 감독의 평가에 소급 반영하지 않습니다.',
+        );
+    }
+    await manager.save(ManagerCareerState, state);
+    const review = await this.record(
+      manager,
+      state,
+      career.currentDate,
+      `APPOINTMENT:${target.id}:${career.currentDate}`,
+      'SEASON',
+      `${target.name} 감독 부임`,
+      `${previous.name}에서 ${target.name}(으)로 부임했습니다. 이전 구단의 기록은 보존하고 새 구단 평가는 부임 시점부터 시작합니다.`,
+      0,
+      0,
+      {
+        previousTeamId: previous.id,
+        careerTeamId: target.id,
+        previousManagerState: previousRecord,
+      },
+    );
+    await this.publish(manager, state, review);
   }
 
   /** Freeze public strengths before the first observed game, never private potential. */
@@ -324,7 +449,10 @@ export class ManagerCareerService {
         const review = evaluateSplitReview({
           ...state,
           rank,
-          expectedRank: Number(expectation.payload.expectedRank),
+          expectedRank: expectedLeagueRank(
+            strengths[state.careerTeamId],
+            Object.values(strengths),
+          ),
           teamCount: Number(expectation.payload.teamCount),
         });
         state.fanApproval = review.fanApproval;
@@ -344,7 +472,10 @@ export class ManagerCareerService {
             review.boardDelta,
             {
               rank,
-              expectedRank: expectation.payload.expectedRank,
+              expectedRank: expectedLeagueRank(
+                strengths[state.careerTeamId],
+                Object.values(strengths),
+              ),
             },
           ),
         );
@@ -363,9 +494,13 @@ export class ManagerCareerService {
       ...career,
       currentDate: date,
     });
-    if (state.status === 'DISMISSED') return [];
-    const news: CalendarEvent[] = [];
     if (Number(date.slice(0, 4)) < state.reviewYear) return [];
+    const news = await prepareManagerJobOffers(
+      manager,
+      { ...career, currentDate: date, currentYear: Number(date.slice(0, 4)) },
+      state,
+    );
+    if (state.status === 'DISMISSED') return news;
     if (state.reviewYear < Number(date.slice(0, 4))) {
       state.reviewYear = Number(date.slice(0, 4));
       const review = await this.record(
@@ -389,7 +524,7 @@ export class ManagerCareerService {
     const processedTransferKeys = new Set(
       (
         await manager.find(ManagerReview, {
-          where: { careerId: career.id, type: 'TRANSFER' },
+          where: { careerId: career.id },
           select: { sourceKey: true },
         })
       ).map((review) => review.sourceKey),

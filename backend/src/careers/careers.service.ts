@@ -77,6 +77,22 @@ export class CareersService {
     return this.toResponse(career, await this.findSetBonuses());
   }
 
+  async remove(
+    id: number,
+    accountId: number,
+  ): Promise<{ id: number; deleted: true }> {
+    return this.dataSource.transaction(async (manager) => {
+      // Serialize with gameplay writes; dismissal does not prevent deleting one's save.
+      const career = await manager.findOne(Career, {
+        where: { id, accountId },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (!career) throw new NotFoundException(`Career ${id} was not found`);
+      await manager.delete(Career, { id, accountId });
+      return { id, deleted: true as const };
+    });
+  }
+
   async createFromClub(
     accountId: number,
     dto: CreateCareerFromClubDto,
