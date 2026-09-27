@@ -1,0 +1,964 @@
+/* Shared theme layer: load AFTER feature styles. Player art and club logos stay original. */
+:root {
+  color-scheme: dark;
+  --canvas: #0c1119;
+  --surface: #141d29;
+  --surface-raised: #1c2838;
+  --surface-hover: #24354a;
+  --text-primary: #e8eef7;
+  --text-secondary: #a4b3c7;
+  --stroke: #304055;
+  --accent: #83b9ef;
+  --success: #76dcba;
+  --danger: #ff9ca9;
+  --button-surface: #365e88;
+  --button-hover: #416f9f;
+  --button-text: #f0f6ff;
+  --disabled-surface: #202b39;
+  --disabled-text: #a4b3c7;
+  --ink: #0c1119;
+  --ink-soft: #141d29;
+  --panel: #141d29;
+  --panel-light: #1c2838;
+  --line: #304055;
+  --muted: #a4b3c7;
+  --cream: #e8eef7;
+  --gold: #dcb578;
+  --gold-bright: #f0cf96;
+  --green: #76dcba;
+  --red: #ff9ca9;
+  color: var(--text-primary);
+  background: var(--canvas);
+}
+html {
+  background: var(--canvas);
+}
+body.modern-dark {
+  background:
+    radial-gradient(ellipse at 20% -10%, #26395466, transparent 55%),
+    var(--canvas);
+  color: var(--text-primary);
+}
+body.modern-dark::before {
+  display: none;
+}
+body.modern-dark
+  :is(.app-shell, .app-main, .auth-layout, .loading-screen, .center-panel) {
+  background: transparent;
+  color: var(--text-primary);
+}
+body.modern-dark
+  :is(
+    .season-hub-page,
+    .contracts-page,
+    .market-page,
+    .legend-market,
+    .squad-page,
+    .club-selection-page,
+    .manager-offers-panel
+  ) {
+  color: var(--text-primary);
+  --season-blue: #83b9ef;
+  --season-blue-dark: #b7d8f9;
+  --season-sky: #1c2838;
+  --season-orange: #dcb578;
+  --season-ink: #e8eef7;
+  --club-line: #304055;
+  --club-lime: #83b9ef;
+}
+body.modern-dark button {
+  border-radius: 8px;
+}
+body.modern-dark
+  :is(input:not([type="checkbox"]):not([type="radio"]), select, textarea) {
+  background: #101925;
+  color: var(--text-primary);
+  border-color: #40536a;
+  border-radius: 7px;
+}
+body.modern-dark :is(input, textarea)::placeholder {
+  color: #889ab0;
+  opacity: 1;
+}
+body.modern-dark :is(button, input, select, summary):focus-visible {
+  outline: 2px solid #edca8f;
+  outline-offset: 3px;
+}
+body.modern-dark :is(button:disabled, select:disabled) {
+  cursor: not-allowed;
+}
+/* Primary surfaces across every game screen. */
+body.modern-dark
+  :is(
+    .auth-panel,
+    .save-card,
+    .new-save-card,
+    .career-settings,
+    .team-builder,
+    .roster-panel,
+    .info-panel,
+    .training-panel,
+    .player-modal,
+    .squad-board,
+    .squad-detail-panel,
+    .manager-review-panel,
+    .annual-season-panel,
+    .next-match-card,
+    .season-overview-card,
+    .league-center-panel,
+    .schedule-panel,
+    .managed-progress-panel,
+    .other-match-history,
+    .international-panel,
+    .club-browser,
+    .club-preview,
+    .club-state-panel,
+    .contracts-roster,
+    .contracts-empty,
+    .contracts-player,
+    .contracts-signed,
+    .contracts-response,
+    .contracts-form,
+    .contracts-history,
+    .market-box,
+    .legend-event,
+    .legend-player-card,
+    .legend-negotiation,
+    .google-account-panel,
+    .club-news-dialog,
+    .club-news-header,
+    .club-news-tabs,
+    .gm-navigation-panel,
+    .gm-navigation-heading,
+    .manager-offer,
+    .save-delete-confirm
+  ) {
+  background: var(--surface);
+  color: var(--text-primary);
+  border-color: var(--stroke);
+  border-radius: 12px;
+  box-shadow: 0 8px 28px #0002;
+  clip-path: none;
+}
+body.modern-dark :is(.club-news-dialog, .gm-navigation-panel) {
+  border-radius: 0;
+}
+body.modern-dark
+  :is(
+    .roster-panel,
+    .info-panel,
+    .squad-board,
+    .club-browser,
+    .club-preview,
+    .training-panel,
+    .next-match-card,
+    .league-center-panel
+  )::before {
+  display: none;
+}
+body.modern-dark
+  :is(
+    .player-row,
+    .starter-row,
+    .training-player,
+    .player-select,
+    .scrim-card,
+    .locked-setting,
+    .locked-team-data,
+    .phase-note,
+    .live-state-strip,
+    .squad-player-card,
+    .empty-bench,
+    .empty-hint,
+    .manager-confidence,
+    .board-confidence,
+    .season-period,
+    .due-match-summary,
+    .standings-head,
+    .panel-empty,
+    .empty-league-state,
+    .international-register,
+    .legend-target,
+    .legend-empty,
+    .legend-notice,
+    .club-news-empty,
+    .club-news-status,
+    .club-news-market-counts,
+    .club-news-review,
+    .manager-offer-window,
+    .manager-offer-empty,
+    .manager-offer-confirm,
+    .training-notice,
+    .season-current-activities,
+    .season-readiness-note,
+    .season-schedule-warnings,
+    .season-boundary-banner,
+    .sim-status-banner,
+    .decision-strip,
+    .club-world-warning,
+    .club-player-portrait,
+    .detail-profile-header > strong,
+    .detail-overall,
+    .modal-overall,
+    .notice
+  ) {
+  background: var(--surface-raised);
+  color: var(--text-primary);
+  border-color: var(--stroke);
+  border-radius: 9px;
+  box-shadow: none;
+  clip-path: none;
+}
+body.modern-dark
+  :is(
+    .fixture-list,
+    .international-readiness,
+    .international-fixtures,
+    .event-feed,
+    .club-news-items
+  )
+  > article,
+body.modern-dark
+  :is(
+    .manager-review-history li,
+    .season-period-summary > div,
+    .legend-interest > div > span
+  ) {
+  background: var(--surface-raised);
+  border-color: var(--stroke);
+  color: var(--text-primary);
+  border-radius: 8px;
+}
+body.modern-dark
+  :is(
+    .club-hero,
+    .season-command-header,
+    .contracts-hero,
+    .market-hero,
+    .legend-hero
+  ) {
+  background: linear-gradient(115deg, #1d3048, #16202e 75%);
+  color: var(--text-primary);
+  border: 1px solid #3a4e68;
+  border-left: 3px solid #87add3;
+  border-radius: 14px;
+  box-shadow: 0 12px 35px #0002;
+  clip-path: none;
+}
+body.modern-dark :is(.club-hero, .season-command-header)::after {
+  opacity: 0.3;
+}
+body.modern-dark :is(.club-hero, .season-command-header)::before {
+  display: none;
+}
+body.modern-dark .auth-hero {
+  background:
+    radial-gradient(ellipse at 30% 35%, #284963, transparent 70%), #101c2b;
+}
+body.modern-dark .auth-hero::after {
+  opacity: 0.15;
+}
+body.modern-dark
+  :is(
+    .club-hero .eyebrow,
+    .eyebrow,
+    .section-heading > span,
+    .squad-section-heading > div > span
+  ) {
+  background: transparent;
+  color: var(--accent);
+  transform: none;
+  padding-left: 0;
+}
+/* Keep this baseline at the same specificity as the semantic overrides below.
+   Draft, awards and image overlays own their palette; do not recolor their labels. */
+body.modern-dark
+  :is(
+    .app-main,
+    .auth-layout,
+    .gm-navigation-panel,
+    .club-news-dialog,
+    .player-modal
+  )
+  :where(h1, h2, h3, h4, strong, dd):not(
+    :where(
+      .draft-preview-dialog *,
+      .match-result-dialog *,
+      .player-card-artwork *,
+      .auth-hero *
+    )
+  ) {
+  color: var(--text-primary);
+}
+body.modern-dark
+  :is(
+    .app-main,
+    .auth-layout,
+    .gm-navigation-panel,
+    .club-news-dialog,
+    .player-modal
+  )
+  :where(p, small, dt, label):not(
+    :where(
+      .draft-preview-dialog *,
+      .match-result-dialog *,
+      .player-card-artwork *,
+      .auth-hero *
+    )
+  ) {
+  color: var(--text-secondary);
+}
+body.modern-dark
+  :is(
+    .season-info span,
+    .standing-team span,
+    .standing-team strong,
+    .standing-row > span,
+    .fixture-team > strong,
+    .fixture-list-teams,
+    .training-player-name,
+    .squad-card-mini-stats strong,
+    .detail-stat > span,
+    .detail-stat > strong,
+    .profile-data dd,
+    .season-section-heading h2,
+    .club-player-name,
+    .club-season-label strong,
+    .gm-navigation-links button,
+    .contracts-roster button,
+    .starter-stat,
+    .market-ovr,
+    .club-player-overall,
+    .market-player,
+    .legend-interest strong
+  ) {
+  color: var(--text-primary);
+}
+body.modern-dark
+  :is(
+    .season-nav-identity,
+    .season-back-button,
+    .back-button,
+    .text-button,
+    .season-tag,
+    .team-code,
+    .autosave-label,
+    .calendar-current-glance > span,
+    .time-control-help,
+    .fixture-list-date,
+    .training-condition,
+    .squad-card-name span,
+    .squad-card-topline span,
+    .squad-card-mini-stats span,
+    .detail-stat-label,
+    .club-preview-heading,
+    .club-browser-title > span,
+    .club-selection-heading .eyebrow,
+    .club-news-description,
+    .club-news-item-meta,
+    .google-auth-note,
+    .google-auth-unavailable,
+    .mode-tabs button,
+    .account-menu small,
+    .auth-local-separator,
+    .roster-table-head,
+    .starter-table-head,
+    .locked-setting span,
+    .locked-team-data span,
+    .player-meta-grid span,
+    .live-state-strip span,
+    .proficiency-list span,
+    .lineup-title span,
+    .contracts-hero span,
+    .contracts-section-title > span,
+    .contracts-terms-summary > span,
+    .contracts-fields label > span,
+    .contracts-history span,
+    .legend-hero > div > span,
+    .legend-event-heading > span,
+    .legend-target > span,
+    .manager-review-summary,
+    .manager-review-details > summary,
+    .manager-season-record span,
+    .manager-review-title time,
+    .manager-review-deltas,
+    .season-period-summary span,
+    .period-status,
+    .match-date-line,
+    .fixture-team > span:not(.club-logo),
+    .snapshot-metrics span,
+    .fixture-list-state,
+    .event-feed span,
+    .season-loading,
+    .international-entrants,
+    .club-season-label,
+    .club-lineup-title span,
+    .club-player-position,
+    .club-bench-summary,
+    .club-preview-empty,
+    .club-filter-empty,
+    .club-news-section-heading > span,
+    .club-news-tabs button,
+    .club-news-fan-comment > span,
+    .club-news-review > span,
+    .gm-navigation-number
+  ) {
+  color: var(--text-secondary);
+}
+body.modern-dark
+  :is(
+    .season-section-heading span,
+    .market-kicker,
+    .training-tag,
+    .next-match-topline span,
+    .manual-time-controls summary,
+    .international-panel header > span,
+    .gm-navigation-heading > div > span,
+    .club-news-header > div > span,
+    .auth-form-wrap .eyebrow,
+    .player-profile span,
+    .modal-kicker,
+    .starter-ovr,
+    .phase-note span,
+    .contracts-position,
+    .contracts-player span,
+    .contracts-fields .money-preview,
+    .money-preview,
+    .international-fixtures b,
+    .other-match-history li b,
+    .manager-offers-panel > header > span,
+    .manager-offer > header > span:last-child,
+    .club-news-item-meta > span,
+    .club-news-transfer p > span,
+    .club-news-fee,
+    .club-news-candidate > div > small,
+    .gm-navigation-arrow
+  ) {
+  color: var(--accent);
+}
+body.modern-dark
+  :is(
+    .section-heading,
+    .dashboard-topbar,
+    .season-navline,
+    .lineup-title,
+    .create-actions,
+    .save-meta,
+    .bench-section,
+    .squad-card-mini-stats,
+    .active-stage-bar,
+    .standing-row,
+    .international-tournament,
+    .legend-event-heading,
+    .market-tabs,
+    .contracts-history li,
+    .club-news-tabs
+  ) {
+  border-color: var(--stroke);
+}
+/* Navigation: restrained dark rail and large readable controls. */
+body.modern-dark .app-header {
+  background: #101721ed;
+  border-bottom: 1px solid #304055;
+  backdrop-filter: blur(16px);
+}
+body.modern-dark .gm-navigation-rail {
+  background: #101721;
+  border-color: var(--stroke);
+}
+body.modern-dark
+  :is(
+    .gm-menu-trigger,
+    .gm-menu-close,
+    .gm-navigation-links button,
+    .club-news-trigger,
+    .club-news-close,
+    .google-prepare-button
+  ) {
+  background: var(--surface-raised);
+  color: var(--text-primary);
+  border-color: var(--stroke) !important;
+  box-shadow: none;
+}
+body.modern-dark .gm-menu-trigger {
+  border-top-color: #dcb578 !important;
+}
+body.modern-dark .gm-navigation-club {
+  background: #22374f;
+}
+body.modern-dark .gm-navigation-links button[aria-current="page"] {
+  background: #253a52;
+  border-left-color: #dcb578;
+}
+body.modern-dark .gm-navigation-footer button {
+  color: var(--accent);
+  border-color: var(--stroke);
+}
+body.modern-dark
+  :is(
+    .gm-menu-trigger,
+    .gm-navigation-links button,
+    .club-news-trigger,
+    .google-prepare-button
+  ):hover:not(:disabled) {
+  background: var(--surface-hover);
+}
+body.modern-dark
+  :is(
+    .wordmark span,
+    .avatar,
+    .auth-brand span,
+    .plus-mark,
+    .loading-screen .brand-mark
+  ) {
+  color: #101721;
+  background: #dbb77d;
+  border-radius: 8px;
+  clip-path: none;
+}
+/* Buttons, selection, and semantic states. */
+body.modern-dark
+  :is(
+    .market-page,
+    .player-sales,
+    .contracts-page,
+    .legend-market,
+    .training-panel,
+    .manager-offer-actions,
+    .time-control-grid,
+    .split-tabs,
+    .squad-team-switcher,
+    .team-switcher,
+    .history-pagination,
+    .managed-progress-panel,
+    .club-league-tabs,
+    .segmented-control,
+    .decision-actions
+  )
+  button,
+body.modern-dark
+  :is(
+    .detail-button,
+    .season-link-button,
+    .contracts-link-button,
+    .modal-close,
+    .squad-roster-action button,
+    .club-tile,
+    .next-event-button,
+    .sim-status-banner button
+  ) {
+  background: var(--surface-raised);
+  color: var(--text-primary);
+  border-color: var(--stroke);
+  transform: none;
+}
+body.modern-dark
+  :is(
+    .market-page,
+    .player-sales,
+    .contracts-page,
+    .legend-market,
+    .training-panel,
+    .manager-offer-actions
+  )
+  button:hover:not(:disabled) {
+  background: var(--surface-hover);
+}
+body.modern-dark
+  :is(
+    .primary-button,
+    .season-open-button,
+    .squad-open-button,
+    .squad-link-button,
+    .quick-sim-button,
+    .international-panel button,
+    .schedule-connect-button,
+    .club-start-button,
+    .training-team-actions button,
+    .market-page .market-primary,
+    .player-sales .market-primary,
+    .contracts-page .contracts-primary,
+    .managed-progress-panel .managed-continue-button,
+    .next-event-button,
+    .decision-actions button,
+    .empty-league-state button,
+    .event-feed button,
+    .phase-note > button,
+    .legend-offer-form > button,
+    .legend-current-offer > button,
+    .legend-empty button,
+    .manager-offer-actions .offer-accept
+  ) {
+  background: var(--button-surface);
+  color: var(--button-text);
+  border-color: #658db7;
+  border-radius: 8px;
+  box-shadow: none;
+  transform: none;
+}
+body.modern-dark
+  :is(
+    .primary-button,
+    .quick-sim-button,
+    .managed-progress-panel .managed-continue-button,
+    .season-open-button,
+    .squad-open-button,
+    .squad-link-button,
+    .international-panel button,
+    .schedule-connect-button,
+    .club-start-button,
+    .training-team-actions button,
+    .market-page .market-primary,
+    .player-sales .market-primary,
+    .contracts-page .contracts-primary,
+    .next-event-button,
+    .decision-actions button,
+    .empty-league-state button,
+    .event-feed button,
+    .phase-note > button,
+    .legend-offer-form > button,
+    .legend-current-offer > button,
+    .legend-empty button,
+    .manager-offer-actions .offer-accept
+  ):hover:not(:disabled) {
+  background: var(--button-hover);
+  color: var(--button-text);
+}
+body.modern-dark
+  :is(.training-panel .rest-button, .contracts-sale-action > button) {
+  background: #29403e;
+  color: #a9dfcc;
+}
+body.modern-dark
+  :is(
+    .squad-player-card.selected,
+    .standing-row.managed,
+    .season-period.period-CURRENT,
+    .contracts-roster > button.selected,
+    .market-player[aria-pressed="true"],
+    .club-tile.is-selected,
+    .club-tile[aria-pressed="true"]
+  ) {
+  background: #233850;
+  color: var(--text-primary);
+  border-color: #7ba4ce;
+  box-shadow: 0 0 0 1px #658caf;
+  transform: none;
+}
+body.modern-dark .club-tile :is(.club-tile-name, .club-tile-league) {
+  color: var(--text-secondary);
+}
+body.modern-dark
+  :is(
+    .split-tabs button.active,
+    .squad-team-switcher button.active,
+    .team-switcher button.active,
+    .club-league-tabs button[aria-selected="true"],
+    .market-tabs button[aria-pressed="true"],
+    .club-news-tabs button[aria-selected="true"],
+    .segmented-control button.active
+  ) {
+  background: #2b4562;
+  color: #e4f2ff;
+  border-color: #6e9ac6;
+}
+body.modern-dark
+  :is(
+    .starter-row,
+    .squad-player-card,
+    .save-card,
+    .new-save-card,
+    .season-calendar-toggle,
+    .club-tile,
+    .player-row,
+    .player-select,
+    .detail-button,
+    .time-control-grid button,
+    .split-tabs button,
+    .club-news-close
+  ):hover {
+  background: #203047;
+  border-color: #607c9c;
+  box-shadow: none;
+}
+body.modern-dark
+  :is(
+    .training-recovery-results,
+    .contracts-alert.success,
+    .schedule-connected,
+    .manager-status-label,
+    .club-news-fan-score,
+    .manager-offer-notice
+  ) {
+  background: #18372f;
+  border-color: #31584b;
+  color: #84dec0;
+}
+body.modern-dark
+  :is(
+    .training-recovery-results h4,
+    .training-panel .training-message,
+    .saved-state,
+    .sync-status strong,
+    .international-ready,
+    .google-linked,
+    .international-fixtures article > span,
+    .standing-row em.positive,
+    .swap-feedback.success
+  ) {
+  color: var(--success);
+}
+body.modern-dark
+  :is(
+    .error-notice,
+    .inline-error,
+    .season-error-banner,
+    .training-panel .training-error,
+    .contracts-alert.error,
+    .market-error,
+    .club-start-error,
+    .club-news-error,
+    .manager-offer-error,
+    .manager-dismissed-note,
+    .manager-DISMISSED .manager-status-label,
+    .save-delete-button,
+    .contracts-decision-actions .contracts-withdraw,
+    .swap-feedback.error,
+    .club-news-fan-score.is-critical
+  ) {
+  background: #3b222f;
+  color: #ffb1bc;
+  border-color: #654050;
+}
+body.modern-dark
+  :is(
+    .save-delete-button,
+    .contracts-decision-actions .contracts-withdraw
+  ):hover:not(:disabled) {
+  background: #51303c;
+  color: #ffb1bc;
+}
+body.modern-dark
+  :is(
+    .contracts-validation,
+    .legend-negotiation .legend-validation,
+    .standing-row em.negative
+  ) {
+  color: var(--danger);
+}
+body.modern-dark
+  :is(
+    .error-notice,
+    .inline-error,
+    .market-error,
+    .club-news-error,
+    .manager-offer-error
+  )
+  p {
+  color: #ffb1bc;
+}
+body.modern-dark
+  :is(
+    .manager-warning-note,
+    .season-readiness-note,
+    .season-schedule-warnings,
+    .international-register,
+    .calendar-disclosure-notices small,
+    .manager-WARNING .manager-status-label
+  ) {
+  background: #382f23;
+  color: #e6c78f;
+  border-color: #635338;
+}
+body.modern-dark
+  :is(
+    .international-regions span,
+    .position-chip,
+    .modal-position,
+    .club-news-position,
+    .season-info strong,
+    .club-news-tab-badge,
+    .locked-setting small,
+    .bench-heading > strong,
+    .empty-bench > span
+  ) {
+  background: #273a50;
+  color: #b8d9f8;
+  border-color: #507091;
+  border-radius: 5px;
+}
+body.modern-dark .international-regions .missing {
+  color: #e9bc83;
+  border-color: #b1834f;
+}
+/* Legacy --season-blue was both ink and fill. Keep fills dark when ink becomes light. */
+body.modern-dark .active-stage-bar {
+  background: linear-gradient(100deg, #21364e, #294766);
+  color: var(--text-primary);
+}
+body.modern-dark :is(.active-stage-bar span, .active-stage-bar small) {
+  color: #b8d9f8;
+}
+body.modern-dark
+  :is(
+    .split-status,
+    .status-IN_PROGRESS,
+    .match-date-line em,
+    .fixture-team > em,
+    .club-news-offer-badge
+  ) {
+  background: #382f23;
+  color: #e6c78f;
+}
+body.modern-dark
+  :is(
+    .season-period em,
+    .international-readiness article > span,
+    .club-tile-unavailable,
+    .club-world-note > span,
+    .club-missing-player,
+    .club-news-availability,
+    .legend-card-year,
+    .legend-card-status,
+    .legend-empty > span
+  ) {
+  color: #e6c78f;
+}
+body.modern-dark .legend-card-status.signed {
+  color: var(--accent);
+}
+body.modern-dark .mode-tabs button.active {
+  color: var(--text-primary);
+}
+body.modern-dark
+  :is(
+    .mode-tabs button.active::after,
+    .snapshot-metrics i b,
+    .proficiency-list i b
+  ) {
+  background: var(--accent);
+}
+body.modern-dark
+  :is(
+    .proficiency-list i,
+    .snapshot-metrics i,
+    .season-period-summary,
+    .auth-local-separator::before,
+    .auth-local-separator::after
+  ) {
+  background: var(--stroke);
+}
+body.modern-dark :is(.decision-icon, .event-feed article.event-READY > i) {
+  background: #dcb578;
+  color: #101721;
+}
+/* Button captions must follow their button, not the generic muted paragraph rule. */
+body.modern-dark
+  :is(
+    .primary-button,
+    .quick-sim-button,
+    .managed-continue-button,
+    .next-event-button,
+    .club-start-button,
+    .decision-actions button
+  )
+  :is(small, strong, span) {
+  color: inherit;
+}
+/* Do not fade entire controls: keep the unavailable label readable, including fieldsets.
+   Draft tiles retain their intentionally dimmed artwork, but never dim their text. */
+body.modern-dark
+  :is(.app-shell, .auth-layout, dialog)
+  :is(button, input, select, textarea):disabled {
+  opacity: 1;
+  color: var(--disabled-text);
+  cursor: not-allowed;
+}
+body.modern-dark
+  :is(.app-shell, .auth-layout, dialog)
+  :is(button, input, select, textarea):disabled:not(
+    :where(.draft-preview-dialog *)
+  ) {
+  background: var(--disabled-surface);
+  border-color: var(--stroke);
+  box-shadow: none;
+}
+body.modern-dark
+  :is(.app-shell, .auth-layout, dialog)
+  button:disabled
+  :is(strong, small, span, em, b):not(
+    :where(.player-card-artwork *, .club-logo *, .draft-sigil *)
+  ) {
+  color: inherit;
+}
+body.modern-dark :is(input, select, textarea):disabled {
+  -webkit-text-fill-color: var(--disabled-text);
+}
+body.modern-dark .club-league-tabs button span {
+  opacity: 1;
+}
+body.modern-dark
+  :is(
+    .detail-stat i,
+    .squad-attribute-list i,
+    .manager-confidence-track,
+    .form-track,
+    .condition-track
+  ) {
+  background: #2d3d50;
+}
+body.modern-dark
+  :is(
+    .auth-panel::before,
+    .save-card::before,
+    .save-card-accent::after,
+    .squad-player-card::before
+  ) {
+  opacity: 0.2;
+  pointer-events: none;
+}
+body.modern-dark
+  :is(
+    .auth-form-wrap h1,
+    .club-identity h1,
+    .squad-section-heading h2,
+    .season-command-copy h1
+  ) {
+  font-style: normal;
+  letter-spacing: -0.04em;
+}
+body.modern-dark .modal-backdrop {
+  background: #040910cc;
+  backdrop-filter: blur(6px);
+}
+/* The match report is inside app-main in the DOM: keep its award palette independent. */
+body.modern-dark .match-result-dialog {
+  color: #eaf0fa;
+}
+body.modern-dark .match-result-dialog :is(h2, h3, strong) {
+  color: inherit;
+}
+body.modern-dark .match-result-dialog .pom-rating strong {
+  color: #f6d99c;
+}
+body.modern-dark .match-result-dialog .pom-card-top strong {
+  color: #fce0a3;
+}
+body.modern-dark .match-result-dialog .pom-details dd {
+  color: #f4e4c6;
+}
+body.modern-dark .match-result-dialog .player-card-artwork :is(strong, small) {
+  color: #fff;
+}
+body.modern-dark
+  .match-result-dialog
+  :is(.result-state-note, .result-empty, .pom-rule) {
+  color: #a4b3c7;
+}
+@media (prefers-reduced-motion: reduce) {
+  body.modern-dark *,
+  body.modern-dark *::before,
+  body.modern-dark *::after {
+    scroll-behavior: auto;
+  }
+}

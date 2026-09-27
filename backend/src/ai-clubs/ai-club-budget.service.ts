@@ -14,7 +14,7 @@ import {
   ContractOfferType,
   PlayerContractStatus,
 } from '../contracts/contract.types';
-import { CONTRACT_CONFIG } from '../contracts/config/contract.config';
+import { estimateMarketAnnualSalary } from '../contracts/market-salary';
 import { getTransferWindow } from '../transfers/transfer-window';
 import { AI_CLUB_CONFIG } from './config/ai-club.config';
 import { AiClubDifficulty, AiClubState } from './entities/ai-club-state.entity';
@@ -22,14 +22,7 @@ import { getAiPlayerAbility } from './ai-club-policy';
 
 /** A cost estimate for initial roster members without an explicit contract, not free wages. */
 export function estimateAiAnnualSalary(player: CareerPlayer): number {
-  const config = CONTRACT_CONFIG.negotiation;
-  const ability = getAiPlayerAbility(player);
-  return (
-    Math.ceil(
-      (config.salaryBase + ability * ability * config.salaryPerAbilitySquared) /
-        config.salaryRounding,
-    ) * config.salaryRounding
-  );
+  return estimateMarketAnnualSalary(getAiPlayerAbility(player));
 }
 
 @Injectable()

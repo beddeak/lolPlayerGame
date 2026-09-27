@@ -82,6 +82,17 @@ function harness(file, props, request) {
       if (name === "./PlayerSalesPanel") return { __esModule: true, default: () => null };
       if (name === "./ClubLogo") return loadClubLogo();
       if (name === "./InternationalPanel") return { __esModule: true, default: () => null };
+      if (name === "./QuickSimReport") return { __esModule: true, default: () => null };
+      if (name === "./DraftPreviewDialog") return { __esModule: true, default: () => null };
+      if (name === "./MatchFlowDialog") return { __esModule: true, default: () => null };
+      if (name === "./MatchSpectator") return { __esModule:true,default:()=>null };
+      if (name === "./match-spectator") return require('./load-source.cjs').loadSource('match-spectator');
+      if (name === "./SeasonSkipDialog") return { __esModule: true, default: () => null };
+      if (name === "./LeagueBracket") return { __esModule: true, default: () => null };
+      if (name === "./league-stage") return require('./load-source.cjs').loadSource('league-stage');
+      if (name === "./LeagueStandings") return require('./load-league-standings.cjs');
+      if (name === "./ClubNewsDrawer") return { __esModule: true, default: () => null };
+      if (name === "./ManagerOffersPanel") return { __esModule: true, default: () => null };
       if (name === "./types")
         return { POSITIONS: ["TOP", "JUNGLE", "MID", "ADC", "SUPPORT"] };
       if (name.endsWith(".css")) return {};
@@ -323,7 +334,20 @@ async function checkCalendar(canClose, dueMatch = false) {
   data.calendar.canCloseTransferWindow = canClose;
   if (dueMatch)
     data.calendar.dueMatches = [
-      { id: 50, teamA: { id: 10 }, teamB: { id: 20 } },
+      {
+        id: 50,
+        scheduledDate: data.calendar.currentDate,
+        leagueSplitId: 1,
+        leagueStageId: 1,
+        year: 2026,
+        region: "LCK",
+        splitNumber: 3,
+        stageCode: "REGULAR",
+        roundNumber: 1,
+        bestOf: 3,
+        teamA: { id: 10, code: "TEST", name: "Test Club" },
+        teamB: { id: 20, code: "OPP", name: "Opponent" },
+      },
     ];
   const posts = [];
   const view = harness(

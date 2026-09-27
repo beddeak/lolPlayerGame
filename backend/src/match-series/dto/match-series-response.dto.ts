@@ -4,6 +4,7 @@ import { TeamStrategy } from '../../careers/enums/team-strategy.enum';
 import { MatchSimulationResponseDto } from '../../matches/dto/match-simulation-response.dto';
 import { Position } from '../../players/enums/position.enum';
 import { MatchSeriesStatus } from '../enums/match-series-status.enum';
+import type { PlayerOfMatch } from '../../matches/match-awards';
 
 export class MatchSeriesTeamResponseDto {
   teamId!: number;
@@ -12,6 +13,8 @@ export class MatchSeriesTeamResponseDto {
 }
 
 export class MatchSeriesResponseDto {
+  nextDraftStarted?: boolean;
+  pom?: PlayerOfMatch | null;
   seriesId!: number;
   careerId!: number;
   bestOf!: number;

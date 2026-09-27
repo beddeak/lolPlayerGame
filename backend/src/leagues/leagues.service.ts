@@ -1,3 +1,4 @@
+import { buildBracketView } from './league-bracket-view';
 import {
   ConflictException,
   Injectable,
@@ -50,6 +51,7 @@ import { LeagueStageFormat } from './enums/league-stage-format.enum';
 import { LeagueStageStatus } from './enums/league-stage-status.enum';
 import { LeagueGroupPairingMode } from './league-format.types';
 import { rankTournamentStandings } from './league-standings';
+import { buildLeagueGroups, rankBattleGroups } from './league-groups';
 import type { RegionalLeagueFormat } from './league-format.types';
 import {
   bracketRanking,
@@ -218,7 +220,11 @@ export class LeaguesService {
             index === 0 ? LeagueStageStatus.ACTIVE : LeagueStageStatus.PLANNED,
           bestOf: template.bestOf,
           currentRound: 1,
-          settings: template.settings,
+          settings:
+            template.settings.superWeek &&
+            orderedTeams.length !== format.expectedTeamCount
+              ? { ...template.settings, superWeek: undefined }
+              : template.settings,
           participants: [],
           fixtures: [],
         }),
@@ -308,6 +314,8 @@ export class LeaguesService {
     careerId: number,
     splitId: number,
     fixtureId: number,
+    prepareOnly = false,
+    expectedGameNumber?: number,
   ): Promise<LeagueFixtureGameResponseDto> {
     await this.assertNoBlockingEvents(accountId, careerId);
 
@@ -390,12 +398,14 @@ export class LeaguesService {
 
       return { seriesId: series.id, completed: false };
     });
-    const series = gameContext.completed
-      ? await this.matchSeriesService.findOne(accountId, gameContext.seriesId)
-      : await this.matchSeriesService.simulateNextGame(
-          accountId,
-          gameContext.seriesId,
-        );
+    const series =
+      gameContext.completed || prepareOnly
+        ? await this.matchSeriesService.findOne(accountId, gameContext.seriesId)
+        : await this.matchSeriesService.simulateNextGame(
+            accountId,
+            gameContext.seriesId,
+            { requireDraft: true, expectedGameNumber },
+          );
 
     if (series.status === MatchSeriesStatus.COMPLETED) {
       await this.progressLeague(accountId, careerId, splitId);
@@ -856,10 +866,16 @@ export class LeaguesService {
 
     switch (key) {
       case `${Region.LCK}:1:PLAY_IN`: {
-        const { directTeamIds } = this.getLckSplitOneDirectTeams(firstStage);
-        return firstRanking
-          .filter((teamId) => !directTeamIds.includes(teamId))
-          .slice(0, 6);
+        const { winningGroupCode } = this.getLckSplitOneDirectTeams(firstStage);
+        const losingGroupCode = [...groupRankings.keys()].find(
+          (code) => code !== winningGroupCode,
+        );
+        const eligible = new Set([
+          ...(groupRankings.get(winningGroupCode)?.slice(2, 5) ?? []),
+          ...(groupRankings.get(losingGroupCode ?? '')?.slice(1, 4) ?? []),
+        ]);
+        // Group place grants entry; individual results determine play-in seeds.
+        return firstRanking.filter((teamId) => eligible.has(teamId));
       }
       case `${Region.LCK}:1:PLAYOFFS`:
         return unique([
@@ -879,9 +895,16 @@ export class LeaguesService {
           ...playInQualifiers,
         ]);
       case `${Region.LPL}:1:KNIGHTS_RIVAL`:
-        return firstRanking.slice(4, 12);
+        return unique([
+          ...(groupRankings.get('S')?.slice(4) ?? []),
+          ...(groupRankings.get('A')?.slice(0, 4) ?? []),
+          ...(groupRankings.get('B')?.slice(0, 2) ?? []),
+        ]).slice(0, 8);
       case `${Region.LPL}:1:PLAYOFFS`:
-        return unique([...firstRanking.slice(0, 4), ...playInQualifiers]);
+        return unique([
+          ...(groupRankings.get('S')?.slice(0, 4) ?? []),
+          ...playInQualifiers,
+        ]);
       case `${Region.LPL}:2:RUMBLE_STAGE`:
         return firstRanking;
       case `${Region.LPL}:2:KNIGHTS_RIVAL`: {
@@ -931,21 +954,10 @@ export class LeaguesService {
     winningGroupCode: string;
   } {
     const rankings = this.groupRankings(stage);
-    const groupWins = new Map<string, number>();
-
-    for (const [groupCode, teamIds] of rankings) {
-      const teamIdSet = new Set(teamIds);
-      const wins = this.calculateStageStandings(stage)
-        .filter((standing) => teamIdSet.has(standing.teamId))
-        .reduce((total, standing) => total + standing.seriesWins, 0);
-      groupWins.set(groupCode, wins);
-    }
-
-    const [winningGroupCode, losingGroupCode] = [...groupWins.entries()]
-      .sort(
-        (left, right) => right[1] - left[1] || left[0].localeCompare(right[0]),
-      )
-      .map(([groupCode]) => groupCode);
+    const [winningGroupCode, losingGroupCode] = rankBattleGroups(
+      this.stageGroups(stage),
+      stage.participants.map((p) => this.toParticipantResponse(p)),
+    ).map((group) => group.code);
 
     return {
       winningGroupCode,
@@ -1141,6 +1153,7 @@ export class LeaguesService {
         first,
         second,
         stage.settings.cycles ?? 1,
+        stage.settings.superWeek?.bestOf,
       );
     }
 
@@ -1249,7 +1262,7 @@ export class LeaguesService {
     this.normalizeSplitRelations(split);
     const format = getRegionalLeagueFormat(split.region, split.splitNumber);
     const stages = this.sortedStages(split).map((stage) =>
-      this.toStageResponse(stage),
+      this.toStageResponse(stage, split),
     );
     const fixtures = stages.flatMap((stage) => stage.fixtures);
     const activeStage = stages.find(
@@ -1282,8 +1295,12 @@ export class LeaguesService {
     };
   }
 
-  private toStageResponse(stage: LeagueStage): LeagueStageResponseDto {
-    return {
+  private toStageResponse(
+    stage: LeagueStage,
+    split: LeagueSplit,
+  ): LeagueStageResponseDto {
+    const response: LeagueStageResponseDto = {
+      bracket: null,
       id: stage.id,
       sequence: stage.sequence,
       code: stage.code,
@@ -1303,6 +1320,12 @@ export class LeaguesService {
         .map((fixture) => this.toFixtureResponse(fixture)),
       standings: this.calculateStageStandings(stage),
     };
+    response.groups = buildLeagueGroups(response);
+    response.bracket = buildBracketView(
+      response,
+      split.region === Region.CBLOL && split.splitNumber === 1,
+    );
+    return response;
   }
 
   private toParticipantResponse(
@@ -1501,37 +1524,26 @@ export class LeaguesService {
   }
 
   private groupRankings(stage: LeagueStage): Map<string, number[]> {
-    const standingsByTeamId = new Map(
-      this.calculateStageStandings(stage).map((standing) => [
-        standing.teamId,
-        standing,
-      ]),
-    );
-    const groups = new Map<string, LeagueStageParticipant[]>();
-
-    for (const participant of stage.participants) {
-      const groupCode = participant.groupCode ?? 'ALL';
-      const group = groups.get(groupCode) ?? [];
-      group.push(participant);
-      groups.set(groupCode, group);
-    }
-
     return new Map(
-      [...groups.entries()].map(([groupCode, participants]) => [
-        groupCode,
-        participants
-          .sort((left, right) => {
-            const leftStanding = standingsByTeamId.get(left.careerTeamId)!;
-            const rightStanding = standingsByTeamId.get(right.careerTeamId)!;
-            return (
-              rightStanding.seriesWins - leftStanding.seriesWins ||
-              rightStanding.gameDifference - leftStanding.gameDifference ||
-              left.initialSeed - right.initialSeed
-            );
-          })
-          .map((participant) => participant.careerTeamId),
+      this.stageGroups(stage).map((group) => [
+        group.code,
+        group.standings.map((row) => row.teamId),
       ]),
     );
+  }
+
+  private stageGroups(stage: LeagueStage) {
+    return buildLeagueGroups({
+      code: stage.code,
+      format: stage.format,
+      status: stage.status,
+      settings: stage.settings,
+      participants: stage.participants.map((p) =>
+        this.toParticipantResponse(p),
+      ),
+      standings: this.calculateStageStandings(stage),
+      fixtures: stage.fixtures.map((f) => this.toFixtureResponse(f)),
+    });
   }
 
   private calculateFixtureState(fixture: LeagueFixture): FixtureState {

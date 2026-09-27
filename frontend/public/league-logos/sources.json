@@ -1,0 +1,71 @@
+{
+  "verifiedAt": "2026-09-24",
+  "verifiedForSeason": 2026,
+  "sourcePage": "https://lolesports.com/en-SG/season/115547545029543948/handbook",
+  "additionalSourcePage": "https://lolesports.com/en-US/leagues/lcs/",
+  "returnAnnouncement": "https://lolesports.com/en-US/news/lcs",
+  "verification": "Each league's image URL was read from its named image in Riot's official 2026 League Handbook. The current official league data agrees with those URLs. The originals were downloaded from static.lolesports.com using HTTPS; PNG signatures, decoded dimensions, nonempty content and SHA-256 were checked. Files are unchanged. A CDN filename's timestamp is not its season: the LCS asset has an older timestamp but is explicitly used in the official 2026 handbook and 2026 LCS schedule. CBLOL uses the current off-white symbol, not a 2025 LTA South logo.",
+  "colorNote": "dominantOpaqueColor is sampled from each downloaded image; it is not a claim about the complete official brand palette.",
+  "logos": [
+    {
+      "code": "LCK",
+      "file": "lck.png",
+      "sourceUrl": "https://static.lolesports.com/leagues/lck-color-on-black.png",
+      "width": 1000,
+      "height": 1000,
+      "bytes": 22172,
+      "dominantOpaqueColor": "#EFEFEF",
+      "sha256": "1d0893042bde8b3e62e0e789ebdc380ac829d5b9c028c8cff80dcbf73aabe331"
+    },
+    {
+      "code": "LPL",
+      "file": "lpl.png",
+      "sourceUrl": "https://static.lolesports.com/leagues/1592516115322_LPL-01-FullonDark.png",
+      "width": 400,
+      "height": 400,
+      "bytes": 6176,
+      "dominantOpaqueColor": "#F50A0A",
+      "sha256": "2118252c54d3b7530232bdcb4bd3b4376d1a7ae4736218692d7720b023271013"
+    },
+    {
+      "code": "LEC",
+      "file": "lec.png",
+      "sourceUrl": "https://static.lolesports.com/leagues/1592516184297_LEC-01-FullonDark.png",
+      "width": 400,
+      "height": 400,
+      "bytes": 6656,
+      "dominantOpaqueColor": "#00E5BF",
+      "sha256": "a922d65bb7170c454732ad3c0a094f6fba93b997868b86b894d4c4b35bcd9046"
+    },
+    {
+      "code": "LCS",
+      "file": "lcs.png",
+      "sourceUrl": "https://static.lolesports.com/leagues/1706356907418_LCSNew-01-FullonDark.png",
+      "width": 120,
+      "height": 120,
+      "bytes": 3166,
+      "dominantOpaqueColor": "#EFEDE8",
+      "sha256": "c937026a09ada72ba0f07dff86e00737ef05157907b0be8e2b48cab7ae7d15e7"
+    },
+    {
+      "code": "LCP",
+      "file": "lcp.png",
+      "sourceUrl": "https://static.lolesports.com/leagues/1733468139601_lcp-color-golden.png",
+      "width": 1000,
+      "height": 1000,
+      "bytes": 45408,
+      "dominantOpaqueColor": "#F78A4A",
+      "sha256": "ac0562931c9f0e3ce429da9edffa518e4bcfc518f9de676c6e6b412c73588952"
+    },
+    {
+      "code": "CBLOL",
+      "file": "cblol.png",
+      "sourceUrl": "https://static.lolesports.com/leagues/cblol-logo-symbol-offwhite.png",
+      "width": 1024,
+      "height": 1024,
+      "bytes": 39719,
+      "dominantOpaqueColor": "#EBEFE4",
+      "sha256": "87688c405302a5c7d1aebd8499af93cb381615acee1addb297f0782c78bad91b"
+    }
+  ]
+}

@@ -1,4 +1,5 @@
 import { PlayerPersonality } from '../../players/enums/player-personality.enum';
+import { SALARY_CONFIG } from './salary.config';
 
 // Prototype economic balance; all monetary amounts are annual salaries in 만원.
 export const CONTRACT_CONFIG = {
@@ -14,9 +15,7 @@ export const CONTRACT_CONFIG = {
   },
   responseDelay: { minDays: 1, maxDays: 3 },
   negotiation: {
-    salaryBase: 1_000,
-    salaryPerAbilitySquared: 15,
-    salaryRounding: 100,
+    salaryRounding: SALARY_CONFIG.roundingUnit,
     currentSalaryFloorRatio: 1,
     salaryAcceptanceRatio: 0.95,
     maxSalaryBenefit: 1.35,

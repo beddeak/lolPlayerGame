@@ -2,6 +2,8 @@ import { BadRequestException } from '@nestjs/common';
 import { PlayerPersonality } from '../players/enums/player-personality.enum';
 import { Position } from '../players/enums/position.enum';
 import { CONTRACT_CONFIG } from './config/contract.config';
+import { SALARY_CONFIG } from './config/salary.config';
+import { estimateMarketAnnualSalary } from './market-salary';
 import {
   ContractExpectedRole,
   ContractPromiseType,
@@ -202,8 +204,7 @@ function getTargetSalary(
   context: ContractEvaluationContext,
 ): number {
   const config = CONTRACT_CONFIG.negotiation;
-  const marketSalary =
-    config.salaryBase + context.ability ** 2 * config.salaryPerAbilitySquared;
+  const marketSalary = estimateMarketAnnualSalary(context.ability);
   const hasPlan = terms.promises.some((promise) =>
     [
       ContractPromiseType.STRENGTHEN_TEAM,
@@ -219,9 +220,12 @@ function getTargetSalary(
       config.additionalYearSalaryRatio -
     (hasPlan ? config.planSalaryDiscount : 0);
   const target = Math.max(
-    marketSalary *
-      config.personalitySalaryRatio[context.personality] *
-      adjustment,
+    Math.min(
+      SALARY_CONFIG.maxMarketAnnualSalary,
+      marketSalary *
+        config.personalitySalaryRatio[context.personality] *
+        adjustment,
+    ),
     (context.currentAnnualSalary ?? 0) * config.currentSalaryFloorRatio,
   );
   return Math.min(

@@ -1,34 +1,568 @@
-.training-panel { padding: 24px; background: #fff; border: 1px solid #d3dce5; min-width: 0; }
-.training-panel h2 { margin: 8px 0; font-size: 30px; }
-.training-panel h3 { margin: 8px 0; }
-.training-panel p { color: #64758a; line-height: 1.6; font-size: 13px; }
-.training-panel button, .training-panel select { font: inherit; }
-.training-panel select { padding: 10px; border: 1px solid #c9d7e5; background: #fff; color: #173451; min-width: 0; }
-.training-panel button { cursor: pointer; padding: 11px 14px; border: 0; background: #195e9e; color: #fff; font-weight: 700; }
-.training-panel button:disabled { opacity: .45; cursor: not-allowed; }
-.training-panel button:focus-visible, .training-panel select:focus-visible { outline: 3px solid #ff7a00; outline-offset: 3px; }
-.scrim-card { background: #edf5fc; border-left: 4px solid #ff7900; padding: 18px; display: grid; grid-template-columns: 1fr auto; gap: 10px 16px; margin: 22px 0; }
-.scrim-card > div { grid-column: 1 / -1; }
-.scrim-card label { display: grid; gap: 6px; font-size: 12px; color: #35536e; }
-.scrim-card button { align-self: end; background: #ef7100; }
-.training-tag { font-size: 11px; font-weight: 800; color: #145796; }
-.training-section-heading { display: flex; gap: 12px; align-items: center; justify-content: space-between; }
-.training-players { display: grid; gap: 10px; }
-.training-player { display: grid; grid-template-columns: minmax(95px, 1fr) 100px minmax(125px, 1fr) auto; gap: 12px; align-items: center; background: #f4f7fa; padding: 13px; }
-.training-panel .training-player-name { background: transparent; color: #163753; text-align: left; padding: 0; display: grid; gap: 4px; }
-.training-player-name small { color: #d16608; font-size: 10px; }
-.training-condition { display: grid; gap: 7px; font-size: 11px; color: #536a7d; }
-.training-condition progress { width: 100%; height: 5px; accent-color: #ed790c; }
-.training-player-actions { display: flex; gap: 5px; }
-.training-panel .rest-button { background: #dfebf3; color: #215578; }
-.training-team-actions { display: flex; gap: 10px; flex-wrap: wrap; }
-.training-recovery-results { padding: 14px 18px; border: 1px solid #c3e2d6; background: #f0faf5; margin-bottom: 20px; }
-.training-recovery-results h4 { color: #16664b; margin: 0 0 10px; }
-.training-recovery-results p { display: flex; flex-wrap: wrap; gap: 8px 16px; margin: 7px 0; }
-.training-recovery-results strong { min-width: 90px; color: #173451; }
-.training-panel .training-error { color: #a52626; background: #fff0ed; padding: 10px; }
-.training-panel .training-message { color: #087857; }
-.training-notice { padding: 14px; background: #fff4db; }
-.training-log { margin-top: 20px; font-size: 13px; }
-@media (max-width: 1100px) { .training-player { grid-template-columns: 1fr 1fr; } }
-@media (max-width: 560px) { .training-panel { padding: 16px; } .scrim-card { grid-template-columns: 1fr; } .training-section-heading { display: block; } .training-player-actions button { flex: 1; } }
+.training-panel {
+  padding: 24px;
+  background: #fff;
+  border: 1px solid #d3dce5;
+  min-width: 0;
+}
+.training-panel h2 {
+  margin: 8px 0;
+  font-size: 30px;
+}
+.training-panel h3 {
+  margin: 8px 0;
+}
+.training-panel p {
+  color: #64758a;
+  line-height: 1.6;
+  font-size: 13px;
+}
+.training-panel button,
+.training-panel select {
+  font: inherit;
+}
+.training-panel select {
+  padding: 10px;
+  border: 1px solid #c9d7e5;
+  background: #fff;
+  color: #173451;
+  min-width: 0;
+}
+.training-panel button {
+  cursor: pointer;
+  padding: 11px 14px;
+  border: 0;
+  background: #195e9e;
+  color: #fff;
+  font-weight: 700;
+}
+.training-panel button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.training-panel button:focus-visible,
+.training-panel select:focus-visible {
+  outline: 3px solid #ff7a00;
+  outline-offset: 3px;
+}
+.scrim-card {
+  background: #edf5fc;
+  border-left: 4px solid #ff7900;
+  padding: 18px;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px 16px;
+  margin: 22px 0;
+}
+.scrim-card > div {
+  grid-column: 1 / -1;
+}
+.scrim-card label {
+  display: grid;
+  gap: 6px;
+  font-size: 12px;
+  color: #35536e;
+}
+.scrim-card button {
+  align-self: end;
+  background: #ef7100;
+}
+.training-tag {
+  font-size: 11px;
+  font-weight: 800;
+  color: #145796;
+}
+.training-section-heading {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+}
+.training-players {
+  display: grid;
+  gap: 10px;
+}
+.training-player {
+  display: grid;
+  grid-template-columns: minmax(95px, 1fr) 100px minmax(125px, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  background: #f4f7fa;
+  padding: 13px;
+}
+.training-panel .training-player-name {
+  background: transparent;
+  color: #163753;
+  text-align: left;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+}
+.training-player-name small {
+  color: #d16608;
+  font-size: 10px;
+}
+.training-condition {
+  display: grid;
+  gap: 7px;
+  font-size: 11px;
+  color: #536a7d;
+}
+.training-condition progress {
+  width: 100%;
+  height: 5px;
+  accent-color: #ed790c;
+}
+.training-player-actions {
+  display: flex;
+  gap: 5px;
+}
+.training-panel .rest-button {
+  background: #dfebf3;
+  color: #215578;
+}
+.training-team-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.training-recovery-results {
+  padding: 14px 18px;
+  border: 1px solid #c3e2d6;
+  background: #f0faf5;
+  margin-bottom: 20px;
+}
+.training-recovery-results h4 {
+  color: #16664b;
+  margin: 0 0 10px;
+}
+.training-recovery-results p {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  margin: 7px 0;
+}
+.training-recovery-results strong {
+  min-width: 90px;
+  color: #173451;
+}
+.training-panel .training-error {
+  color: #a52626;
+  background: #fff0ed;
+  padding: 10px;
+}
+.training-panel .training-message {
+  color: #087857;
+}
+.training-notice {
+  padding: 14px;
+  background: #fff4db;
+}
+.training-log {
+  margin-top: 20px;
+  font-size: 13px;
+}
+@media (max-width: 1100px) {
+  .training-player {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+@media (max-width: 560px) {
+  .training-panel {
+    padding: 16px;
+  }
+  .scrim-card {
+    grid-template-columns: 1fr;
+  }
+  .training-section-heading {
+    display: block;
+  }
+  .training-player-actions button {
+    flex: 1;
+  }
+}
+
+/* A five-player board, with weekly team decisions kept beside the roster. */
+.dashboard-team-management {
+  min-width: 0;
+}
+.dashboard-page--management {
+  display: flex;
+  flex-direction: column;
+}
+.dashboard-page--management > .club-hero {
+  order: -2;
+}
+.dashboard-page--management > .dashboard-topbar {
+  order: -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  margin: 0 0 24px;
+  padding: 24px;
+  border: 1px solid var(--stroke);
+  border-radius: 12px;
+  background: var(--surface);
+}
+.dashboard-page--management .season-info {
+  font-size: 17px;
+  gap: 12px;
+}
+.dashboard-page--management .dashboard-actions {
+  flex-wrap: wrap;
+  gap: 12px;
+}
+body.modern-dark .dashboard-page--management .dashboard-topbar button {
+  min-height: 52px;
+  padding: 14px 22px;
+  font-size: 15px;
+}
+.management-drop-slot {
+  min-width: 0;
+  display: flex;
+  border-radius: 12px;
+}
+.management-drop-slot > * {
+  width: 100%;
+}
+.management-drop-slot.is-dragging {
+  outline: 2px dashed var(--accent);
+  outline-offset: 3px;
+}
+.management-position-fit {
+  display: grid;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+.management-position-fit b {
+  color: var(--gold-bright);
+}
+.management-card-abilities {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 5px;
+  border-block: 1px solid var(--stroke);
+  padding-block: 9px;
+  width: 100%;
+}
+.management-card-abilities > span {
+  display: grid;
+  gap: 3px;
+}
+.management-card-abilities small {
+  font-size: 9px;
+  color: var(--text-secondary);
+}
+.management-card-abilities b {
+  font-size: 16px;
+}
+body.modern-dark .training-panel .is-off-position .live-position-number,
+body.modern-dark .training-panel .live-position-number.is-reduced {
+  color: var(--danger);
+}
+.live-position-number {
+  display: inline-block;
+  font-variant-numeric: tabular-nums;
+  animation: position-value-change 0.4s ease-out;
+}
+.management-live-overall strong {
+  color: var(--text-primary);
+  font-size: 26px;
+}
+@keyframes position-value-change {
+  from {
+    opacity: 0.5;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .live-position-number {
+    animation: none;
+  }
+}
+.management-position-controls {
+  margin-top: 18px;
+  padding: 18px;
+  border: 1px solid var(--stroke);
+  border-radius: 8px;
+}
+.management-position-controls label {
+  display: grid;
+  gap: 8px;
+}
+@media (max-width: 600px) {
+  .dashboard-page--management > .dashboard-topbar {
+    padding: 16px;
+  }
+  .dashboard-page--management .dashboard-actions {
+    width: 100%;
+  }
+  .dashboard-page--management .dashboard-actions button {
+    flex: 1 1 100%;
+  }
+}
+.management-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 280px;
+  gap: 24px;
+  margin-top: 24px;
+  align-items: start;
+}
+.management-roster {
+  min-width: 0;
+}
+.management-starters {
+  padding: 18px;
+  border: 1px solid var(--stroke);
+  border-radius: 14px;
+  background: radial-gradient(ellipse at 50% 55%, #243e54 0%, #111c2b 75%);
+}
+.management-card-scroll {
+  overflow-x: auto;
+  padding: 12px 3px;
+}
+.management-starting-row {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 12px;
+  min-width: 680px;
+}
+.management-bench {
+  margin-top: 22px;
+  padding: 18px;
+  border: 1px solid var(--stroke);
+  border-radius: 14px;
+  background: var(--canvas);
+}
+.management-bench-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 12px;
+}
+.management-bench-row > button {
+  max-width: 180px;
+}
+body.modern-dark .training-panel .management-player-card {
+  width: 100%;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  border: 1px solid #47607b;
+  border-radius: 10px;
+  background: linear-gradient(160deg, #293f56, #141d29 60%);
+  color: var(--text-primary);
+  text-align: left;
+  transition:
+    border-color 0.15s,
+    transform 0.15s;
+  min-width: 0;
+}
+body.modern-dark .training-panel .management-player-card:hover {
+  border-color: var(--gold);
+  transform: translateY(-3px);
+}
+.management-card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11px;
+}
+.management-card-top strong {
+  font-size: 25px;
+  color: var(--gold-bright);
+}
+.management-card-top small {
+  font-size: 9px;
+}
+.management-card-image {
+  display: block;
+  aspect-ratio: 3 / 4;
+  width: 100%;
+  overflow: hidden;
+  border-radius: 5px;
+}
+.management-card-image > img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.management-card-image .player-card-artwork {
+  width: 100%;
+  height: 100%;
+}
+.management-card-name {
+  font-size: 15px;
+  overflow-wrap: anywhere;
+}
+.management-card-state {
+  display: grid;
+  gap: 5px;
+  width: 100%;
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--text-secondary);
+}
+.management-card-state > span {
+  display: flex;
+  justify-content: space-between;
+}
+.management-card-state b {
+  color: var(--text-primary);
+}
+.management-card-state progress,
+.management-mastery progress {
+  width: 100%;
+  height: 5px;
+  accent-color: var(--success);
+}
+.management-card-hint {
+  font-size: 10px;
+  color: var(--accent);
+  margin-top: auto;
+}
+.management-empty-slot {
+  min-height: 300px;
+  display: grid;
+  place-content: center;
+  gap: 12px;
+  text-align: center;
+  border: 1px dashed var(--stroke);
+  border-radius: 10px;
+  color: var(--text-secondary);
+}
+.management-team-panel {
+  display: grid;
+  gap: 20px;
+}
+.management-team-panel .scrim-card {
+  margin: 0;
+  grid-template-columns: minmax(0, 1fr);
+  border-radius: 10px;
+}
+.management-team-panel .training-team-actions {
+  display: grid;
+}
+.management-team-panel .scrim-card p {
+  margin: 8px 0;
+}
+.management-mastery {
+  border: 1px solid var(--stroke);
+  border-radius: 10px;
+  padding: 18px;
+  background: var(--surface);
+}
+.management-mastery label {
+  display: grid;
+  gap: 7px;
+  margin-top: 14px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+.management-mastery label span {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+.management-mastery b {
+  color: var(--text-primary);
+}
+body.modern-dark .training-panel .player-training-dialog {
+  width: min(720px, calc(100vw - 32px));
+  max-height: calc(100dvh - 40px);
+  padding: 0;
+  border: 1px solid var(--stroke);
+  border-radius: 16px;
+  background: var(--surface);
+  color: var(--text-primary);
+  box-shadow: 0 24px 90px #0009;
+}
+.player-training-dialog::backdrop {
+  background: #050912cf;
+  backdrop-filter: blur(6px);
+}
+.player-training-content {
+  padding: 26px;
+}
+.player-training-content h2 {
+  font-size: 23px;
+}
+.player-training-dialog .training-player {
+  grid-template-columns: 1fr 1fr;
+  border-radius: 8px;
+}
+.management-training-options {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 12px;
+}
+.management-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+body.modern-dark .training-panel .management-stat-grid button {
+  display: grid;
+  gap: 7px;
+  padding: 12px 5px;
+  border: 1px solid var(--stroke);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text-primary);
+  font-size: 12px;
+}
+body.modern-dark
+  .training-panel
+  .management-stat-grid
+  button[aria-pressed="true"] {
+  background: #263d55;
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+.management-stat-grid strong {
+  font-size: 22px;
+}
+.player-training-dialog .training-player-actions,
+.management-training-explanation {
+  grid-column: 1 / -1;
+}
+.player-training-dialog .training-player-actions button {
+  width: 100%;
+}
+.player-training-dialog .training-player-name span {
+  font-size: 12px;
+  color: var(--accent);
+}
+@media (max-width: 1200px) {
+  .management-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .management-team-panel {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+@media (max-width: 600px) {
+  .management-team-panel {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .management-starters,
+  .management-bench {
+    padding: 12px;
+  }
+  .player-training-content {
+    padding: 16px;
+  }
+  .management-stat-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  body.modern-dark .training-panel .management-player-card {
+    transition: none;
+  }
+}

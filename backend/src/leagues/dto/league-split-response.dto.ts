@@ -5,6 +5,7 @@ import { LeagueStageFormat } from '../enums/league-stage-format.enum';
 import { LeagueStageStatus } from '../enums/league-stage-status.enum';
 import { LeagueSplitStatus } from '../enums/league-split-status.enum';
 import { LeagueStageSettings } from '../league-format.types';
+import type { BracketView } from '../league-bracket-view';
 
 export class LeagueFixtureTeamResponseDto {
   id!: number;
@@ -52,6 +53,8 @@ export class LeagueStageParticipantResponseDto {
 }
 
 export class LeagueStageResponseDto {
+  bracket?: BracketView | null;
+  groups?: LeagueGroupResponseDto[];
   id!: number;
   sequence!: number;
   code!: string;
@@ -63,6 +66,19 @@ export class LeagueStageResponseDto {
   settings!: LeagueStageSettings;
   participants!: LeagueStageParticipantResponseDto[];
   fixtures!: LeagueFixtureResponseDto[];
+  standings!: LeagueStandingResponseDto[];
+}
+
+export class LeagueGroupResponseDto {
+  code!: string;
+  name!: string;
+  points!: number;
+  seriesWins!: number;
+  seriesLosses!: number;
+  gameDifference!: number;
+  battleStatus!:
+    'PENDING' | 'TIED' | 'LEADING' | 'TRAILING' | 'WINNER' | 'LOSER' | null;
+  battleTiebreaker?: 'GAME_DIFFERENCE' | 'INITIAL_SEED' | null;
   standings!: LeagueStandingResponseDto[];
 }
 

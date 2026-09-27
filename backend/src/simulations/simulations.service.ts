@@ -31,6 +31,11 @@ import {
 } from './dto/simulation-response.dto';
 import { FastSimStopReason } from './enums/fast-sim-stop-reason.enum';
 import { SimulationMode } from './enums/simulation-mode.enum';
+import { InternationalsService } from '../internationals/internationals.service';
+import { CalendarEventType } from '../event-queue/enums/calendar-event-type.enum';
+import { TrainingSession } from '../careers/entities/training-session.entity';
+import { TrainingCategory } from '../careers/enums/training-category.enum';
+import { getTrainingWeek } from '../careers/config/training-week';
 import {
   assertManagerActive,
   withExpectedManagerTeam,
@@ -50,6 +55,7 @@ export class SimulationsService {
     private readonly calendarsService: CalendarsService,
     private readonly eventQueueService: EventQueueService,
     private readonly leaguesService: LeaguesService,
+    private readonly internationalsService: InternationalsService,
   ) {}
 
   async quickSim(
@@ -78,6 +84,8 @@ export class SimulationsService {
     careerId: number,
     dto: FastSimDto,
   ): Promise<FastSimResponseDto> {
+    if (dto.focusManagedTeam)
+      return this.continueToDecision(accountId, careerId, dto);
     const prepared = await this.prepareCurrentDate(accountId, careerId);
     const previousDate = prepared.career.currentDate;
     const targetDate = addCalendarDays(previousDate, dto.days);
@@ -237,6 +245,122 @@ export class SimulationsService {
             calendar,
           );
         }
+      }
+    });
+  }
+
+  /** Bounded batches keep cancellation possible without discarding committed games. */
+  private async continueToDecision(
+    accountId: number,
+    careerId: number,
+    dto: FastSimDto,
+  ): Promise<FastSimResponseDto> {
+    const prepared = await this.prepareCurrentDate(accountId, careerId);
+    const previousDate = prepared.career.currentDate;
+    const targetDate = addCalendarDays(previousDate, dto.days);
+    const limit =
+      dto.maxFixtures ?? SIMULATION_CONFIG.defaultFastSimFixtureLimit;
+    const managed = await this.findManagedTeam(accountId, careerId);
+    return withExpectedManagerTeam(careerId, managed.id, async () => {
+      let calendar = await this.calendarsService.findOne(accountId, careerId);
+      const domestic: FastSimFixtureResponseDto[] = [];
+      const international: Array<{ tournamentId: number; fixtureId: number }> =
+        [];
+      let checkedWeek = '';
+      const finish = (reason: FastSimStopReason) => ({
+        ...this.toFastSimResponse(
+          previousDate,
+          targetDate,
+          limit,
+          reason,
+          domestic,
+          calendar,
+        ),
+        simulatedInternationalFixtures: international,
+      });
+      while (true) {
+        if (calendar.manager?.status === 'DISMISSED')
+          return finish(FastSimStopReason.MANAGER_DISMISSED);
+        const blockers = calendar.blockingEvents;
+        const isInternationalGame = (event: CalendarEventResponseDto) =>
+          event.type === CalendarEventType.SCHEDULED_GAME &&
+          typeof event.payload?.internationalFixtureId === 'number' &&
+          typeof event.payload?.tournamentId === 'number';
+        if (blockers.some((event) => !isInternationalGame(event)))
+          return finish(FastSimStopReason.BLOCKING_EVENT);
+        if (blockers.length) {
+          const data = await this.internationalsService.findAll(
+            accountId,
+            careerId,
+          );
+          const due = data.tournaments.flatMap((tournament) =>
+            tournament.fixtures
+              .filter((game) => game.playable && game.id !== null)
+              .map((game) => ({ tournamentId: tournament.id, game })),
+          );
+          if (
+            due.some(
+              ({ game }) =>
+                game.teamAId === managed.id || game.teamBId === managed.id,
+            )
+          )
+            return finish(FastSimStopReason.MANAGED_MATCH);
+          const next = due[0];
+          if (!next) return finish(FastSimStopReason.BLOCKING_EVENT);
+          if (domestic.length + international.length >= limit)
+            return finish(FastSimStopReason.FIXTURE_LIMIT);
+          await this.internationalsService.simulate(
+            accountId,
+            careerId,
+            next.tournamentId,
+            next.game.id!,
+          );
+          international.push({
+            tournamentId: next.tournamentId,
+            fixtureId: next.game.id!,
+          });
+          calendar = await this.calendarsService.findOne(accountId, careerId);
+          continue;
+        }
+        if (
+          calendar.dueMatches.some((fixture) =>
+            this.includesTeam(fixture, managed.id),
+          )
+        )
+          return finish(FastSimStopReason.MANAGED_MATCH);
+        const week = getTrainingWeek(calendar.currentDate).weekStartsAt;
+        if (week !== checkedWeek) {
+          const used = await this.dataSource.manager.exists(TrainingSession, {
+            where: {
+              trainingPeriod: { careerId, weekStartsAt: week },
+              category: TrainingCategory.TEAM,
+            },
+          });
+          if (!used) return finish(FastSimStopReason.WEEKLY_ACTIVITY);
+          checkedWeek = week;
+        }
+        if (calendar.currentDate >= targetDate)
+          return finish(FastSimStopReason.TARGET_REACHED);
+        const remaining = limit - domestic.length - international.length;
+        if (remaining <= 0) return finish(FastSimStopReason.FIXTURE_LIMIT);
+        // Reuse the existing transactional daily pipeline (form, contracts, schedules,
+        // league progression and manager reviews), never jump the stored date.
+        const step = await this.fastSim(accountId, careerId, {
+          days: 1,
+          maxFixtures: remaining,
+        });
+        domestic.push(...step.simulatedFixtures);
+        calendar = step.calendar;
+        if (step.stopReason === FastSimStopReason.BLOCKING_EVENT) continue;
+        if (
+          ![
+            FastSimStopReason.TARGET_REACHED,
+            FastSimStopReason.FIXTURE_LIMIT,
+          ].includes(step.stopReason)
+        )
+          return finish(step.stopReason);
+        if (step.stopReason === FastSimStopReason.FIXTURE_LIMIT)
+          return finish(step.stopReason);
       }
     });
   }

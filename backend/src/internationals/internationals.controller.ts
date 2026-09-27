@@ -1,4 +1,5 @@
 import {
+  Body,
   Controller,
   Get,
   Param,
@@ -12,6 +13,7 @@ import { CurrentAccount } from '../auth/current-account.decorator';
 import type { AuthenticatedAccount } from '../auth/authenticated-account.interface';
 import { InternationalKind } from './tournament.types';
 import { InternationalsService } from './internationals.service';
+import { SimulateDraftGameDto } from '../drafts/simulate-draft-game.dto';
 
 @Controller('careers/:careerId/internationals')
 @UseGuards(JwtAuthGuard)
@@ -49,5 +51,37 @@ export class InternationalsController {
     @Param('fixtureId', ParseIntPipe) fixtureId: number,
   ) {
     return this.service.simulate(account.id, careerId, tournamentId, fixtureId);
+  }
+
+  @Post(':tournamentId/fixtures/:fixtureId/prepare')
+  prepare(
+    @CurrentAccount() account: AuthenticatedAccount,
+    @Param('careerId', ParseIntPipe) careerId: number,
+    @Param('tournamentId', ParseIntPipe) tournamentId: number,
+    @Param('fixtureId', ParseIntPipe) fixtureId: number,
+  ) {
+    return this.service.prepareFixture(
+      account.id,
+      careerId,
+      tournamentId,
+      fixtureId,
+    );
+  }
+
+  @Post(':tournamentId/fixtures/:fixtureId/games/simulate')
+  play(
+    @CurrentAccount() account: AuthenticatedAccount,
+    @Param('careerId', ParseIntPipe) careerId: number,
+    @Param('tournamentId', ParseIntPipe) tournamentId: number,
+    @Param('fixtureId', ParseIntPipe) fixtureId: number,
+    @Body() dto: SimulateDraftGameDto,
+  ) {
+    return this.service.simulate(
+      account.id,
+      careerId,
+      tournamentId,
+      fixtureId,
+      { single: true, gameNumber: dto.gameNumber },
+    );
   }
 }

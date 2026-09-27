@@ -94,6 +94,7 @@ export class TrainingService {
     accountId: number,
     careerId: number,
     dto: CreateTeamTrainingDto,
+    expectedDate?: string,
   ): Promise<TrainingPeriodResponseDto> {
     this.validateTeamTraining(dto);
 
@@ -104,6 +105,13 @@ export class TrainingService {
         careerId,
         TrainingCategory.TEAM,
       );
+      if (
+        expectedDate !== undefined &&
+        context.career.currentDate !== expectedDate
+      )
+        throw new ConflictException(
+          '날짜가 변경되어 자동 활동을 중단했습니다.',
+        );
       let resultBefore: number;
       let resultAfter: number;
 
@@ -214,6 +222,7 @@ export class TrainingService {
     accountId: number,
     careerId: number,
     dto: CreateIndividualTrainingDto,
+    expectedDate?: string,
   ): Promise<TrainingPeriodResponseDto> {
     this.validateIndividualTraining(dto);
 
@@ -224,6 +233,13 @@ export class TrainingService {
         careerId,
         TrainingCategory.INDIVIDUAL,
       );
+      if (
+        expectedDate !== undefined &&
+        context.career.currentDate !== expectedDate
+      )
+        throw new ConflictException(
+          '날짜가 변경되어 자동 활동을 중단했습니다.',
+        );
       const careerPlayer = await manager
         .getRepository(CareerPlayer)
         .createQueryBuilder('careerPlayer')

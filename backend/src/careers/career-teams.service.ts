@@ -1,10 +1,12 @@
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, Repository } from 'typeorm';
+import { DataSource, Repository, Not, IsNull, EntityManager } from 'typeorm';
+import { MatchSeries } from '../match-series/entities/match-series.entity';
 import { Position } from '../players/enums/position.enum';
 import { isChampionArchetypeAllowed } from './config/champion-archetype.config';
 import {
@@ -69,6 +71,7 @@ export class CareerTeamsService {
         );
       }
 
+      await this.assertNoActiveDraft(manager, careerId, careerTeamId);
       careerTeam.teamStrategy = dto.strategy;
       const savedCareerTeam = await manager
         .getRepository(CareerTeam)
@@ -80,6 +83,36 @@ export class CareerTeamsService {
         strategy: savedCareerTeam.teamStrategy,
       };
     });
+  }
+
+  private async assertNoActiveDraft(
+    manager: EntityManager,
+    careerId: number,
+    careerTeamId: number,
+  ) {
+    const series = await manager.find(MatchSeries, {
+      where: [
+        { careerId, teamAId: careerTeamId, drafts: Not(IsNull()) },
+        { careerId, teamBId: careerTeamId, drafts: Not(IsNull()) },
+      ],
+      select: {
+        id: true,
+        drafts: true,
+        games: { id: true, seriesGameNumber: true },
+      },
+      relations: { games: true },
+    });
+    if (
+      series.some((s) =>
+        Object.keys(s.drafts ?? {}).some(
+          (key) => !s.games.some((g) => g.seriesGameNumber === Number(key)),
+        ),
+      )
+    ) {
+      throw new ConflictException(
+        '밴픽이 시작된 세트를 먼저 완료한 뒤 선발·전술을 변경해 주세요.',
+      );
+    }
   }
 
   async updatePlayerInstruction(
@@ -212,6 +245,12 @@ export class CareerTeamsService {
     position: Position,
     dto: SwapStarterDto,
   ): Promise<SwapStarterResponseDto> {
+    if (
+      dto.careerPlayerId !== undefined &&
+      dto.benchCareerPlayerId !== undefined
+    ) {
+      throw new BadRequestException('Select exactly one player');
+    }
     return this.dataSource.transaction(async (manager) => {
       await lockActiveManagerCareer(manager, accountId, careerId);
       const careerTeam = await manager.findOne(CareerTeam, {
@@ -236,32 +275,61 @@ export class CareerTeamsService {
           roster.role === RosterRole.STARTER &&
           roster.starterPosition === position,
       );
-      const selectedBench = careerTeam.rosters.find(
+      const selectedPlayer = careerTeam.rosters.find(
         (roster) =>
-          roster.role === RosterRole.BENCH &&
-          roster.careerPlayerId === dto.benchCareerPlayerId,
+          roster.careerPlayerId ===
+            (dto.careerPlayerId ?? dto.benchCareerPlayerId) &&
+          (dto.careerPlayerId !== undefined ||
+            roster.role === RosterRole.BENCH),
       );
 
-      if (!selectedBench) {
+      if (!selectedPlayer) {
         throw new NotFoundException(
-          `Bench CareerPlayer ${dto.benchCareerPlayerId} was not found in CareerTeam ${careerTeamId}`,
+          `CareerPlayer ${dto.careerPlayerId ?? dto.benchCareerPlayerId} was not found in CareerTeam ${careerTeamId}`,
         );
       }
 
-      let demotedBench: Roster | null = null;
-      if (currentStarter) {
-        currentStarter.role = RosterRole.BENCH;
-        currentStarter.starterPosition = null;
-        currentStarter.playerInstruction = null;
-        currentStarter.championArchetype = null;
-        demotedBench = await manager.save(Roster, currentStarter);
+      if (currentStarter?.id === selectedPlayer.id) {
+        return {
+          careerId,
+          careerTeamId,
+          position,
+          promotedStarter: this.toSwappedRosterSlot(selectedPlayer),
+          demotedBench: null,
+          swappedStarter: null,
+        };
+      }
+      const sourcePosition =
+        selectedPlayer.role === RosterRole.STARTER
+          ? selectedPlayer.starterPosition
+          : null;
+      await this.assertNoActiveDraft(manager, careerId, careerTeamId);
+      // Vacate the unique source slot before moving its replacement. The transaction
+      // keeps the temporary bench state invisible and rolls back all three writes.
+      if (sourcePosition !== null) {
+        selectedPlayer.role = RosterRole.BENCH;
+        selectedPlayer.starterPosition = null;
+        await manager.save(Roster, selectedPlayer);
       }
 
-      selectedBench.role = RosterRole.STARTER;
-      selectedBench.starterPosition = position;
-      selectedBench.playerInstruction = null;
-      selectedBench.championArchetype = null;
-      const promotedStarter = await manager.save(Roster, selectedBench);
+      let demotedBench: Roster | null = null;
+      let swappedStarter: Roster | null = null;
+      if (currentStarter) {
+        currentStarter.role =
+          sourcePosition === null ? RosterRole.BENCH : RosterRole.STARTER;
+        currentStarter.starterPosition = sourcePosition;
+        currentStarter.playerInstruction = null;
+        currentStarter.championArchetype = null;
+        const replacement = await manager.save(Roster, currentStarter);
+        if (sourcePosition === null) demotedBench = replacement;
+        else swappedStarter = replacement;
+      }
+
+      selectedPlayer.role = RosterRole.STARTER;
+      selectedPlayer.starterPosition = position;
+      selectedPlayer.playerInstruction = null;
+      selectedPlayer.championArchetype = null;
+      const promotedStarter = await manager.save(Roster, selectedPlayer);
 
       return {
         careerId,
@@ -270,6 +338,9 @@ export class CareerTeamsService {
         promotedStarter: this.toSwappedRosterSlot(promotedStarter),
         demotedBench: demotedBench
           ? this.toSwappedRosterSlot(demotedBench)
+          : null,
+        swappedStarter: swappedStarter
+          ? this.toSwappedRosterSlot(swappedStarter)
           : null,
       };
     });

@@ -79,7 +79,7 @@ describe('EASY AI club policy', () => {
   it('respects ordinary off-position proficiency when assessing an existing starter', () => {
     const rosters = lineup();
     rosters[0].careerPlayer = player(1, Position.MID, 80);
-    expect(assessAiRoster(rosters).positions[0].ability).toBe(68);
+    expect(assessAiRoster(rosters).positions[0].ability).toBe(48);
     rosters[0].careerPlayer.positionProficiencies = [
       { position: Position.TOP, proficiency: 100 },
     ];

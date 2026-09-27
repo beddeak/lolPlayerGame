@@ -46,12 +46,13 @@ const auth = (id = 1) => ({
   account: { id, displayName: `Coach ${id}`, email: `coach${id}@example.com` },
 });
 
-function harness() {
+function harness(initialToken = null) {
   const slots = [];
   let cursor = 0;
   let tree;
   let effects = [];
-  let storedToken = null;
+  let storedToken = initialToken;
+  const sessionListeners = new Set();
   let requestHandler;
   const calls = [];
   const sameDeps = (a, b) =>
@@ -100,6 +101,10 @@ function harness() {
   };
   const api = {
     ApiError,
+    subscribeToSessionInvalidation(listener) {
+      sessionListeners.add(listener);
+      return () => sessionListeners.delete(listener);
+    },
     getStoredAccessToken: () => storedToken,
     storeAccessToken: (token) => {
       storedToken = token;
@@ -125,6 +130,15 @@ function harness() {
   ).outputText;
   const module = { exports: {} };
   const views = {
+    "./LoginBackground": { default: function LoginBackground() {} },
+    "./TestAdminPanel": { default: function TestAdminPanel() {} },
+    "./AppNavigation": { default: function AppNavigation() {} },
+    "./DeleteCareerButton": { default: function DeleteCareerButton() {} },
+    "./PlayerCardArtwork": {
+      default: function PlayerCardArtwork() {},
+      hasCardArtwork: () => false,
+    },
+    "./card-artwork": { hasCardArtwork: () => false },
     "./TrainingPanel": { default: function TrainingPanel() {} },
     "./ClubLogo": { default: function ClubLogo() {} },
     "./ClubSelectionView": { default: function ClubSelectionView() {} },
@@ -140,6 +154,18 @@ function harness() {
     (name) => {
       if (name === "react") return hooks;
       if (name === "./api") return api;
+      if (name === "./position-fit") {
+        const fit = { exports: {} };
+        const compiled = ts.transpileModule(
+          fs.readFileSync(
+            path.resolve(__dirname, "../src/position-fit.ts"),
+            "utf8",
+          ),
+          { compilerOptions: { module: ts.ModuleKind.CommonJS } },
+        ).outputText;
+        new Function("exports", compiled)(fit.exports);
+        return fit.exports;
+      }
       if (name === "./types")
         return { POSITIONS: ["TOP", "JUNGLE", "MID", "ADC", "SUPPORT"] };
       if (name.endsWith(".css")) return {};
@@ -188,6 +214,8 @@ function harness() {
       requestHandler = handler;
     },
     storedToken: () => storedToken,
+    invalidateSession: (token) => sessionListeners.forEach((listener) => listener(token)),
+    sessionListenerCount: () => sessionListeners.size,
     async login(id = 1) {
       await component("AuthScreen").onAuthenticated(auth(id));
       render();
@@ -198,7 +226,8 @@ function harness() {
       render();
     },
     async createScreen() {
-      component("AppHeader").onCreate();
+      component("AppHeader").onHome();
+      component("SaveSelectScreen").onCreate();
       await settle();
       render();
     },
@@ -678,6 +707,9 @@ async function legendNavigation() {
   app.component("SeasonHubView").onOpenLegends();
   assert.equal(app.component("MarketView").career.id, 1);
   assert.equal(app.component("MarketView").initialSection, "legends");
+  app.component("AppHeader").onSeason();
+  app.component("SeasonHubView").onOpenMarket();
+  assert.equal(app.component("MarketView").initialSection, "players");
 }
 
 async function clubCreationContract() {
@@ -890,18 +922,173 @@ async function googleLinkPanelPreservesCareerAndSession() {
   app.component("AppHeader").onHome();
   const linking = app.component("GoogleAccountLink");
   assert.equal(linking.token, "token-1");
-  assert.equal(linking.onAuthenticated, undefined, "Linking must never replace the current account or reset careers");
-  assert.equal(app.nodes().find((node) => node.type.name === "GoogleAccountLink").key, "token-1");
+  assert.equal(
+    linking.onAuthenticated,
+    undefined,
+    "Linking must never replace the current account or reset careers",
+  );
+  assert.equal(
+    app.nodes().find((node) => node.type.name === "GoogleAccountLink").key,
+    "token-1",
+  );
   app.component("AppHeader").onSeason();
   assert.equal(app.component("SeasonHubView").career.id, 1);
   assert.equal(app.storedToken(), "token-1");
   await app.logout();
   await app.login(2);
   assert.equal(app.component("GoogleAccountLink").token, "token-2");
-  assert.equal(app.nodes().find((node) => node.type.name === "GoogleAccountLink").key, "token-2");
+  assert.equal(
+    app.nodes().find((node) => node.type.name === "GoogleAccountLink").key,
+    "token-2",
+  );
+}
+
+async function deleteSave(lostResponse = false) {
+  const app = harness();
+  app.intercept(async (url, options, fallback) =>
+    url === "/careers" ? [{ id: 1 }, { id: 2 }] : fallback(url, options),
+  );
+  await app.login();
+  await app.open(1);
+  app.component("AppHeader").onHome();
+  const pending = deferred();
+  app.intercept(async (url, options, fallback) =>
+    options.method === "DELETE"
+      ? pending.promise
+      : url === "/careers"
+        ? [{ id: 2 }]
+        : fallback(url, options),
+  );
+  const remove = app.component("SaveSelectScreen").onDelete(1);
+  assert.equal(app.component("SaveSelectScreen").deletingId, 1);
+  await assert.rejects(app.component("SaveSelectScreen").onDelete(1));
+  if (lostResponse) pending.reject(new Error("Response lost"));
+  else pending.resolve({ deleted: true });
+  await remove;
+  const saves = app.component("SaveSelectScreen");
+  assert.deepEqual(
+    saves.careers.map((c) => c.id),
+    [2],
+  );
+  assert.equal(saves.deletingId, null);
+  app.component("AppHeader").onSeason();
+  assert.ok(!app.nodes().some((node) => node.type.name === "SeasonHubView"));
+  assert.equal(
+    app.calls.filter((call) => call.options?.method === "DELETE").length,
+    1,
+  );
+}
+
+async function deleteAcrossSessions() {
+  const app = harness();
+  await app.login();
+  const pending = deferred();
+  app.intercept((url, options, fallback) =>
+    options.method === "DELETE" ? pending.promise : fallback(url, options),
+  );
+  const remove = app.component("SaveSelectScreen").onDelete(1);
+  await app.logout();
+  await app.login(2);
+  await app.open(2);
+  pending.resolve({ deleted: true });
+  await remove;
+  assert.equal(app.activeId(), 2);
+  assert.equal(app.storedToken(), "token-2");
+}
+
+async function sideMenuDestinations() {
+  const app = harness();
+  await app.login();
+  assert.equal(app.component("AppHeader").onCreate, undefined);
+  await app.open(1);
+  const header = app.component("AppHeader");
+  assert.equal(header.clubName, "Team 1");
+  header.onSeason();
+  assert.equal(app.component("SeasonHubView").career.id, 1);
+  app.component("AppHeader").onClubHome();
+  assert.equal(app.activeId(), 1);
+  app.component("AppHeader").onHome();
+  assert.ok(app.component("SaveSelectScreen").onCreate);
+  await app.createScreen();
+  assert.ok(app.component("ClubSelectionView").onSubmit);
+}
+
+async function childSessionExpired() {
+  const app = harness();
+  await app.login();
+  await app.open(1);
+  app.component("AppHeader").onSeason();
+  assert.equal(app.component("SeasonHubView").token, "token-1");
+  const count = app.calls.length;
+  app.invalidateSession("token-1");
+  app.invalidateSession("token-1");
+  assert.equal(app.storedToken(), null);
+  assert.match(app.component("AuthScreen").notice, /다시 로그인/);
+  assert.match(app.component("AuthScreen").notice, /커리어는 유지/);
+  assert.equal(app.calls.length, count, "Expiry must not retry a write or call logout with an invalid token");
+  assert.ok(!app.nodes().some((node) => node.type.name === "SeasonHubView"));
+  await app.login(2);
+  assert.equal(app.component("SaveSelectScreen").account.id, 2);
+  await app.logout();
+  assert.equal(app.component("AuthScreen").notice, "", "Normal logout must not retain an old expiry warning");
+}
+
+async function staleSessionInvalidation() {
+  const app = harness();
+  await app.login();
+  await app.logout();
+  await app.login(2);
+  await app.open(2);
+  app.invalidateSession("token-1");
+  assert.equal(app.storedToken(), "token-2");
+  assert.equal(app.activeId(), 2, "Delayed 401 from old login must not log out the new account");
+  assert.equal(app.sessionListenerCount(), 1);
+  app.unmount();
+  assert.equal(app.sessionListenerCount(), 0);
+  app.invalidateSession("token-2");
+  assert.equal(app.storedToken(), "token-2");
+}
+
+async function expiredStoredSession() {
+  const app = harness("expired-boot-token");
+  const pending = deferred();
+  app.intercept(() => pending.promise);
+  app.render();
+  app.invalidateSession("expired-boot-token");
+  assert.equal(app.storedToken(), null);
+  assert.match(app.component("AuthScreen").notice, /다시 로그인/);
+  pending.reject(new ApiError(401, "Invalid or expired access token"));
+  await settle();
+  assert.match(app.component("AuthScreen").notice, /다시 로그인/);
+  app.unmount();
+}
+
+async function expiryIgnoresInFlightRead() {
+  const app = harness();
+  await app.login();
+  await app.open(1);
+  const old = deferred();
+  app.intercept((url, options, fallback) => url === "/careers/1" ? old.promise : fallback(url, options));
+  const refresh = app.refresh();
+  app.invalidateSession("token-1");
+  await app.login(2);
+  await app.open(2);
+  old.resolve(career(1));
+  await refresh;
+  assert.equal(app.storedToken(), "token-2");
+  assert.equal(app.activeId(), 2);
+  app.unmount();
 }
 
 (async () => {
+  await childSessionExpired();
+  await staleSessionInvalidation();
+  await expiredStoredSession();
+  await expiryIgnoresInFlightRead();
+  await sideMenuDestinations();
+  await deleteSave();
+  await deleteSave(true);
+  await deleteAcrossSessions();
   await staleRefresh();
   await staleRefresh(true);
   await staleSwap();
@@ -938,7 +1125,7 @@ async function googleLinkPanelPreservesCareerAndSession() {
   await unmountedCreate();
   await googleLinkPanelPreservesCareerAndSession();
   console.log(
-    "App request regression checks passed: 35 scenarios (save/session races, request ordering, mutation failures, create/list failures, creation re-entry, legend navigation, Google linking isolation).",
+    "App request regression checks passed: 43 scenarios (including child session expiry, startup expiry, stale-token isolation, side-menu destinations, save deletion, duplicate clicks, response loss).",
   );
 })().catch((error) => {
   console.error(error);

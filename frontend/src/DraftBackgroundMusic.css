@@ -1,0 +1,31 @@
+.draft-bgm {
+  position: absolute;
+  right: 18px;
+  bottom: 116px;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  max-width: calc(100% - 36px);
+}
+.draft-preview-dialog .draft-bgm-toggle {
+  padding: 7px 10px;
+  font: inherit;
+  font-size: 11px;
+  border: 1px solid #526b85;
+  border-radius: 4px;
+  background: #152437;
+  color: #d5e4f6;
+  cursor: pointer;
+}
+.draft-bgm-toggle:focus-visible {
+  outline: 2px solid #f5d18b;
+  outline-offset: 2px;
+}
+.draft-bgm small {
+  color: #c1cee0;
+  background: #0b1725;
+  padding: 3px 6px;
+  font-size: 10px;
+}

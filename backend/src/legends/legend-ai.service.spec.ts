@@ -17,6 +17,14 @@ describe('Legend event AI competition', () => {
     careerId: 1,
     playerCardId: 11,
     currentTeamId: null,
+    currentMechanics: 80,
+    currentGameSense: 80,
+    currentLaning: 80,
+    currentTeamFight: 80,
+    currentMacro: 80,
+    currentTeamPlay: 80,
+    currentMental: 80,
+    currentChampionPool: 80,
     playerCard: { cardYear: 2021, player: { nickname: 'Legend' } },
   } as CareerPlayer;
   const contracts = { signLegendFreeAgentForAi: jest.fn() };
@@ -121,7 +129,7 @@ describe('Legend event AI competition', () => {
       expect.objectContaining({ currentDate: '2026-11-28' }),
       3,
       player.id,
-      expect.any(Object),
+      expect.objectContaining({ annualSalary: 34_500 }),
     );
     expect(result).toEqual([
       expect.objectContaining({

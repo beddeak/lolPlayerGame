@@ -20,7 +20,7 @@ import { MatchFeedbackPlayerEffect } from './entities/match-feedback-player-effe
 import { MatchFeedback } from './entities/match-feedback.entity';
 import { MatchSeries } from './entities/match-series.entity';
 import { FeedbackType } from './enums/feedback-type.enum';
-import { calculateFeedbackPlayerEffect } from './feedback-effect';
+import { calculateFeedbackReaction } from './feedback-reaction';
 import {
   getSeriesWinsRequired,
   MATCH_SERIES_CONFIG,
@@ -78,9 +78,23 @@ export class MatchFeedbackService {
 
         const managedTeam = this.findManagedTeam(series);
         const afterGameNumber = latestGame.seriesGameNumber!;
+        if (
+          dto.afterGameNumber !== undefined &&
+          dto.afterGameNumber !== afterGameNumber
+        ) {
+          throw new ConflictException(
+            '피드백 대상 세트가 변경되었습니다. 경기 결과를 다시 불러와 주세요.',
+          );
+        }
+        if (series.drafts?.[String(afterGameNumber + 1)]) {
+          throw new ConflictException(
+            '다음 세트 밴픽이 시작되어 피드백을 변경할 수 없습니다.',
+          );
+        }
         const existingFeedback = await manager.findOneBy(MatchFeedback, {
           seriesId,
           afterGameNumber,
+          type: dto.type,
         });
 
         if (existingFeedback) {
@@ -130,8 +144,14 @@ export class MatchFeedbackService {
             dto.type === FeedbackType.INDIVIDUAL ? careerPlayers[0] : null,
         });
         const savedFeedback = await manager.save(MatchFeedback, feedback);
+        const teamStats = latestGame.playerStats.filter(
+          (stat) => stat.careerTeamId === managedTeam.id,
+        );
+        const teamAverageRating =
+          teamStats.reduce((sum, stat) => sum + (stat.rating ?? 6), 0) /
+          teamStats.length;
         const effects = careerPlayers.map((careerPlayer) => {
-          const effect = calculateFeedbackPlayerEffect(
+          const effect = calculateFeedbackReaction(
             {
               personality: careerPlayer.personality,
               mental: careerPlayer.currentMental,
@@ -139,6 +159,14 @@ export class MatchFeedbackService {
               coachTrust: careerPlayer.coachTrust,
             },
             dto.option,
+            {
+              won: latestGame.winnerTeamId === managedTeam.id,
+              rating:
+                teamStats.find(
+                  (stat) => stat.careerPlayerId === careerPlayer.id,
+                )?.rating ?? 6,
+              teamAverageRating,
+            },
           );
 
           return manager.create(MatchFeedbackPlayerEffect, {
@@ -154,8 +182,7 @@ export class MatchFeedbackService {
         await Promise.all(
           effects.map((effect) =>
             manager.update(CareerPlayer, effect.careerPlayerId, {
-              currentMental: effect.mentalAfter,
-              form: effect.formAfter,
+              // Trust is persistent; match-state reactions expire after the next set.
               coachTrust: effect.coachTrustAfter,
             }),
           ),
@@ -200,7 +227,7 @@ export class MatchFeedbackService {
   private validateDto(dto: CreateFeedbackDto): void {
     const optionConfig = FEEDBACK_OPTION_CONFIG[dto.option];
 
-    if (optionConfig.type !== dto.type) {
+    if (!optionConfig || optionConfig.type !== dto.type) {
       throw new BadRequestException(
         `${dto.option} is not a ${dto.type} feedback option`,
       );
@@ -310,6 +337,7 @@ export class MatchFeedbackService {
     effect: MatchFeedbackPlayerEffect,
   ): FeedbackPlayerEffectResponseDto {
     return {
+      reaction: effect.reaction ?? null,
       careerPlayerId: effect.careerPlayerId,
       personality: effect.personality,
       mentalBefore: effect.mentalBefore,

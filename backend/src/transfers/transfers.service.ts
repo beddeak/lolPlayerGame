@@ -201,7 +201,7 @@ export class TransfersService {
         const contract = contractsByPlayer.get(player.id) ?? null;
         const blockedReason = !getTransferWindow(career.currentDate).isOpen
           ? '이적시장 개장 기간이 아닙니다.'
-          : this.marketBlockedReason(player, contract, players);
+          : this.marketBlockedReason(player, contract);
         const requiredFee =
           availability === TransferMarketAvailability.CONTRACTED &&
           player.roster
@@ -326,8 +326,6 @@ export class TransfersService {
         throw new ConflictException(
           '선수의 현재 로스터 정보가 일치하지 않습니다.',
         );
-      await this.assertSourceCanReleaseStarter(manager, roster, true);
-
       const existing = await manager.findOne(TransferAgreement, {
         where: {
           careerId,
@@ -508,7 +506,6 @@ export class TransfersService {
       throw new ConflictException(
         '선수의 현재 로스터 정보가 일치하지 않습니다.',
       );
-    await this.assertSourceCanReleaseStarter(manager, roster, true);
     await this.assertDestinationBenchSpace(manager, buyer.id);
     if (
       await manager.findOne(ContractOffer, {
@@ -722,7 +719,6 @@ export class TransfersService {
       throw new ConflictException(
         '선수의 현재 로스터 정보가 일치하지 않습니다.',
       );
-    await this.assertSourceCanReleaseStarter(manager, roster, true);
     return {
       player,
       offerType: ContractOfferType.TRANSFER,
@@ -804,7 +800,6 @@ export class TransfersService {
       throw new ConflictException(
         '선수의 현재 로스터 정보가 일치하지 않습니다.',
       );
-    await this.assertSourceCanReleaseStarter(manager, roster, true);
     return player;
   }
 
@@ -854,7 +849,7 @@ export class TransfersService {
       const replacement = await this.assertSourceCanReleaseStarter(
         manager,
         roster,
-        true,
+        false,
       );
       if (roster.role === RosterRole.STARTER) {
         const vacatedPosition = roster.starterPosition;
@@ -865,7 +860,10 @@ export class TransfersService {
         roster.playerInstruction = null;
         roster.championArchetype = null;
         await manager.save(Roster, roster);
-        await this.promoteReplacement(manager, replacement!, vacatedPosition);
+        // A transfer may leave a vacancy. Filling the starting five is the
+        // selling club's responsibility, not a prerequisite for selling.
+        if (replacement)
+          await this.promoteReplacement(manager, replacement, vacatedPosition);
       }
       roster.careerTeamId = destinationTeam.id;
       roster.careerTeam = destinationTeam;
@@ -1097,7 +1095,6 @@ export class TransfersService {
   private marketBlockedReason(
     player: CareerPlayer,
     contract: PlayerContract | null,
-    allPlayers: CareerPlayer[],
   ): string | null {
     if (player.currentTeamId === null) {
       if (player.roster || contract)
@@ -1106,17 +1103,7 @@ export class TransfersService {
     }
     if (!player.roster || player.roster.careerTeamId !== player.currentTeamId)
       return '선수의 현재 로스터 정보가 일치하지 않습니다.';
-    if (player.roster.role !== RosterRole.STARTER) return null;
-    const hasReplacement = allPlayers.some(
-      (candidate) =>
-        candidate.id !== player.id &&
-        candidate.currentTeamId === player.currentTeamId &&
-        candidate.currentPosition === player.roster?.starterPosition &&
-        candidate.roster?.role === RosterRole.BENCH,
-    );
-    return hasReplacement
-      ? null
-      : '원소속 팀에 같은 포지션 후보가 없어 현재는 이적할 수 없습니다.';
+    return null;
   }
 
   private requiredTransferFee(

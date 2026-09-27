@@ -10,6 +10,7 @@ import {
 import { CareerPlayer } from '../../careers/entities/career-player.entity';
 import { PlayerPersonality } from '../../players/enums/player-personality.enum';
 import { MatchFeedback } from './match-feedback.entity';
+import type { FeedbackReaction } from '../next-set-feedback';
 
 @Entity({ name: 'match_feedback_player_effects' })
 @Unique('UQ_feedback_player_effects_feedback_player', [
@@ -17,6 +18,9 @@ import { MatchFeedback } from './match-feedback.entity';
   'careerPlayerId',
 ])
 export class MatchFeedbackPlayerEffect {
+  @Column({ type: 'json', nullable: true })
+  reaction!: FeedbackReaction | null;
+
   @PrimaryGeneratedColumn({ type: 'int', unsigned: true })
   id!: number;
 

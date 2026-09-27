@@ -20,9 +20,10 @@
 }
 
 .manager-review-panel {
-  margin: 1.2rem 0;
-  padding: clamp(1rem, 2.5vw, 1.8rem);
+  min-width: 0;
+  padding: 1.2rem;
   border: 1px solid #cedce7;
+  border-top: 3px solid var(--season-blue);
   background: #fff;
   color: var(--season-ink);
 }
@@ -33,10 +34,11 @@
 }
 
 .manager-status-label {
-  padding: 0.6rem 0.85rem;
+  padding: 0.45rem 0.6rem;
   background: #e9f5ef;
   color: #176044;
-  font-size: 0.8rem;
+  font-size: 0.7rem;
+  white-space: nowrap;
 }
 
 .manager-WARNING .manager-status-label {
@@ -52,26 +54,26 @@
 .manager-confidence-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 1rem;
+  gap: 0.6rem;
   margin: 1rem 0;
 }
 
 .manager-confidence {
   display: grid;
-  grid-template-columns: 1fr auto;
+  grid-template-columns: minmax(0, 1fr);
   align-items: center;
-  gap: 0.65rem;
-  padding: 1rem;
+  gap: 0.45rem;
+  padding: 0.75rem;
   background: #f1f7fc;
 }
 
 .manager-confidence > span {
-  font-size: 0.85rem;
+  font-size: 0.75rem;
   font-weight: 700;
 }
 
 .manager-confidence > strong {
-  font-size: 1.7rem;
+  font-size: 1.5rem;
   color: #145b9f;
 }
 
@@ -107,13 +109,61 @@
 
 .manager-season-record {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr);
   gap: 0.75rem;
 }
 
 .manager-season-record > div {
   display: grid;
   gap: 0.35rem;
+}
+
+.manager-review-summary {
+  display: flex;
+  align-items: baseline;
+  gap: 0.55rem;
+  min-width: 0;
+  margin: 0 0 1rem;
+  font-size: 0.75rem;
+  color: #435a6e;
+}
+
+.manager-review-summary > span:first-child {
+  flex-shrink: 0;
+  font-weight: 800;
+  color: var(--season-blue);
+}
+
+.manager-review-summary > span:last-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.manager-review-details {
+  border-top: 1px solid #e0e8ee;
+  font-size: 0.8rem;
+}
+
+.manager-review-details > summary {
+  padding: 0.85rem 0 0;
+  color: #435a6e;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.manager-review-details > summary:focus-visible {
+  outline: 2px solid var(--season-blue);
+  outline-offset: 4px;
+}
+
+.manager-review-details[open] > summary {
+  margin-bottom: 1rem;
+}
+
+.manager-review-details p {
+  overflow-wrap: anywhere;
 }
 
 .manager-season-record span,
@@ -144,6 +194,7 @@
 .manager-dismissed-note {
   padding: 1rem;
   margin-top: 1rem;
+  margin-bottom: 1rem;
   border-left: 4px solid #d6972e;
   background: #fff7e8;
   color: #724812;
@@ -196,18 +247,111 @@
   font-size: 0.7rem;
 }
 
-@media (max-width: 600px) {
-  .manager-confidence-grid,
-  .manager-season-record {
-    grid-template-columns: 1fr;
-  }
-}
-
 .annual-season-panel {
   margin: 1.2rem 0;
-  padding: clamp(1rem, 2.5vw, 1.8rem);
+  min-width: 0;
   border: 1px solid #cedce7;
   background: #fff;
+}
+
+.season-calendar-toggle {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 1rem;
+  min-height: 4.5rem;
+  padding: 1rem 1.3rem;
+  list-style: none;
+  cursor: pointer;
+  color: var(--season-ink);
+}
+
+.season-calendar-toggle::-webkit-details-marker {
+  display: none;
+}
+
+.season-calendar-toggle:hover {
+  background: #f5f9fc;
+}
+
+.season-calendar-toggle:focus-visible {
+  outline: 2px solid var(--season-blue);
+  outline-offset: 3px;
+}
+
+.calendar-disclosure-title,
+.calendar-current-glance {
+  display: grid;
+  min-width: 0;
+  gap: 0.25rem;
+}
+
+.calendar-disclosure-title small {
+  color: #697e90;
+  font-size: 0.6rem;
+  font-weight: 800;
+  letter-spacing: 0.07em;
+}
+
+.calendar-disclosure-title > strong {
+  font-size: 1rem;
+}
+
+.calendar-current-glance > strong {
+  color: var(--season-blue);
+  font-size: 0.8rem;
+}
+
+.calendar-current-glance small {
+  color: #697e90;
+  font-size: 0.7rem;
+}
+
+.calendar-disclosure-notices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+.calendar-disclosure-notices small {
+  padding: 0.25rem 0.5rem;
+  color: #78572c;
+  background: #fff7e9;
+  font-size: 0.68rem;
+}
+
+.calendar-disclosure-action {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  margin-left: auto;
+  color: var(--season-blue);
+  font-size: 0.75rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.calendar-disclosure-chevron {
+  font-size: 1.2rem;
+}
+
+.calendar-collapse-label,
+.season-calendar-disclosure[open] > summary .calendar-expand-label {
+  display: none;
+}
+
+.season-calendar-disclosure[open] > summary .calendar-collapse-label {
+  display: inline;
+}
+
+.season-calendar-disclosure[open] > summary .calendar-disclosure-chevron {
+  transform: rotate(180deg);
+}
+
+.season-calendar-body {
+  padding: 1rem;
+  border-top: 1px solid #e0e8ee;
 }
 
 .annual-season-heading {
@@ -250,7 +394,7 @@
 
 .season-period-summary > div {
   display: grid;
-  padding: 1rem;
+  padding: 0.7rem 0.8rem;
   gap: 0.35rem;
   background: #f4f8fc;
 }
@@ -266,7 +410,7 @@
 
 .season-period-summary strong {
   color: var(--season-blue-dark);
-  font-size: 1.2rem;
+  font-size: 1rem;
 }
 
 .season-period-summary small {
@@ -278,7 +422,7 @@
   display: grid;
   padding: 0;
   margin: 0;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(7.5rem, 1fr));
   gap: 0.5rem;
   list-style: none;
 }
@@ -286,7 +430,7 @@
 .season-period {
   display: flex;
   min-width: 0;
-  padding: 0.75rem;
+  padding: 0.6rem;
   border: 1px solid #dde4ea;
   border-top: 3px solid #bdcbd8;
   flex-direction: column;
@@ -386,13 +530,29 @@
   font-size: 0.82rem;
 }
 
-@media (max-width: 1100px) {
-  .season-year-timeline {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-  }
-}
-
 @media (max-width: 640px) {
+  .season-calendar-toggle {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 0.75rem;
+    padding: 1rem;
+  }
+
+  .calendar-current-glance,
+  .calendar-disclosure-notices {
+    grid-column: 1 / -1;
+  }
+
+  .calendar-disclosure-notices:empty {
+    display: none;
+  }
+
+  .calendar-disclosure-action {
+    grid-column: 2;
+    grid-row: 1;
+    font-size: 0.68rem;
+  }
+
   .season-year-timeline,
   .season-period-summary {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -414,8 +574,11 @@
   min-height: 2.7rem;
   margin-bottom: 1rem;
   border-bottom: 1px solid #cbd3dc;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  padding-bottom: 0.75rem;
 }
 
 .season-back-button {
@@ -429,7 +592,7 @@
   color: var(--season-orange);
 }
 
-.season-navline > div {
+.season-nav-identity {
   display: flex;
   color: #75808c;
   align-items: center;
@@ -439,13 +602,13 @@
   letter-spacing: 0.12em;
 }
 
-.season-navline i {
+.season-nav-identity i {
   width: 1px;
   height: 0.8rem;
   background: #bdc6cf;
 }
 
-.season-navline strong {
+.season-nav-identity strong {
   color: var(--season-blue);
 }
 
@@ -458,8 +621,17 @@
   overflow: hidden;
   color: #fff;
   background:
-    linear-gradient(115deg, rgba(10, 46, 82, 0.96) 0 46%, rgba(20, 91, 159, 0.89) 76%, rgba(31, 133, 192, 0.82)),
-    repeating-linear-gradient(120deg, transparent 0 46px, rgba(255, 255, 255, 0.07) 47px 48px);
+    linear-gradient(
+      115deg,
+      rgba(10, 46, 82, 0.96) 0 46%,
+      rgba(20, 91, 159, 0.89) 76%,
+      rgba(31, 133, 192, 0.82)
+    ),
+    repeating-linear-gradient(
+      120deg,
+      transparent 0 46px,
+      rgba(255, 255, 255, 0.07) 47px 48px
+    );
   box-shadow: 0 1rem 2.5rem rgba(24, 56, 88, 0.16);
   grid-template-columns: minmax(0, 1fr) minmax(25rem, 0.7fr);
   align-items: center;
@@ -499,7 +671,6 @@
 .season-section-heading span,
 .next-match-topline span,
 .active-stage-bar span,
-.add-split-panel > span,
 .empty-league-state > span,
 .quick-report-header span,
 .series-scoreboard span,
@@ -760,9 +931,7 @@
 .next-match-card,
 .season-overview-card,
 .league-center-panel,
-.schedule-panel,
-.event-feed-panel,
-.add-split-panel {
+.schedule-panel {
   border: 1px solid #d9e0e7;
   background: #fff;
   box-shadow: 0 0.35rem 1.4rem rgba(30, 57, 83, 0.075);
@@ -773,8 +942,7 @@
   min-height: 23rem;
   padding: 1.4rem;
   background:
-    linear-gradient(140deg, rgba(235, 245, 252, 0.82), transparent 55%),
-    #fff;
+    linear-gradient(140deg, rgba(235, 245, 252, 0.82), transparent 55%), #fff;
 }
 
 .next-match-card.is-due {
@@ -955,9 +1123,7 @@
 }
 
 .season-overview-card,
-.schedule-panel,
-.event-feed-panel,
-.add-split-panel {
+.schedule-panel {
   padding: 1.25rem;
 }
 
@@ -1112,7 +1278,11 @@
   margin-bottom: 0.75rem;
   padding: 0.8rem 1rem;
   color: #fff;
-  background: linear-gradient(100deg, var(--season-blue-dark), var(--season-blue));
+  background: linear-gradient(
+    100deg,
+    var(--season-blue-dark),
+    var(--season-blue)
+  );
   align-items: center;
   justify-content: space-between;
 }
@@ -1243,9 +1413,16 @@
   color: #d64b58;
 }
 
+.season-main-column,
 .season-side-column {
+  min-width: 0;
   display: grid;
+  align-content: start;
   gap: 1.2rem;
+}
+
+.season-main-column .annual-season-panel {
+  margin: 0;
 }
 
 .fixture-list,
@@ -1372,29 +1549,6 @@
   gap: 0.35rem;
 }
 
-.add-split-panel {
-  border-color: #bcd8ed;
-  background: linear-gradient(130deg, #f3f9fd, #e6f3fb);
-}
-
-.add-split-panel > span {
-  color: var(--season-blue);
-}
-
-.add-split-panel > strong {
-  display: block;
-  margin-top: 0.15rem;
-  color: var(--season-blue-dark);
-  font-size: 1rem;
-}
-
-.add-split-panel p {
-  margin: 0.35rem 0 0.8rem;
-  color: #637686;
-  font-size: 0.68rem;
-}
-
-.add-split-panel button,
 .empty-league-state button {
   padding: 0.65rem 0.9rem;
   color: #fff;
@@ -1542,7 +1696,11 @@
   color: #fff;
   background:
     linear-gradient(110deg, rgba(11, 50, 88, 0.98), rgba(21, 100, 166, 0.9)),
-    repeating-linear-gradient(120deg, transparent 0 3rem, rgba(255, 255, 255, 0.06) 3rem 3.1rem);
+    repeating-linear-gradient(
+      120deg,
+      transparent 0 3rem,
+      rgba(255, 255, 255, 0.06) 3rem 3.1rem
+    );
   grid-template-columns: 1fr 11rem 1fr;
   align-items: center;
   text-align: center;
@@ -1688,7 +1846,7 @@
     padding-top: 1rem;
   }
 
-  .season-navline > div,
+  .season-nav-identity,
   .season-overview-card {
     display: none;
   }
@@ -1743,8 +1901,7 @@
   }
 
   .league-center-panel,
-  .schedule-panel,
-  .event-feed-panel {
+  .schedule-panel {
     padding: 1rem;
   }
 
@@ -1807,5 +1964,118 @@
 
   .series-score strong {
     font-size: 2.6rem;
+  }
+}
+.managed-match-column {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+.managed-progress-panel {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  padding: 18px 22px;
+  background: #fff;
+  border: 1px solid #c7d8e6;
+  border-left: 4px solid #ff7800;
+}
+.managed-progress-panel > div {
+  margin-right: auto;
+}
+.managed-progress-panel p,
+.time-control-help {
+  color: #60778d;
+  font-size: 12px;
+  line-height: 1.6;
+}
+.managed-progress-panel button {
+  padding: 12px 16px;
+  border: 1px solid #c7d8e6;
+  background: #edf4fa;
+  color: #174f80;
+  cursor: pointer;
+}
+.managed-progress-panel .managed-continue-button {
+  background: #ff7800;
+  border-color: #ff7800;
+  color: #fff;
+  font-weight: 800;
+}
+.managed-progress-panel button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.manual-time-controls summary {
+  cursor: pointer;
+  color: #165da0;
+  padding: 12px 0;
+}
+.other-match-history {
+  margin-top: 20px;
+  padding: 24px;
+  background: #fff;
+  border: 1px solid #c7d8e6;
+}
+.other-match-history > p {
+  font-size: 12px;
+  color: #60778d;
+}
+.other-match-history select {
+  max-width: 140px;
+  padding: 8px;
+  background: #f3f7fb;
+  color: #174f80;
+  border: 1px solid #c7d8e6;
+}
+.other-match-history ol {
+  list-style: none;
+  padding: 0;
+  margin: 16px 0;
+}
+.other-match-history li {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 0;
+  border-top: 1px solid #e0e8ef;
+}
+.other-match-history li div {
+  display: grid;
+  gap: 4px;
+}
+.other-match-history li small {
+  color: #60778d;
+  font-size: 11px;
+}
+.other-match-history li b {
+  margin: 0 14px;
+  color: #165da0;
+}
+.history-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.history-pagination button {
+  padding: 8px 12px;
+}
+.managed-international-card h2 {
+  text-align: center;
+  margin: 40px 0;
+}
+@media (max-width: 640px) {
+  .managed-progress-panel {
+    padding: 14px;
+  }
+  .managed-progress-panel > div,
+  .managed-progress-panel .managed-continue-button {
+    width: 100%;
+  }
+  .other-match-history {
+    padding: 16px;
   }
 }

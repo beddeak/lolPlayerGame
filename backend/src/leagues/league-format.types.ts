@@ -11,6 +11,7 @@ export interface LeagueStageSettings {
   cyclesByGroup?: Record<string, number>;
   groupCodes?: string[];
   pairingMode?: LeagueGroupPairingMode;
+  superWeek?: { bestOf: 5; winPoints: number };
   swissRounds?: number;
   qualifierCount?: number;
   description?: string;

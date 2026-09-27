@@ -1,0 +1,28 @@
+.league-bracket { min-width:0; margin-top:18px; color:#eaf1fc; }
+.league-bracket-scroll { overflow-x:auto; border:1px solid #33465f; border-radius:12px; background:radial-gradient(ellipse at top left,#242c4b,#101824 65%); scrollbar-color:#7186ac #152030; }
+.league-bracket-scroll:focus-visible { outline:2px solid #efd095; outline-offset:3px; }
+.league-bracket-canvas { position:relative; isolation:isolate; }
+.league-bracket-canvas svg { position:absolute; inset:0; pointer-events:none; }
+.league-bracket-canvas path { stroke:#c5a871; stroke-width:1.7; fill:none; }
+.league-bracket-canvas path.is-loser-link { stroke:#b08bbc; stroke-dasharray:5 5; }
+.league-bracket .league-bracket-round { position:absolute; top:12px; margin:0; padding:10px 12px; background:#30344c; border-radius:6px; font-size:15px; color:#edf2fc; text-align:center; }
+.league-bracket .league-bracket-match { position:absolute; border:1px solid #465979; border-radius:9px; overflow:hidden; background:#152236; box-sizing:border-box; box-shadow:0 8px 20px #0004; }
+.league-bracket .league-bracket-match.is-managed { border-color:#efc97e; box-shadow:0 0 0 1px #efc97e44; }
+.league-bracket .league-bracket-match.lane-FINAL { border-top:3px solid #d5b573; }
+.league-bracket .league-bracket-match header,.league-bracket .league-bracket-match footer { display:flex; align-items:center; justify-content:space-between; gap:8px; padding:8px 10px; margin:0; color:#becde0; font-size:11px; background:#0d1726; }
+.league-bracket .league-bracket-match header { font-weight:700; color:#eddda9; }
+.league-bracket .league-bracket-team { min-height:40px; display:flex; align-items:center; gap:9px; padding:4px 10px; box-sizing:border-box; border-bottom:1px solid #304158; color:#e5edf8; }
+.league-bracket-team>span:not(.club-logo):not(.league-bracket-winner) { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.league-bracket .league-bracket-team .club-logo { width:27px; height:27px; min-width:27px; border-radius:5px; }
+.league-bracket-team small { font-size:9px; margin-left:7px; color:#e7c377; }
+.league-bracket .league-bracket-team.is-winner { background:#2e3a36; color:#ffe0a3; font-weight:800; }
+.league-bracket .league-bracket-placeholder { color:#a6b7ce; font-size:12px; }
+.league-bracket-winner { color:#e7c377; font-size:11px; }
+.league-bracket-legend { display:flex; flex-wrap:wrap; gap:16px; padding:0 4px 12px; font-size:12px; color:#cfb889; }
+.league-bracket-legend span:nth-child(2) { color:#bf9bcd; }
+.league-bracket-lane { position:absolute; left:22px; font-size:12px; letter-spacing:1.4px; color:#bf9bcd; }
+.league-bracket .league-bracket-note,.league-bracket-empty { font-size:12px; line-height:1.7; color:#afc0d7; padding:12px 4px; }
+.league-bracket-sr { position:absolute; width:1px; height:1px; padding:0; overflow:hidden; clip-path:inset(50%); }
+.league-stage-tabs { display:flex; flex-wrap:wrap; gap:8px; margin:12px 0; }
+.league-stage-tabs button { padding:8px 12px; border:1px solid #465979; color:#c4d3e7; background:#19283c; border-radius:6px; cursor:pointer; }
+.league-stage-tabs button[aria-pressed=true] { color:#f6dfaf; border-color:#d0ab65; background:#303445; }

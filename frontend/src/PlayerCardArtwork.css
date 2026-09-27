@@ -1,0 +1,337 @@
+.player-card-artwork {
+  display: block;
+  position: relative;
+  width: 100%;
+  max-width: 440px;
+  margin-inline: auto;
+  container-type: inline-size;
+  color: #fff;
+}
+.player-card-artwork > img {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: none;
+  object-fit: contain;
+  border-radius: 0;
+}
+.artwork-overall {
+  position: absolute;
+  top: 13%;
+  left: 7.5%;
+  width: 20%;
+  height: 10.7%;
+  display: grid;
+  place-items: center;
+  background: transparent;
+  text-shadow: 0 2px 8px #07142580;
+  font:
+    900 15cqw / 1 "Arial Narrow",
+    Arial,
+    sans-serif;
+  letter-spacing: -1cqw;
+  font-variant-numeric: tabular-nums;
+}
+.artwork-stats {
+  position: absolute;
+  top: 77%;
+  left: 10%;
+  width: 80%;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1.5cqw 0;
+  text-align: center;
+  text-shadow: 0 1px 4px #000;
+}
+.artwork-overall.three-digits {
+  font-size: 10cqw;
+  letter-spacing: -0.6cqw;
+}
+.artwork-stats > span {
+  display: grid;
+  border-left: 1px solid #ffffff55;
+}
+.artwork-stats > span:nth-child(4n + 1) {
+  border-left: 0;
+}
+.artwork-stats small {
+  font:
+    700 2.5cqw / 1.3 Arial,
+    sans-serif;
+  color: #dce9ff;
+}
+.artwork-stats strong {
+  font:
+    800 6cqw / 1.05 "Arial Narrow",
+    Arial,
+    sans-serif;
+}
+.squad-player-card .player-card-artwork {
+  max-width: 300px;
+  margin-block: 8px;
+}
+.detail-card-preview:has(.player-card-artwork) {
+  height: auto;
+  padding: 0;
+}
+.detail-card-preview .player-card-artwork > img {
+  width: 100%;
+  height: auto;
+  max-height: none;
+}
+.player-modal-visual:has(.player-card-artwork) {
+  padding: 0;
+  background: transparent;
+}
+.player-modal-visual .player-card-artwork > img {
+  width: 100%;
+  height: auto;
+  max-height: none;
+}
+
+/* Worlds legend: silver foil, champagne edge lights, and sparse star glints.
+   Effects are shared by squad, details, and POM; live stat text stays above them. */
+.player-card-artwork--legend {
+  --legend-silhouette: polygon(
+    4.1% 9.8%,
+    9% 8.9%,
+    22% 4.8%,
+    30% 2.3%,
+    36.8% 1.3%,
+    38.3% 3%,
+    40.1% 3.8%,
+    43% 3.6%,
+    45.5% 2.5%,
+    47.4% 0.3%,
+    50% 2.6%,
+    52.5% 3.6%,
+    55% 3.9%,
+    56.8% 3%,
+    57.4% 1.3%,
+    61% 1.5%,
+    66% 2.6%,
+    78% 6.7%,
+    91.3% 9.8%,
+    91.3% 18.8%,
+    93.2% 20%,
+    93.2% 52.7%,
+    94.1% 53.7%,
+    94.1% 79.6%,
+    92.1% 81.2%,
+    92.1% 86.4%,
+    91.5% 89%,
+    89.5% 90.5%,
+    84% 91.7%,
+    67% 93.2%,
+    57% 94.8%,
+    51% 96.2%,
+    47.4% 98.1%,
+    44% 96.2%,
+    37% 94.6%,
+    29% 93.3%,
+    13% 91.7%,
+    7% 90.6%,
+    4.1% 88.6%,
+    3% 86%,
+    3% 81%,
+    1.2% 79.7%,
+    1.2% 53.5%,
+    2% 52.6%,
+    2% 20%,
+    3.6% 18.7%,
+    3.6% 10%
+  );
+  isolation: isolate;
+  filter: drop-shadow(0 0 5px #badfff55) drop-shadow(0 8px 16px #071b35aa);
+  transition: transform 240ms ease;
+}
+.player-card-artwork--legend > img {
+  clip-path: var(--legend-silhouette);
+}
+.player-card-artwork--legend :is(.artwork-overall, .artwork-stats) {
+  z-index: 2;
+}
+.player-card-artwork--legend .artwork-overall {
+  color: #f5faff;
+  text-shadow:
+    0 2px 8px #071425,
+    0 0 12px #a3ccff88;
+}
+.artwork-legend-effects,
+.legend-foil,
+.legend-frame,
+.legend-sparkles {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+.artwork-legend-effects {
+  z-index: 1;
+}
+.legend-foil {
+  overflow: hidden;
+  clip-path: var(--legend-silhouette);
+  background:
+    radial-gradient(ellipse at 10% 8%, #d9edff33, transparent 35%),
+    radial-gradient(ellipse at 92% 86%, #89bfff29, transparent 34%);
+}
+.legend-foil::before {
+  content: "";
+  position: absolute;
+  inset: -30% -80%;
+  background: linear-gradient(
+    116deg,
+    transparent 37%,
+    #a6cfff06 43%,
+    #cfe8ff3b 47%,
+    #ffffff66 49%,
+    #f9e4bd26 51%,
+    #a9d6ff22 54%,
+    transparent 60%
+  );
+  transform: translateX(-45%);
+  opacity: 0;
+  animation: legend-foil-sweep 7.5s ease-in-out infinite;
+}
+.legend-frame {
+  overflow: visible;
+  fill: none;
+  stroke-linecap: round;
+}
+.legend-frame-base {
+  stroke: #e2f0ff;
+  stroke-width: 2;
+  opacity: 0.45;
+}
+.legend-frame-light,
+.legend-frame-gold {
+  stroke-width: 5;
+  filter: drop-shadow(0 0 5px #a9d5ff);
+  stroke-dasharray: 12 88;
+  animation: legend-edge-travel 9s linear infinite;
+}
+.legend-frame-light {
+  stroke: #f1faff;
+}
+.legend-frame-gold {
+  stroke: #f4dba6;
+  stroke-width: 3;
+  stroke-dasharray: 5 95;
+  animation-delay: -4.5s;
+}
+.legend-spark {
+  position: absolute;
+  width: 5cqw;
+  aspect-ratio: 1;
+  opacity: 0.2;
+  background: radial-gradient(circle, #fff 6%, #d6ebff88 22%, transparent 65%);
+  animation: legend-star-glint 5.6s ease-in-out infinite;
+}
+.legend-spark::before,
+.legend-spark::after {
+  content: "";
+  position: absolute;
+  inset: 45% 0;
+  border-radius: 50%;
+  background: linear-gradient(90deg, transparent, #fff8de, #fff, transparent);
+  box-shadow: 0 0 5px #cceaff88;
+}
+.legend-spark::after {
+  transform: rotate(90deg) scaleX(0.8);
+}
+.legend-spark:nth-child(1) {
+  left: 35%;
+  top: 0.5%;
+  animation-delay: -0.5s;
+}
+.legend-spark:nth-child(2) {
+  left: 86%;
+  top: 9%;
+  animation-delay: -3.2s;
+}
+.legend-spark:nth-child(3) {
+  left: 0%;
+  top: 33%;
+  animation-delay: -1.6s;
+}
+.legend-spark:nth-child(4) {
+  left: 90%;
+  top: 53%;
+  animation-delay: -4.3s;
+}
+.legend-spark:nth-child(5) {
+  left: 8%;
+  top: 88%;
+  animation-delay: -2.7s;
+}
+.legend-spark:nth-child(6) {
+  left: 45%;
+  top: 95%;
+  animation-delay: -5s;
+}
+@keyframes legend-foil-sweep {
+  0%,
+  12% {
+    transform: translateX(-45%);
+    opacity: 0;
+  }
+  23% {
+    opacity: 0.7;
+  }
+  53% {
+    opacity: 0.7;
+  }
+  68%,
+  100% {
+    transform: translateX(45%);
+    opacity: 0;
+  }
+}
+@keyframes legend-edge-travel {
+  to {
+    stroke-dashoffset: -100;
+  }
+}
+@keyframes legend-star-glint {
+  0%,
+  55%,
+  100% {
+    opacity: 0.12;
+    transform: scale(0.6) rotate(0deg);
+  }
+  72% {
+    opacity: 0.95;
+    transform: scale(1.1) rotate(12deg);
+  }
+  88% {
+    opacity: 0.25;
+    transform: scale(0.8) rotate(20deg);
+  }
+}
+@media (hover: hover) and (pointer: fine) {
+  .player-card-artwork--legend:hover,
+  .squad-player-card:focus-visible .player-card-artwork--legend {
+    transform: translateY(-3px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .player-card-artwork--legend {
+    transition: none;
+    transform: none !important;
+  }
+  .legend-foil::before,
+  .legend-frame-light,
+  .legend-frame-gold,
+  .legend-spark {
+    animation: none;
+  }
+  .legend-foil::before {
+    transform: none;
+    opacity: 0.15;
+  }
+  .legend-spark {
+    opacity: 0.4;
+  }
+}

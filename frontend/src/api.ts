@@ -1,5 +1,17 @@
 const API_BASE_URL = '/api'
 const ACCESS_TOKEN_KEY = 'lol-manager.access-token'
+const sessionInvalidationListeners = new Set<(token: string) => void>()
+// Keep compatibility with a backend that was already running before the error code was added.
+const LEGACY_SESSION_ERRORS = new Set([
+  'Invalid or expired access token',
+  'Invalid access token',
+  'Bearer access token is required',
+])
+
+export function subscribeToSessionInvalidation(listener: (token: string) => void) {
+  sessionInvalidationListeners.add(listener)
+  return () => { sessionInvalidationListeners.delete(listener) }
+}
 
 interface ApiRequestOptions extends Omit<RequestInit, 'body'> {
   token?: string | null
@@ -29,6 +41,7 @@ export function clearStoredAccessToken() {
 }
 
 export async function apiRequest<T>(path: string, options: ApiRequestOptions = {}): Promise<T> {
+  const requestToken = options.token
   const headers = new Headers(options.headers)
   headers.set('Accept', 'application/json')
 
@@ -36,8 +49,8 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
     headers.set('Content-Type', 'application/json')
   }
 
-  if (options.token) {
-    headers.set('Authorization', `Bearer ${options.token}`)
+  if (requestToken) {
+    headers.set('Authorization', `Bearer ${requestToken}`)
   }
 
   const response = await fetch(`${API_BASE_URL}${path}`, {
@@ -59,6 +72,13 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
     } else if (responseBody && typeof responseBody === 'object' && 'message' in responseBody) {
       const apiMessage = responseBody.message
       message = Array.isArray(apiMessage) ? apiMessage.join(', ') : String(apiMessage)
+    }
+
+    const invalidSession = responseBody && typeof responseBody === 'object'
+      && 'code' in responseBody && responseBody.code === 'AUTH_SESSION_INVALID'
+    // Credential errors (e.g. linking Google) can also be 401, without invalidating our JWT.
+    if (response.status === 401 && requestToken && (invalidSession || LEGACY_SESSION_ERRORS.has(message))) {
+      sessionInvalidationListeners.forEach(listener => listener(requestToken))
     }
 
     throw new ApiError(response.status, message)

@@ -1,0 +1,97 @@
+.manager-offers-panel {
+  color: #203b52;
+  font-size: 0.8rem;
+  line-height: 1.7;
+}
+.manager-offers-panel > header > span {
+  color: #1b61a1;
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+}
+.manager-offers-panel h3 {
+  margin: 0.2rem 0;
+  font-size: 1.25rem;
+}
+.manager-offer-window {
+  padding: 0.65rem 0.8rem;
+  background: #edf5fc;
+}
+.manager-offer-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.8rem;
+}
+.manager-offer-actions button {
+  padding: 0.55rem 0.8rem;
+  border: 1px solid #cbd9e5;
+  background: #fff;
+  color: #195b93;
+  font-weight: 700;
+}
+.manager-offer-actions .offer-accept {
+  color: #fff;
+  background: #1a61a2;
+  border-color: #1a61a2;
+}
+.manager-offer-actions button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.manager-offer-actions button:focus-visible {
+  outline: 2px solid #fa7100;
+  outline-offset: 3px;
+}
+.manager-offer {
+  margin-top: 1rem;
+  padding: 1rem;
+  border: 1px solid #cedce7;
+  background: #fff;
+  overflow-wrap: anywhere;
+}
+.manager-offer.status-PENDING {
+  border-left: 3px solid #ff7900;
+}
+.manager-offer > header {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+}
+.manager-offer > header > div {
+  min-width: 0;
+  flex: 1;
+}
+.manager-offer h4 {
+  margin: 0;
+  font-size: 1rem;
+}
+.manager-offer small {
+  color: #637c91;
+}
+.manager-offer > header > span:last-child {
+  color: #1b61a1;
+  font-size: 0.7rem;
+  white-space: nowrap;
+}
+.manager-offer-confirm {
+  margin-top: 0.8rem;
+  padding: 0.8rem;
+  background: #fff7eb;
+  border: 1px solid #f1d4ab;
+}
+.manager-offer-error {
+  padding: 0.7rem;
+  color: #a1222f;
+  background: #fff1f1;
+}
+.manager-offer-notice {
+  padding: 0.7rem;
+  color: #176345;
+  background: #eef9f1;
+}
+.manager-offer-empty {
+  padding: 1.4rem 0.8rem;
+  background: #f3f7fa;
+  text-align: center;
+}

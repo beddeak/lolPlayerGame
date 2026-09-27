@@ -119,6 +119,35 @@ describe('contract policy', () => {
     );
   });
 
+  it('uses affordable base wages for ordinary players in new negotiations', () => {
+    const response = evaluateContractOffer(
+      { ...terms, annualSalary: 1 },
+      context,
+    );
+    expect(response.counterTerms?.annualSalary).toBe(30_000);
+    expect(
+      evaluateContractOffer({ ...terms, annualSalary: 30_000 }, context).kind,
+    ).toBe('ACCEPTED');
+  });
+
+  it('caps generated superstar demands but never rewrites an existing higher salary', () => {
+    const star = {
+      ...context,
+      ability: 119,
+      teamStrength: 65,
+      coachTrust: 30,
+      personality: PlayerPersonality.SELF_CENTERED,
+    };
+    const offer = { ...terms, annualSalary: 1, years: 5 };
+    expect(evaluateContractOffer(offer, star).counterTerms?.annualSalary).toBe(
+      400_000,
+    );
+    expect(
+      evaluateContractOffer(offer, { ...star, currentAnnualSalary: 500_000 })
+        .counterTerms?.annualSalary,
+    ).toBe(500_000);
+  });
+
   it.each([
     {
       ...terms,

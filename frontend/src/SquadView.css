@@ -1,0 +1,373 @@
+.squad-page--league .squad-page-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 1rem 2rem;
+}
+
+.squad-page--league .squad-page-title {
+  min-width: 0;
+  flex: 1 1 15rem;
+}
+
+.squad-page--league .squad-page-header h1 {
+  font-family: "Noto Sans KR", sans-serif;
+  font-size: clamp(1.8rem, 3vw, 2.6rem);
+  font-style: normal;
+  line-height: 1.3;
+  letter-spacing: -0.04em;
+  white-space: nowrap;
+}
+
+.squad-page--league .squad-page-header p:last-child {
+  font-size: 0.85rem;
+  line-height: 1.6;
+}
+
+.squad-club-navigation {
+  display: grid;
+  gap: 0.85rem;
+  margin-bottom: 1.5rem;
+  min-width: 0;
+}
+
+.squad-league-switcher {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.8rem;
+}
+
+.squad-page--league .squad-league-switcher button {
+  --league-stripe: #8babc4;
+  --league-surface: #192a3b;
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  overflow: hidden;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 1.3rem;
+  min-width: 0;
+  min-height: 8rem;
+  padding: 1.2rem 1.4rem;
+  border: 1px solid var(--stroke, #35485e);
+  border-radius: 12px;
+  background: linear-gradient(115deg, #101b27 20%, var(--league-surface));
+  color: #f2f6fc;
+  text-align: left;
+  cursor: pointer;
+}
+
+.squad-page--league .squad-league-banner::before {
+  content: "";
+  position: absolute;
+  inset: -50% -15% -50% 57%;
+  z-index: -1;
+  opacity: 0.18;
+  background: repeating-linear-gradient(
+    125deg,
+    transparent 0 25px,
+    var(--league-stripe) 25px 32px,
+    transparent 32px 43px,
+    var(--league-stripe) 43px 65px
+  );
+  pointer-events: none;
+}
+
+.squad-page--league .squad-league-banner::after {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 4px;
+  background: var(--league-stripe);
+}
+
+.squad-page--league .squad-league-banner.league-lck {
+  --league-stripe: #efefef;
+  --league-surface: #273345;
+}
+
+.squad-page--league .squad-league-banner.league-lpl {
+  --league-stripe: #f50a0a;
+  --league-surface: #412332;
+}
+
+.squad-page--league .squad-league-banner.league-lec {
+  --league-stripe: #00e5bf;
+  --league-surface: #113b37;
+}
+
+.squad-page--league .squad-league-banner.league-lcs {
+  --league-stripe: #efede8;
+  --league-surface: #263345;
+}
+
+.squad-page--league .squad-league-banner.league-lcp {
+  --league-stripe: #f78a4a;
+  --league-surface: #41292c;
+}
+
+.squad-page--league .squad-league-banner.league-cblol {
+  --league-stripe: #ebefe4;
+  --league-surface: #293931;
+}
+
+.squad-league-banner .squad-league-logo {
+  width: clamp(4.5rem, 7vw, 6.5rem);
+  height: 5rem;
+  object-fit: contain;
+  flex-shrink: 0;
+  filter: drop-shadow(0 5px 12px #0005);
+}
+
+.squad-league-banner-copy {
+  display: grid;
+  min-width: 0;
+  gap: 0.2rem;
+}
+
+.squad-league-banner-copy > small {
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  color: #c0cede;
+}
+
+.squad-league-banner-copy > strong {
+  font-size: clamp(1.4rem, 2vw, 1.85rem);
+  line-height: 1.1;
+  letter-spacing: 0.03em;
+  color: #f2f6fc;
+}
+
+.squad-league-banner-copy > span {
+  margin-top: 0.15rem;
+  font-size: 0.78rem;
+  color: #c0cede;
+}
+
+.squad-league-banner-arrow {
+  margin-left: auto;
+  align-self: flex-start;
+  color: #c0cede;
+  font-size: 1.1rem;
+}
+
+.squad-page--league .squad-league-switcher button[aria-pressed="true"] {
+  border-color: var(--league-stripe);
+  box-shadow: inset 0 0 0 1px var(--league-stripe);
+}
+
+.squad-page--league .squad-league-switcher button:hover {
+  border-color: var(--league-stripe);
+}
+
+.squad-page--league .squad-team-switcher {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr));
+  gap: 0.55rem;
+  grid-column: auto;
+  width: 100%;
+  min-width: 0;
+  overflow: visible;
+}
+
+.squad-page--league .squad-team-switcher button {
+  min-width: 0;
+  width: 100%;
+  min-height: 4rem;
+  box-shadow: none;
+  border-radius: 8px;
+}
+
+.squad-page--league .squad-team-switcher button strong {
+  align-self: end;
+}
+
+.squad-page--league .squad-team-switcher button small {
+  min-width: 0;
+  font-size: 0.67rem;
+  line-height: 1.5;
+}
+
+.squad-empty-region {
+  padding: 3rem 1.5rem;
+  border: 1px dashed var(--stroke, #35485e);
+  border-radius: 12px;
+  background: var(--surface-panel, #141d29);
+  color: var(--text-primary, #edf3fa);
+  text-align: center;
+}
+
+.squad-empty-region h2 {
+  font-size: 1.15rem;
+  line-height: 1.5;
+}
+
+.squad-empty-region p {
+  color: var(--text-secondary, #b7c5d6);
+  font-size: 0.85rem;
+  line-height: 1.7;
+}
+
+.squad-selected-club {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  min-width: 0;
+  margin: 0 0 1rem;
+}
+
+.squad-selected-club > div {
+  min-width: 0;
+}
+
+.squad-selected-club h2 {
+  margin: 0;
+  font-size: 1.25rem;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.squad-selected-club p {
+  margin: 0.3rem 0 0;
+  color: var(--text-secondary, #b7c5d6);
+  font-size: 0.8rem;
+  line-height: 1.6;
+}
+
+.squad-page--league .squad-workspace {
+  min-width: 0;
+}
+
+.squad-starting-scroll {
+  overflow-x: auto;
+  padding: 0.3rem;
+  margin: -0.3rem;
+}
+
+.squad-page--league .starting-card-row {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(7.5rem, 1fr));
+  gap: 0.6rem;
+  overflow: visible;
+  padding: 0;
+}
+
+.squad-drop-slot {
+  min-width: 0;
+  border-radius: 10px;
+}
+
+.squad-page--league .squad-drop-slot .squad-player-card {
+  width: 100%;
+  min-width: 0;
+  height: 100%;
+  margin: 0;
+}
+
+.squad-page--league .squad-player-card[draggable="true"] {
+  cursor: grab;
+}
+
+.squad-page--league .squad-player-card[draggable="true"]:active {
+  cursor: grabbing;
+}
+
+.squad-drop-slot.is-drag-active {
+  outline: 1px dashed #9bbfe2;
+  outline-offset: 3px;
+}
+
+.squad-drop-slot.is-drag-active:hover {
+  outline: 2px solid #d8b573;
+}
+
+.squad-vacant-slot {
+  display: flex;
+  min-height: 18rem;
+  height: 100%;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 0.7rem;
+  border: 1px dashed var(--stroke, #35485e);
+  border-radius: 10px;
+  background: var(--surface-panel, #141d29);
+  color: var(--text-secondary, #b7c5d6);
+}
+
+.squad-vacant-slot strong {
+  font-size: 1.15rem;
+  color: var(--text-primary, #edf3fa);
+}
+
+.squad-vacant-slot span {
+  font-size: 0.78rem;
+}
+
+.squad-page--league .bench-card-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(8rem, 1fr));
+  gap: 0.75rem;
+  padding: 0.3rem;
+  overflow: visible;
+}
+
+.squad-page--league .squad-bench-slot {
+  max-width: 12rem;
+}
+
+.squad-page--league
+  :is(.squad-league-switcher, .squad-team-switcher)
+  button:focus-visible {
+  outline: 2px solid #e0bd7f;
+  outline-offset: 3px;
+}
+
+@media (max-width: 960px) {
+  .squad-league-switcher {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 520px) {
+  .squad-page--league .squad-page-header {
+    gap: 1rem;
+  }
+
+  .squad-page--league .squad-page-title {
+    flex-basis: 100%;
+  }
+
+  .squad-page--league .squad-team-switcher {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .squad-page--league .squad-team-switcher button {
+    padding: 0.65rem;
+    column-gap: 0.4rem;
+  }
+
+  .squad-page--league .squad-league-switcher button {
+    gap: 0.8rem;
+    padding: 0.85rem;
+    min-height: 7rem;
+  }
+
+  .squad-league-banner .squad-league-logo {
+    width: 3.5rem;
+    height: 4rem;
+  }
+
+  .squad-league-banner-arrow {
+    display: none;
+  }
+}
+
+@media (max-width: 380px) {
+  .squad-league-switcher {
+    grid-template-columns: 1fr;
+  }
+}

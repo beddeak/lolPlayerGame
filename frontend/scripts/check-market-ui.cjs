@@ -66,10 +66,10 @@ async function main() {
     await h.mount(); select(h); h.render(); h.form().props.onSubmit(event); await settle(); assert.match(h.render(), /temporary/);
     h.form().props.onSubmit(event); await settle(); assert.equal(f.posts.filter(p => p.url.endsWith('/agreements')).length, 1); assert.deepEqual(f.opened, [11]);
   });
-  await check('existing negotiations, closed window, blocked starter and full bench prevent new offers', async () => {
-    for (const block of ['closed','starter','bench','existing']) {
+  await check('existing negotiations, closed window, inconsistent roster and full bench prevent new offers', async () => {
+    for (const block of ['closed','roster','bench','existing']) {
       const f = fixture(); if (block === 'closed') f.data.window.isOpen = false;
-      if (block === 'starter') { f.data.players[0].canNegotiate = false; f.data.players[0].blockedReason = '후보 없음'; }
+      if (block === 'roster') { f.data.players[0].canNegotiate = false; f.data.players[0].blockedReason = '선수의 현재 로스터 정보가 일치하지 않습니다'; }
       if (block === 'bench') f.data.players[0].hasBenchSpace = false;
       if (block === 'existing') f.data.offers = [{ id: 12, careerPlayerId: 9, status: 'WAITING_PLAYER_RESPONSE' }];
       const h = harness('TransferMarketPanel.tsx', f.props, f.request); await h.mount(); select(h); h.render();
@@ -96,10 +96,17 @@ async function main() {
     assert.equal(f.posts.length, 1); assert.deepEqual(f.posts[0].body, { careerPlayerId: 9, buyerCareerTeamId: 2, askingFee: 180000 });
     h.button('판매 철회').props.onClick(); await settle(); assert.match(h.render(), /협상 종료/); assert.equal(f.posts[1].url, '/careers/1/contracts/sales/8/cancel');
   });
-  await check('roster-breaking sale and invalid fee are disabled', async () => {
-    const f = fixture(); f.data.players[0].canNegotiate = false; f.data.players[0].blockedReason = '같은 포지션 후보가 없습니다';
-    const h = harness('PlayerSalesPanel.tsx', { ...f.props, playerId: 9 }, f.request); assert.match(await h.mount(), /같은 포지션 후보/); h.form().props.onSubmit(event); await settle(); assert.equal(f.posts.length, 0);
+  await check('inconsistent roster sale and invalid fee are disabled', async () => {
+    const f = fixture(); f.data.players[0].canNegotiate = false; f.data.players[0].blockedReason = '선수의 현재 로스터 정보가 일치하지 않습니다';
+    const h = harness('PlayerSalesPanel.tsx', { ...f.props, playerId: 9 }, f.request); assert.match(await h.mount(), /로스터 정보가 일치하지 않습니다/); h.form().props.onSubmit(event); await settle(); assert.equal(f.posts.length, 0);
     const f2 = fixture(), h2 = harness('PlayerSalesPanel.tsx', { ...f2.props, playerId: 9 }, f2.request); await h2.mount(); input(h2, '희망 이적료').props.onChange({ target: { valueAsNumber: 1 } }); h2.render(); assert.ok(h2.button('판매 제안 보내기').props.disabled);
+  });
+  await check('starter without a bench can be sold and explains the vacancy obligation', async () => {
+    const f = fixture(); f.data.players[0].rosterRole = 'STARTER';
+    const h = harness('PlayerSalesPanel.tsx', { ...f.props, playerId: 9 }, f.request);
+    assert.match(await h.mount(), /같은 포지션 후보가 없어도 이적할 수 있습니다/);
+    assert.equal(h.nodes().find(n => n.type === 'fieldset').props.disabled, false);
+    h.form().props.onSubmit(event); await settle(); assert.equal(f.posts.length, 1);
   });
   await check('ambiguous sale response reloads pending status without repeating the sale', async () => {
     const f = fixture(), h = harness('PlayerSalesPanel.tsx', { ...f.props, playerId: 9 }, async (url, options) => { const result = await f.request(url, options); if (options.method === 'POST') throw new Error('response lost'); return result; });

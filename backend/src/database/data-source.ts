@@ -78,6 +78,8 @@ import { ManagerCareerState } from '../manager-career/entities/manager-career-st
 import { ManagerReview } from '../manager-career/entities/manager-review.entity';
 import { ManagerJobOffer } from '../manager-career/entities/manager-job-offer.entity';
 import { CreateManagerJobOffers1789509600000 } from './migrations/1789509600000-create-manager-job-offers';
+import { AddSeriesDrafts1789596000000 } from './migrations/1789596000000-add-series-drafts';
+import { IntermissionFeedback1789682400000 } from './migrations/1789682400000-intermission-feedback';
 
 if (existsSync('.env')) {
   loadEnvFile('.env');
@@ -172,6 +174,8 @@ const dataSource = new DataSource({
     AddLcpCblol1789336800000,
     TeamActivityEffects1789423200000,
     CreateManagerJobOffers1789509600000,
+    AddSeriesDrafts1789596000000,
+    IntermissionFeedback1789682400000,
   ],
   migrationsTableName: 'migrations',
   ssl: useSsl ? { rejectUnauthorized: true } : undefined,

@@ -76,7 +76,7 @@ JSON을 수정해도 이미 같은 `(playerId, themeId, cardYear)`로 저장된 
 - 실제 레전드 선수 능력치 확정, 자동 사진 수집, 기존 구단/리그 정원 확장.
 - PHASE 24 전체 시즌 캘린더 및 이후 팬·보드 시스템.
 
-AI 연봉 등 초기 제안 조건은 `legend-ai.service.ts`의 `LEGEND_AI_CONTRACT_TERMS`에서 조정한다.
+AI 연봉은 일반 구단과 같은 `buildAiContractTerms` 및 `contracts/config/salary.config.ts` 기준으로 산정한다. 모든 레전드에게 일괄 20억을 제안하지 않는다. [연봉 밸런스](SALARY-BALANCE.md) 참고.
 향후 경제/일반 AI 단계에서 확장할 수 있도록 기존 계약 확정 경로를 그대로 재사용한다.
 
 ## 검증

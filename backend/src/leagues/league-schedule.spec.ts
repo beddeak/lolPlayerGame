@@ -87,4 +87,34 @@ describe('league schedule', () => {
       schedule.map((slot) => [slot.teamAId, slot.teamBId].sort().join(':')),
     ).not.toContain('1:2');
   });
+
+  it('keeps all 25 unique LCK pairs and makes only matching seeds a final-round BO5', () => {
+    const first = [1, 3, 5, 7, 9],
+      second = [2, 4, 6, 8, 10];
+    const schedule = createCrossGroupSchedule(first, second, 1, 5);
+    expect(schedule).toHaveLength(25);
+    expect(new Set(schedule.map((s) => `${s.teamAId}:${s.teamBId}`)).size).toBe(
+      25,
+    );
+    expect(
+      schedule.filter((s) => s.bestOf === 5).map((s) => [s.teamAId, s.teamBId]),
+    ).toEqual(first.map((id, i) => [id, second[i]]));
+    for (let round = 1; round <= 5; round++) {
+      const matches = schedule.filter((s) => s.roundNumber === round);
+      expect(matches).toHaveLength(5);
+      expect(new Set(matches.flatMap((s) => [s.teamAId, s.teamBId])).size).toBe(
+        10,
+      );
+      expect(
+        matches.every((s) =>
+          round === 5 ? s.bestOf === 5 : s.bestOf === undefined,
+        ),
+      ).toBe(true);
+    }
+    expect(
+      createCrossGroupSchedule(first, second).every(
+        (s) => s.bestOf === undefined,
+      ),
+    ).toBe(true);
+  });
 });

@@ -1,11 +1,21 @@
-import { IsInt, IsPositive } from 'class-validator';
+import { IsInt, IsPositive, ValidateIf } from 'class-validator';
 import { Position } from '../../players/enums/position.enum';
 import { RosterRole } from '../enums/roster-role.enum';
 
 export class SwapStarterDto {
+  // Retained for older clients that only promote bench players.
+  @ValidateIf(
+    (dto: SwapStarterDto) =>
+      dto.benchCareerPlayerId !== undefined || dto.careerPlayerId === undefined,
+  )
   @IsInt()
   @IsPositive()
-  benchCareerPlayerId!: number;
+  benchCareerPlayerId?: number;
+
+  @ValidateIf((dto: SwapStarterDto) => dto.careerPlayerId !== undefined)
+  @IsInt()
+  @IsPositive()
+  careerPlayerId?: number;
 }
 
 export class SwappedRosterSlotResponseDto {
@@ -21,4 +31,5 @@ export class SwapStarterResponseDto {
   position!: Position;
   promotedStarter!: SwappedRosterSlotResponseDto;
   demotedBench!: SwappedRosterSlotResponseDto | null;
+  swappedStarter?: SwappedRosterSlotResponseDto | null;
 }

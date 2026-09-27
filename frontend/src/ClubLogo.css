@@ -59,3 +59,8 @@
   padding: 0.18rem;
   border-radius: 5px;
 }
+
+.club-logo.club-logo--official.club-logo--light-surface {
+  background: #f4f6f8;
+  border-color: #c9d2da;
+}

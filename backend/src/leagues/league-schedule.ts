@@ -81,6 +81,7 @@ export function createCrossGroupSchedule(
   firstGroupTeamIds: number[],
   secondGroupTeamIds: number[],
   cycles = 1,
+  finalRoundBestOf?: 1 | 3 | 5,
 ): LeagueScheduleSlot[] {
   const slots: LeagueScheduleSlot[] = [];
   const matchesPerRound = Math.max(
@@ -107,13 +108,21 @@ export function createCrossGroupSchedule(
         const right = secondGroupTeamIds[rightIndex];
         const reverse = cycleIndex % 2 !== 0;
 
+        const offset =
+          (rightIndex - leftIndex + matchesPerRound) % matchesPerRound;
+        // The same group seed meets in the last round (LCK Super Week).
+        const round = finalRoundBestOf
+          ? offset === 0
+            ? matchesPerRound
+            : offset
+          : offset + 1;
         slots.push({
-          roundNumber:
-            cycleIndex * matchesPerRound +
-            ((rightIndex - leftIndex + matchesPerRound) % matchesPerRound) +
-            1,
+          roundNumber: cycleIndex * matchesPerRound + round,
           teamAId: reverse ? right : left,
           teamBId: reverse ? left : right,
+          ...(finalRoundBestOf && offset === 0
+            ? { bestOf: finalRoundBestOf }
+            : {}),
         });
       }
     }

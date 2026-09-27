@@ -8,6 +8,9 @@ import { AppModule } from '../src/app.module';
 import { configureApplication } from '../src/application.setup';
 import { Account } from '../src/auth/entities/account.entity';
 import { Career } from '../src/careers/entities/career.entity';
+import { CareerTeam } from '../src/careers/entities/career-team.entity';
+import { ManagerCareerState } from '../src/manager-career/entities/manager-career-state.entity';
+import { FastSimResponseDto } from '../src/simulations/dto/simulation-response.dto';
 import { CareerResponseDto } from '../src/careers/dto/career-response.dto';
 import { Player } from '../src/players/entities/player.entity';
 import { PlayerCard } from '../src/players/entities/player-card.entity';
@@ -24,6 +27,7 @@ import {
 } from '../src/internationals/tournament.types';
 import { CalendarEvent } from '../src/event-queue/entities/calendar-event.entity';
 import { CalendarEventStatus } from '../src/event-queue/enums/calendar-event-status.enum';
+import { playFixtureForTest } from './draft-test.helpers';
 
 type View = Awaited<ReturnType<InternationalsService['findAll']>>;
 describe('international season persistence (isolated MySQL, actual match simulation)', () => {
@@ -270,10 +274,21 @@ describe('international season persistence (isolated MySQL, actual match simulat
             next.scheduledDate,
           );
         }
-        const response = await api()
-          .post(`${url()}/${id}/fixtures/${next.id}/simulate`)
-          .set(auth())
-          .expect(201);
+        const managedTeam = career.teams.find((team) => team.isUserControlled)!;
+        const stateBefore = (
+          await db.manager.findOneByOrFail(InternationalTournament, { id })
+        ).state;
+        const response = [next.teamAId, next.teamBId].includes(managedTeam.id)
+          ? await playFixtureForTest(
+              app,
+              db,
+              token,
+              `${url()}/${id}/fixtures/${next.id}`,
+            )
+          : await api()
+              .post(`${url()}/${id}/fixtures/${next.id}/simulate`)
+              .set(auth())
+              .expect(201);
         tournament = (response.body as View).tournaments.find(
           (value) => value.id === id,
         )!;
@@ -285,6 +300,18 @@ describe('international season persistence (isolated MySQL, actual match simulat
           Math.floor(completed.bestOf / 2) + 1,
         );
         if (count++ === 0) {
+          // Reproduce a committed series whose bracket update was interrupted.
+          await db.manager.update(InternationalTournament, id, {
+            state: stateBefore,
+          });
+          await api()
+            .post(`${url()}/${id}/fixtures/${next.id}/prepare`)
+            .set(auth())
+            .expect(201);
+          expect(
+            (await view()).tournaments.find((value) => value.id === id)!
+              .fixtures,
+          ).toEqual(tournament.fixtures);
           await api()
             .post(`/match-series/${completed.seriesId}/games/simulate`)
             .set(auth())
@@ -314,4 +341,70 @@ describe('international season persistence (isolated MySQL, actual match simulat
       ).toBe(tournament.championTeamId);
     },
   );
+  it('focus mode stops at an owned international game and automatically persists an AI-only game', async () => {
+    await db.manager.update(Career, career.id, {
+      currentYear: 2027,
+      currentDate: '2027-03-09',
+    });
+    const created = (
+      await api().post(`${url()}/FIRST_STAND`).set(auth()).expect(201)
+    ).body as View;
+    const tournament = created.tournaments.find(
+      (item) =>
+        item.year === 2027 && item.kind === InternationalKind.FIRST_STAND,
+    )!;
+    await api()
+      .post(`${url()}/${tournament.id}/roster`)
+      .set(auth())
+      .expect(201);
+    const managed = career.teams.find((team) => team.isUserControlled)!;
+    const own = tournament.fixtures.find(
+      (game) => game.teamAId === managed.id || game.teamBId === managed.id,
+    )!;
+    await setDate(own.scheduledDate);
+    const run = async () =>
+      (
+        await api()
+          .post(`/careers/${career.id}/simulations/fast`)
+          .set(auth())
+          .send({ days: 3, maxFixtures: 1, focusManagedTeam: true })
+          .expect(201)
+      ).body as FastSimResponseDto;
+    expect((await run()).stopReason).toBe('MANAGED_MATCH');
+    expect(
+      (await view()).tournaments
+        .find((item) => item.id === tournament.id)!
+        .fixtures.find((game) => game.id === own.id)!.winnerTeamId,
+    ).toBeNull();
+    // This isolated fixture represents a manager whose club did not qualify.
+    const nonEntrant = career.teams.find(
+      (team) => !tournament.entrants.some((entry) => entry.teamId === team.id),
+    )!;
+    await db.manager.update(
+      CareerTeam,
+      { careerId: career.id },
+      { isUserControlled: false },
+    );
+    await db.manager.update(CareerTeam, nonEntrant.id, {
+      isUserControlled: true,
+    });
+    await db.manager.update(
+      ManagerCareerState,
+      { careerId: career.id },
+      {
+        careerTeamId: nonEntrant.id,
+      },
+    );
+    const result = await run();
+    expect(result.simulatedInternationalFixtures).toHaveLength(1);
+    const saved = (await view()).tournaments
+      .find((item) => item.id === tournament.id)!
+      .fixtures.find(
+        (game) =>
+          game.id === result.simulatedInternationalFixtures![0].fixtureId,
+      )!;
+    expect(saved.winnerTeamId).not.toBeNull();
+    expect(Math.max(saved.teamAWins, saved.teamBWins)).toBe(3);
+    expect(result.stopReason).not.toBe('MANAGED_MATCH');
+  });
 });

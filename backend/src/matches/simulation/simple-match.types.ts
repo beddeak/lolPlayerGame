@@ -18,6 +18,8 @@ export interface SimpleMatchPlayerStats {
 export type SimpleMatchStatKey = keyof SimpleMatchPlayerStats;
 
 export interface SimpleMatchPlayerInput extends SimpleMatchPlayerStats {
+  feedback?: import('../../match-series/next-set-feedback').NextSetFeedback;
+  variantModifier?: number;
   careerPlayerId: number;
   position: Position;
   form: number;

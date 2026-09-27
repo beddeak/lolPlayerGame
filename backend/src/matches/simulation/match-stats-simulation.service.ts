@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { positionProficiencyModifier } from '../config/position-proficiency.config';
 import { PLAYER_CARD_STAT_MAX } from '../../players/constants/player-card.constants';
 import { MATCH_STATS_CONFIG } from '../config/match-stats.config';
 import { createSeededRandom } from './seeded-random';
@@ -106,8 +107,9 @@ export class MatchStatsSimulationService {
     const killWeights = team.players.map(
       (player) =>
         MATCH_STATS_CONFIG.killWeightFloor +
-        (this.getEffectiveStat(player, 'mechanics') +
-          this.getEffectiveStat(player, 'teamFight')) *
+        (1 + (player.feedback?.aggression ?? 0) / 100) *
+          (this.getEffectiveStat(player, 'mechanics') +
+            this.getEffectiveStat(player, 'teamFight')) *
           this.randomBetween(
             random,
             MATCH_STATS_CONFIG.allocationRandomMultiplier.min,
@@ -119,7 +121,12 @@ export class MatchStatsSimulationService {
         MATCH_STATS_CONFIG.deathWeightFloor +
         // Preserve the existing 100-point death-risk baseline without negative
         // allocation weights when valid Mental exceeds that baseline.
-        Math.max(0, 100 - this.getEffectiveStat(player, 'mental')) *
+        Math.max(
+          0,
+          100 -
+            this.getEffectiveStat(player, 'mental') +
+            (player.feedback?.riskTaking ?? 0) * 3,
+        ) *
           this.randomBetween(
             random,
             MATCH_STATS_CONFIG.allocationRandomMultiplier.min,
@@ -262,6 +269,7 @@ export class MatchStatsSimulationService {
       );
 
       return {
+        feedback: partial.player.feedback ?? null,
         careerPlayerId: partial.player.careerPlayerId,
         careerTeamId: teamId,
         position: partial.player.position,
@@ -325,7 +333,15 @@ export class MatchStatsSimulationService {
 
     return Math.min(
       PLAYER_CARD_STAT_MAX,
-      Math.max(0, player[stat] + stateModifier),
+      Math.max(
+        0,
+        player[stat] +
+          stateModifier +
+          // Use the same bounded draft strength as the winner simulation.
+          // This changes match execution (including death risk), not stored stats.
+          (player.variantModifier ?? 0) +
+          positionProficiencyModifier(player.positionProficiency),
+      ),
     );
   }
 

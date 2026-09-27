@@ -18,6 +18,10 @@ import { Match } from './match.entity';
 @Entity({ name: 'match_player_stats' })
 @Unique('UQ_match_player_stats_match_player', ['matchId', 'careerPlayerId'])
 export class MatchPlayerStat {
+  @Column({ type: 'json', nullable: true })
+  feedback!:
+    import('../../match-series/next-set-feedback').NextSetFeedback | null;
+
   @PrimaryGeneratedColumn({ type: 'int', unsigned: true })
   id!: number;
 

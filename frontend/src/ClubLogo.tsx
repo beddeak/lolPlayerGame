@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { getClubLogoUrl, isOfficialClubLogo, type ClubIdentity } from "./clubLogos";
+import { getClubLogoUrl, isOfficialClubLogo, needsLightClubLogoBackground, type ClubIdentity } from "./clubLogos";
 import "./ClubLogo.css";
 
 export default function ClubLogo({
@@ -13,10 +13,11 @@ export default function ClubLogo({
   const [failedSource, setFailedSource] = useState<string | null>(null);
   const showImage = source !== null && failedSource !== source;
   const officialImage = showImage && isOfficialClubLogo(source);
+  const lightSurface = showImage && needsLightClubLogoBackground(source);
 
   return (
     <span
-      className={`club-logo ${showImage ? "club-logo--image" : "club-logo--fallback"}${officialImage ? " club-logo--official" : ""}${className ? ` ${className}` : ""}`}
+      className={`club-logo ${showImage ? "club-logo--image" : "club-logo--fallback"}${officialImage ? " club-logo--official" : ""}${lightSurface ? " club-logo--light-surface" : ""}${className ? ` ${className}` : ""}`}
       aria-hidden="true"
     >
       {showImage ? (

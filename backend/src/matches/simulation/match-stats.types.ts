@@ -3,6 +3,8 @@ import { PlayerInstruction } from '../../careers/enums/player-instruction.enum';
 import { ChampionArchetype } from '../../careers/enums/champion-archetype.enum';
 
 export interface MatchPlayerStatsResult {
+  feedback?:
+    import('../../match-series/next-set-feedback').NextSetFeedback | null;
   careerPlayerId: number;
   careerTeamId: number;
   position: Position;

@@ -37,6 +37,10 @@ export class FastSimResponseDto {
   stopReason!: FastSimStopReason;
   fixtureLimit!: number;
   simulatedFixtures!: FastSimFixtureResponseDto[];
+  simulatedInternationalFixtures?: Array<{
+    tournamentId: number;
+    fixtureId: number;
+  }>;
   blockingEvents!: CalendarEventResponseDto[];
   calendar!: CalendarResponseDto;
 }

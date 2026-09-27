@@ -418,6 +418,22 @@ describe('Legend Event lifecycle and competition (e2e)', () => {
     const career = await createCareer('2026-11-19', true);
     const first = await planFixture(career, '2026-11-20');
     const second = await planFixture(career, '2026-11-21', 2);
+    // Contract responses can legitimately share the hidden reveal's date.
+    // Check reveal records/fields, not the date substring in unrelated events.
+    const assertNoHiddenReveal = (value: unknown): void => {
+      if (Array.isArray(value)) {
+        value.forEach(assertNoHiddenReveal);
+      } else if (value !== null && typeof value === 'object') {
+        const item = value as Record<string, unknown>;
+        expect(item.legendEventId).not.toBe(second.event.id);
+        expect(item.revealDate).not.toBe(second.event.revealDate);
+        if (item.type === CalendarEventType.LEGEND_REVEAL) {
+          expect(item.id).not.toBe(second.queued.id);
+          expect(item.scheduledDate).not.toBe(second.event.revealDate);
+        }
+        Object.values(item).forEach(assertNoHiddenReveal);
+      }
+    };
     const before = await dataSource
       .getRepository(PlayerCard)
       .find({ where: { id: In(legendCards) }, order: { id: 'ASC' } });
@@ -469,7 +485,7 @@ describe('Legend Event lifecycle and competition (e2e)', () => {
         '"zeroEventStreak"',
       ])
         expect(serialized).not.toContain(field);
-      expect(serialized).not.toContain('2026-11-21');
+      assertNoHiddenReveal(response.body);
     }
     await api()
       .post(`${base(career.id)}/events/${first.queued.id}/resolve`)

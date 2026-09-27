@@ -78,7 +78,27 @@ function harness(file, props, request, overrides = {}) {
       if (name === "./market-types") return require('./load-source.cjs').loadSource('market-types');
       if (name === "./types") return require('./load-source.cjs').loadSource('types');
       if (name === "./ClubLogo") return loadClubLogo();
+      if (name === "./ClubNewsDrawer") return { __esModule: true, default: function ClubNewsDrawer({ children }) {
+        return React.createElement(React.Fragment, null,
+          React.createElement("button", { onClick() {} }, "구단 소식"),
+          React.createElement("dialog", { className: "club-news-dialog" }, children,
+            React.createElement("button", { "aria-label": "구단 소식 닫기" }, "닫기")));
+      } };
       if (name === "./InternationalPanel") return { __esModule: true, default: () => null };
+      if (name === "./QuickSimReport") return { __esModule: true, default: () => null };
+      if (name === "./DraftPreviewDialog") return { __esModule: true, default: () => null };
+      if (name === "./MatchFlowDialog") return { __esModule: true, default: () => null };
+      if (name === "./MatchSpectator") return { __esModule: true, default: function MatchSpectator() { return null; } };
+      if (name === "./match-spectator") return require('./load-source.cjs').loadSource('match-spectator');
+      if (name === "./ChampionDraftBoard") return { __esModule: true, default: () => null };
+      if (name === "./DraftSoundControl") return { __esModule: true, default: () => null };
+      if (name === "./DraftBackgroundMusic") return { __esModule: true, default: function DraftBackgroundMusic() { return null; } };
+      if (name === "./SeasonSkipDialog") return { __esModule: true, default: () => null };
+      if (name === "./FirstSelectionPanel") return { __esModule: true, default: () => null };
+      if (name === "./LeagueBracket") return { __esModule: true, default: () => null };
+      if (name === "./LeagueStandings") return require('./load-league-standings.cjs');
+      if (name === "./league-stage") return require('./load-source.cjs').loadSource('league-stage');
+      if (name === "./ManagerOffersPanel") return { __esModule: true, default: () => null };
       if (name.endsWith(".css")) return {};
       return localRequire(name);
     },
@@ -96,7 +116,8 @@ function harness(file, props, request, overrides = {}) {
       if (Array.isArray(node)) return node.forEach(visit);
       if (!React.isValidElement(node)) return;
       found.push(node);
-      visit(node.props.children);
+      if (node.type.name === "ClubNewsDrawer") visit(node.type(node.props));
+      else visit(node.props.children);
     };
     visit(tree);
     return found;
@@ -425,15 +446,22 @@ async function seasonIntegration() {
     },
   );
   const html = await view.mount();
-  assert.match(html, /GEN이 2021 Viper와 계약했습니다/);
+  assert.doesNotMatch(html, /event-feed-panel|이벤트 큐|INBOX/);
+  const dialog = view.nodes().find((node) => node.type === "dialog" && node.props.className === "club-news-dialog");
+  assert.ok(dialog && !dialog.props.open, "Club news starts in a closed dialog");
+  assert.match(renderToStaticMarkup(dialog), /GEN이 2021 Viper와 계약했습니다/);
   assert.doesNotMatch(html, /12월 27일/);
+  assert.match(html, /진행 전에 처리해야 할 이벤트가 있습니다/);
+  assert.equal(view.button("+1하루 진행").props.disabled, true);
   view.button("레전드 이벤트 확인").props.onClick();
   assert.equal(opened, 1);
   assert.deepEqual(posts, []);
   view.button("확인 완료 · 일정 계속하기").props.onClick();
   await settle();
   assert.deepEqual(posts, ["/careers/1/events/8/resolve"]);
-  view.render();
+  assert.doesNotMatch(view.render(), /event-feed-panel|이벤트 큐|INBOX|진행 전에 처리해야 할 이벤트가 있습니다/);
+  assert.equal(view.button("레전드 이벤트 확인"), undefined);
+  assert.equal(view.button("확인 완료 · 일정 계속하기"), undefined);
   assert.equal(view.button("+1하루 진행").props.disabled, false);
 }
 
@@ -471,8 +499,10 @@ async function aiClubNews() {
     },
   );
   const html = await view.mount();
-  assert.match(html, /구단 소식/);
-  assert.match(html, /GEN이 새로운 선발 명단을 등록했습니다/);
+  assert.doesNotMatch(html, /event-feed-panel|이벤트 큐|INBOX/);
+  const dialog = view.nodes().find((node) => node.type === "dialog" && node.props.className === "club-news-dialog");
+  assert.ok(dialog && !dialog.props.open, "Club news does not occupy the main season layout");
+  assert.match(renderToStaticMarkup(dialog), /GEN이 새로운 선발 명단을 등록했습니다/);
   assert.doesNotMatch(html, /진행 전에 처리해야 할 이벤트가 있습니다/);
   assert.equal(view.button("+1하루 진행").props.disabled, false);
   assert.equal(view.button("구단 소식 처리하기"), undefined);
@@ -493,7 +523,7 @@ if (require.main === module) (async () => {
   await seasonIntegration();
   await aiClubNews();
   console.log(
-    "Market/news UI checks passed: 12 scenarios (revealed-only market, contract flow, availability, races, retry, reveal acknowledgement, legend/AI club news).",
+    "Market/season UI checks passed: 12 scenarios (revealed-only market, contract flow, availability, races, retry, required reveal acknowledgement, closed club news dialog, nonblocking club news).",
   );
 })().catch((error) => {
   console.error(error);

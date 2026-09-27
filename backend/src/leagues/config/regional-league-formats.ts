@@ -107,9 +107,10 @@ export const REGIONAL_LEAGUE_FORMATS: Record<
           format: LeagueStageFormat.GROUP,
           bestOf: 3,
           settings: {
-            groupCodes: ['A', 'B'],
+            groupCodes: ['BARON', 'ELDER'],
             pairingMode: LeagueGroupPairingMode.CROSS_GROUP,
             cycles: 1,
+            superWeek: { bestOf: 5, winPoints: 2 },
             description: 'Every team plays each team in the opposite group.',
           },
         },

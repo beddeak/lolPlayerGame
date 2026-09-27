@@ -117,6 +117,7 @@ describe('MatchFeedbackService', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     series.games = [game1];
+    series.drafts = null;
     series.bestOf = 3;
     manager.findOne.mockImplementation((entity: unknown) =>
       Promise.resolve(
@@ -150,8 +151,80 @@ describe('MatchFeedbackService', () => {
     expect(result.type).toBe(FeedbackType.INDIVIDUAL);
     expect(result.targetCareerPlayerId).toBe(careerPlayers[2].id);
     expect(result.effects).toHaveLength(1);
-    expect(result.effects[0].formDelta).toBeGreaterThan(0);
+    expect(result.effects[0].formDelta).toBe(-2); // Low mental turns carry responsibility into pressure.
+    expect(result.effects[0].reaction?.pressure).toBe(10);
     expect(manager.update).toHaveBeenCalledTimes(1);
+    expect(manager.update).toHaveBeenCalledWith(
+      CareerPlayer,
+      careerPlayers[2].id,
+      { coachTrust: result.effects[0].coachTrustAfter },
+    );
+  });
+
+  it('allows one team and one personal talk, never another player after the personal quota', async () => {
+    const used = new Set<FeedbackType>();
+    manager.findOneBy.mockImplementation(
+      (_entity: unknown, criteria: { type: FeedbackType }) =>
+        Promise.resolve(used.has(criteria.type) ? { id: 99 } : null),
+    );
+    await service.create(7, series.id, {
+      type: FeedbackType.TEAM,
+      option: FeedbackOption.REFOCUS_TEAM,
+      afterGameNumber: 1,
+    });
+    used.add(FeedbackType.TEAM);
+    manager.find.mockResolvedValue([careerPlayers[0]]);
+    await service.create(7, series.id, {
+      type: FeedbackType.INDIVIDUAL,
+      option: FeedbackOption.TRUST_PLAYER,
+      careerPlayerId: 101,
+      afterGameNumber: 1,
+    });
+    used.add(FeedbackType.INDIVIDUAL);
+    await expect(
+      service.create(7, series.id, {
+        type: FeedbackType.INDIVIDUAL,
+        option: FeedbackOption.TRUST_PLAYER,
+        careerPlayerId: 102,
+        afterGameNumber: 1,
+      }),
+    ).rejects.toBeInstanceOf(ConflictException);
+    expect(manager.update).toHaveBeenCalledTimes(6);
+  });
+
+  it('rejects a stale set number without consuming feedback', async () => {
+    await expect(
+      service.create(7, series.id, {
+        type: FeedbackType.TEAM,
+        option: FeedbackOption.REFOCUS_TEAM,
+        afterGameNumber: 2,
+      }),
+    ).rejects.toThrow('대상 세트가 변경');
+    expect(manager.save).not.toHaveBeenCalled();
+  });
+
+  it('rejects feedback after the next draft starts', async () => {
+    series.drafts = { '2': {} } as unknown as MatchSeries['drafts'];
+    await expect(
+      service.create(7, series.id, {
+        type: FeedbackType.TEAM,
+        option: FeedbackOption.REFOCUS_TEAM,
+      }),
+    ).rejects.toThrow('밴픽이 시작');
+    expect(manager.save).not.toHaveBeenCalled();
+  });
+
+  it('rejects a bench or opponent target that did not play for the managed team', async () => {
+    for (const careerPlayerId of [999, 201]) {
+      await expect(
+        service.create(7, series.id, {
+          type: FeedbackType.INDIVIDUAL,
+          option: FeedbackOption.TRUST_PLAYER,
+          careerPlayerId,
+        }),
+      ).rejects.toBeInstanceOf(BadRequestException);
+    }
+    expect(manager.update).not.toHaveBeenCalled();
   });
 
   it('rejects feedback after dismissal before applying effects', async () => {

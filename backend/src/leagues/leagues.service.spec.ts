@@ -156,6 +156,24 @@ describe('LeaguesService', () => {
     expect(result.stages[1].status).toBe(LeagueStageStatus.PLANNED);
     expect(result.stages[0].fixtures).toHaveLength(25);
     expect(
+      result.stages[0].groups?.map((group) => [
+        group.code,
+        group.name,
+        group.standings.length,
+      ]),
+    ).toEqual([
+      ['BARON', '바론 그룹', 5],
+      ['ELDER', '장로 그룹', 5],
+    ]);
+    expect(
+      result.stages[0].fixtures.filter((fixture) => fixture.bestOf === 5),
+    ).toHaveLength(5);
+    expect(
+      result.stages[0].fixtures
+        .filter((fixture) => fixture.bestOf === 5)
+        .every((fixture) => fixture.roundNumber === 5),
+    ).toBe(true);
+    expect(
       result.stages[0].fixtures.every(
         (fixture) =>
           result.stages[0].participants.find(
@@ -171,6 +189,68 @@ describe('LeaguesService', () => {
       relations: { careerTeams: true },
       lock: { mode: 'pessimistic_write' },
     });
+  });
+
+  it('qualifies LCK play-in clubs by group position, not an overall table', async () => {
+    await service.createSplit(7, career.id, {
+      region: Region.LCK,
+      splitNumber: 1,
+    });
+    const split = savedSplit!;
+    const battle = split.stages[0];
+    for (const fixture of battle.fixtures) {
+      // Baron 5th loses every match; all Elder clubs have more wins than it.
+      const winnerTeamId =
+        fixture.teamAId === 9 ? fixture.teamBId : fixture.teamAId;
+      fixture.series = {
+        games: Array.from({ length: Math.ceil(fixture.bestOf / 2) }, () => ({
+          winnerTeamId,
+        })),
+      } as MatchSeries;
+    }
+    battle.status = LeagueStageStatus.COMPLETED;
+    expect(service['selectTeamsForStage'](split, split.stages[1])).toEqual([
+      5, 7, 2, 4, 6, 9,
+    ]);
+    const response = await service.findOne(7, career.id, split.id);
+    expect(
+      response.stages[0].groups?.map((group) => group.battleStatus),
+    ).toEqual(['WINNER', 'LOSER']);
+    expect(response.stages[0].groups?.[0].standings.at(-1)).toMatchObject({
+      teamId: 9,
+      rank: 5,
+    });
+  });
+
+  it('keeps LPL tier fixtures and direct playoff seeds inside their actual groups', async () => {
+    career.careerTeams = createTeams(12, Region.LPL, 1);
+    const response = await service.createSplit(7, career.id, {
+      region: Region.LPL,
+      splitNumber: 1,
+    });
+    const split = savedSplit!;
+    const tiers = split.stages[0];
+    expect(
+      response.stages[0].groups?.map((group) => group.standings.length),
+    ).toEqual([4, 4, 4]);
+    const groupById = new Map(
+      tiers.participants.map((p) => [p.careerTeamId, p.groupCode]),
+    );
+    for (const fixture of tiers.fixtures) {
+      expect(groupById.get(fixture.teamAId)).toBe(
+        groupById.get(fixture.teamBId),
+      );
+      const winnerTeamId = Math.max(fixture.teamAId, fixture.teamBId);
+      fixture.series = {
+        games: [{ winnerTeamId }, { winnerTeamId }],
+      } as MatchSeries;
+    }
+    expect(service['selectTeamsForStage'](split, split.stages[2])).toEqual([
+      4, 3, 2, 1,
+    ]);
+    expect(service['selectTeamsForStage'](split, split.stages[1])).toEqual([
+      8, 7, 6, 5, 12, 11,
+    ]);
   });
 
   it('reuses a calendar split without rewriting existing dates or results', async () => {
@@ -239,7 +319,9 @@ describe('LeaguesService', () => {
     const final = priorSeason.stages[0].fixtures[0];
     final.seriesId = 99;
     final.series = {
-      games: [{ winnerTeamId: final.teamBId }, { winnerTeamId: final.teamBId }],
+      games: Array.from({ length: Math.ceil(final.bestOf / 2) }, () => ({
+        winnerTeamId: final.teamBId,
+      })),
     } as MatchSeries;
     leagueSplitsRepository.findOne.mockImplementation(
       ({ where }: { where: { year: number; splitNumber: number } }) =>
@@ -277,6 +359,7 @@ describe('LeaguesService', () => {
     [Region.LCK, 2],
     [Region.LCK, 10],
     [Region.LPL, 2],
+    [Region.LPL, 12],
     [Region.LPL, 16],
     [Region.LEC, 2],
     [Region.LEC, 10],
@@ -617,7 +700,10 @@ describe('LeaguesService', () => {
 
     expect(result.fixtureId).toBe(fixture.id);
     expect(fixture.series?.bestOf).toBe(3);
-    expect(matchSeriesService.simulateNextGame).toHaveBeenCalledWith(7, 50);
+    expect(matchSeriesService.simulateNextGame).toHaveBeenCalledWith(7, 50, {
+      requireDraft: true,
+      expectedGameNumber: undefined,
+    });
   });
 
   it('recovers a completed fixture without replaying games and makes retries idempotent', async () => {

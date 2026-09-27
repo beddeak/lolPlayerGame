@@ -3,6 +3,10 @@ import { TeamStrategy } from '../../careers/enums/team-strategy.enum';
 import { MatchStatsSimulationService } from './match-stats-simulation.service';
 import { SimpleMatchSimulationService } from './simple-match-simulation.service';
 import { SimpleMatchTeamInput } from './simple-match.types';
+import { DraftState, DraftTeam } from '../../drafts/draft-state';
+import { applyVariantDraft } from '../../drafts/variant-match';
+import { Position } from '../../players/enums/position.enum';
+import { selectPlayerOfGame, selectPlayerOfMatch } from '../match-awards';
 
 describe('MatchStatsSimulationService', () => {
   const createTeam = (
@@ -100,6 +104,210 @@ describe('MatchStatsSimulationService', () => {
       ),
     ).toBe(teamAStats.teamKills);
   });
+
+  it('off-position adaptation lowers lane performance and damage without changing base stats', () => {
+    const adapted = createTeam(1, 'ADAPTED', 90);
+    const novice = structuredClone(adapted);
+    novice.players[0].positionProficiency = 20;
+    const snapshot = structuredClone(novice);
+    const match = matchSimulationService.simulate(
+      adapted,
+      teamB,
+      77,
+      TeamStrategy.BALANCED,
+    );
+    const normal = statsSimulationService.simulate(adapted, teamB, match, 77)
+      .teams[0].playerStats[0];
+    const offRole = statsSimulationService.simulate(novice, teamB, match, 77)
+      .teams[0].playerStats[0];
+    expect(offRole.dpm).toBeLessThan(normal.dpm);
+    expect(offRole.gdAt15).toBeLessThan(normal.gdAt15);
+    expect(offRole.csdAt15).toBeLessThan(normal.csdAt15);
+    expect(novice).toEqual(snapshot);
+    novice.players[0].positionProficiency = 100;
+    expect(
+      statsSimulationService.simulate(novice, teamB, match, 77).teams[0]
+        .playerStats[0],
+    ).toEqual(normal);
+  });
+
+  it('carries real champion swaps into personal metrics with the same seed and winner', () => {
+    const strong = createTeam(1, 'TEAM_A', 90);
+    const weak = createTeam(2, 'TEAM_B', 60);
+    const toDraftTeam = (team: SimpleMatchTeamInput): DraftTeam => ({
+      id: team.teamId,
+      code: team.teamCode,
+      strategy: team.teamStrategy,
+      players: team.players.map((player) => ({
+        id: player.careerPlayerId,
+        nickname: String(player.careerPlayerId),
+        position: player.position,
+        instruction: null,
+        roleProficiency: null,
+        typeProficiencies: {},
+      })),
+    });
+    const draft: DraftState = {
+      version: 3,
+      blue: toDraftTeam(strong),
+      red: toDraftTeam(weak),
+      managedTeamId: 1,
+      gameNumber: 1,
+      fearless: true,
+      unavailable: [],
+      actions: [],
+      deadline: null,
+      completed: true,
+      assignmentsConfirmed: true,
+      assignments: {
+        BLUE: {
+          TOP: 'Ornn',
+          JUNGLE: 'LeeSin',
+          MID: 'Ahri',
+          ADC: 'Jinx',
+          SUPPORT: 'Lulu',
+        },
+        RED: {
+          TOP: 'Garen',
+          JUNGLE: 'Vi',
+          MID: 'Vex',
+          ADC: 'Caitlyn',
+          SUPPORT: 'Leona',
+        },
+      },
+    };
+    const swapped = structuredClone(draft);
+    swapped.assignments!.BLUE.ADC = 'Lulu';
+    swapped.assignments!.BLUE.SUPPORT = 'Jinx';
+    const snapshot = structuredClone(strong);
+    const play = (state: DraftState) => {
+      const a = applyVariantDraft(strong, state);
+      const b = applyVariantDraft(weak, state);
+      const match = matchSimulationService.simulate(
+        a,
+        b,
+        123,
+        TeamStrategy.BALANCED,
+      );
+      return {
+        ...statsSimulationService.simulate(a, b, match, 123),
+        winnerTeamId: match.winnerTeamId,
+      };
+    };
+    const normal = play(draft);
+    const offRole = play(swapped);
+    expect(normal.winnerTeamId).toBe(1);
+    expect(offRole.winnerTeamId).toBe(normal.winnerTeamId);
+    expect(play(swapped)).toEqual(offRole);
+    for (const position of [Position.ADC, Position.SUPPORT]) {
+      const before = normal.teams[0].playerStats.find(
+        (p) => p.position === position,
+      )!;
+      const after = offRole.teams[0].playerStats.find(
+        (p) => p.position === position,
+      )!;
+      expect(after.dpm).toBeLessThan(before.dpm);
+      expect(after.gold).toBeLessThan(before.gold);
+      expect(after.gdAt15).toBeLessThan(before.gdAt15);
+      expect(after.csdAt15).toBeLessThan(before.csdAt15);
+      expect(after.rating).not.toBe(before.rating);
+      expect(after.mental).toBe(before.mental);
+      const opponent = offRole.teams[1].playerStats.find(
+        (p) => p.position === position,
+      )!;
+      expect(after.gdAt15 + opponent.gdAt15).toBe(0);
+      expect(after.csdAt15 + opponent.csdAt15).toBe(0);
+    }
+    expect(strong).toEqual(snapshot);
+    const pog = selectPlayerOfGame(offRole)!;
+    expect(pog.teamId).toBe(offRole.winnerTeamId);
+    expect(pog.rating).toBe(
+      Math.max(...offRole.teams[0].playerStats.map((p) => p.rating)),
+    );
+    const pom = selectPlayerOfMatch([normal, offRole], 1)!;
+    const winningPlayerStats = [normal, offRole].map((game) =>
+      game.teams[0].playerStats.find(
+        (p) => p.careerPlayerId === pom.careerPlayerId,
+      )!,
+    );
+    expect(pom.totalRating).toBeCloseTo(
+      winningPlayerStats.reduce((sum, p) => sum + p.rating, 0),
+      3,
+    );
+  });
+
+  it('uses draft strength for KDA allocation without breaking kill/death totals', () => {
+    const run = (modifier: number) => {
+      const team = structuredClone(teamA);
+      team.players[0].variantModifier = modifier;
+      const match = matchSimulationService.simulate(
+        teamA,
+        teamB,
+        123,
+        TeamStrategy.BALANCED,
+      );
+      return statsSimulationService.simulate(team, teamB, match, 123);
+    };
+    const worse = run(-8);
+    const better = run(8);
+    const first = worse.teams[0].playerStats[0];
+    const second = better.teams[0].playerStats[0];
+    expect(second.kills).toBeGreaterThanOrEqual(first.kills);
+    expect(second.deaths).toBeLessThanOrEqual(first.deaths);
+    expect(second.kda).toBeGreaterThan(first.kda);
+    for (const result of [worse, better]) {
+      for (const [index, team] of result.teams.entries()) {
+        expect(team.playerStats.reduce((sum, p) => sum + p.kills, 0)).toBe(
+          team.teamKills,
+        );
+        expect(team.playerStats.reduce((sum, p) => sum + p.deaths, 0)).toBe(
+          result.teams[1 - index].teamKills,
+        );
+      }
+    }
+  });
+
+  it('preserves no-draft results when the optional modifier is absent or zero', () => {
+    const zero = structuredClone(teamA);
+    zero.players.forEach((p) => {
+      p.variantModifier = 0;
+    });
+    const match = matchSimulationService.simulate(
+      teamA,
+      teamB,
+      99,
+      TeamStrategy.BALANCED,
+    );
+    expect(statsSimulationService.simulate(zero, teamB, match, 99)).toEqual(
+      statsSimulationService.simulate(teamA, teamB, match, 99),
+    );
+  });
+
+  it.each([0, 119])(
+    'bounds effective stats with draft modifiers at base ability %i',
+    (ability) => {
+      const team = createTeam(1, 'TEAM_A', ability);
+      team.players.forEach((p, i) => {
+        p.variantModifier = i % 2 ? -32 : 10;
+      });
+      const snapshot = structuredClone(team);
+      const match = matchSimulationService.simulate(
+        team,
+        teamB,
+        123,
+        TeamStrategy.BALANCED,
+      );
+      const result = statsSimulationService.simulate(team, teamB, match, 123);
+      for (const player of result.teams[0].playerStats) {
+        expect(Number.isFinite(player.dpm)).toBe(true);
+        expect(player.dpm).toBeGreaterThanOrEqual(0);
+        expect(player.deaths).toBeGreaterThanOrEqual(0);
+        expect(player.rating).toBeGreaterThanOrEqual(0);
+        expect(player.rating).toBeLessThanOrEqual(10);
+      }
+      expect(team).toEqual(snapshot);
+    },
+  );
 
   it('calculates damage and gold shares near one hundred percent', () => {
     const matchResult = matchSimulationService.simulate(

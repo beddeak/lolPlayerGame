@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { App } from 'supertest/types';
+import { finishDraftForTest } from './draft-test.helpers';
 import { DataSource, EntityManager, In } from 'typeorm';
 import { AppModule } from '../src/app.module';
 import { configureApplication } from '../src/application.setup';
@@ -235,11 +236,28 @@ describe('manager approval, job security and career continuity (e2e)', () => {
         .getRepository(Career)
         .update(careerId, { currentDate: fixture.scheduledDate });
     }
+    const path = `/careers/${careerId}/league-splits/${splitId}/fixtures/${fixtureId}`;
+    let gameNumber: number | undefined;
+    const managed = await dataSource.getRepository(CareerTeam).existsBy({
+      id: In([fixture.teamAId, fixture.teamBId]),
+      isUserControlled: true,
+    });
+    if (managed) {
+      const prepared = json<LeagueFixtureGameResponseDto>(
+        await api().post(`${path}/prepare`).set(auth()).expect(201),
+      );
+      gameNumber = prepared.series.nextGameNumber ?? undefined;
+      if (gameNumber !== undefined)
+        await finishDraftForTest(
+          dataSource,
+          prepared.series.seriesId,
+          gameNumber,
+        );
+    }
     const response = await api()
-      .post(
-        `/careers/${careerId}/league-splits/${splitId}/fixtures/${fixtureId}/games/simulate`,
-      )
-      .set(auth());
+      .post(`${path}/games/simulate`)
+      .set(auth())
+      .send(gameNumber === undefined ? {} : { gameNumber });
     if (response.status !== 201)
       throw new Error(
         `Fixture ${fixtureId} simulation returned ${response.status}: ${JSON.stringify(response.body)}`,

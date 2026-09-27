@@ -155,12 +155,12 @@ function fixture(
 describe('AiClubBudgetService', () => {
   it('charges estimated wages for all five initial players without contracts', async () => {
     const { service, manager, mock, players } = fixture();
-    expect(estimateAiAnnualSalary(players[0])).toBe(74_500);
+    expect(estimateAiAnnualSalary(players[0])).toBe(10_000);
     const summary = await service.summarize(manager, career, teamId, null);
     expect(summary).toMatchObject({
       annualSalaryBudget: 1_000_000,
-      salaryCommitted: 372_500,
-      salaryAvailable: 627_500,
+      salaryCommitted: 50_000,
+      salaryAvailable: 950_000,
     });
     expect(mock.findBy).toHaveBeenCalledWith(CareerPlayer, {
       careerId: career.id,
@@ -182,14 +182,14 @@ describe('AiClubBudgetService', () => {
       ],
     });
     const summary = await service.summarize(manager, career, teamId, null);
-    expect(summary.salaryCommitted).toBe(150_000 + 4 * 74_500);
+    expect(summary.salaryCommitted).toBe(150_000 + 4 * 10_000);
   });
 
   it('reserves pending signings and the maximum renewal salary without double-counting a player', async () => {
     const { service, manager, mock } = fixture({
       offers: [
         offer(1, 1, 100_000, { offerType: ContractOfferType.RENEWAL }),
-        offer(2, 2, 30_000, { offerType: ContractOfferType.RENEWAL }),
+        offer(2, 2, 5_000, { offerType: ContractOfferType.RENEWAL }),
         offer(3, 6, 90_000, { status: ContractOfferStatus.PLAYER_ACCEPTED }),
         offer(4, 7, 110_000, {
           offerType: ContractOfferType.TRANSFER,
@@ -200,7 +200,7 @@ describe('AiClubBudgetService', () => {
       ],
     });
     const summary = await service.summarize(manager, career, teamId, state());
-    expect(summary.salaryCommitted).toBe(100_000 + 4 * 74_500 + 200_000);
+    expect(summary.salaryCommitted).toBe(100_000 + 4 * 10_000 + 200_000);
     expect(summary.transferReserved).toBe(60_000);
     expect(mock.find).toHaveBeenCalledWith(ContractOffer, {
       where: {
@@ -224,10 +224,10 @@ describe('AiClubBudgetService', () => {
       offers: [offer(11, 1, 250_000, { offerType: ContractOfferType.RENEWAL })],
     });
     await expect(
-      service.canAfford(manager, career, teamId, 1, 302_000, 0, 11),
+      service.canAfford(manager, career, teamId, 1, 560_000, 0, 11),
     ).resolves.toBe(true);
     await expect(
-      service.canAfford(manager, career, teamId, 1, 302_001, 0, 11),
+      service.canAfford(manager, career, teamId, 1, 560_001, 0, 11),
     ).resolves.toBe(false);
   });
 
@@ -435,7 +435,7 @@ describe('AiClubBudgetService', () => {
         state({ annualSalaryBudget: 100_000 }),
       ),
     ).toMatchObject({
-      salaryCommitted: 472_500,
+      salaryCommitted: 150_000,
       salaryAvailable: 0,
       transferSpent: 100_000,
       transferReserved: 450_000,

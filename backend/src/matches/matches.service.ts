@@ -4,6 +4,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { isDeepStrictEqual } from 'node:util';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, In, Repository } from 'typeorm';
 import { STARTER_POSITIONS } from '../careers/constants/career.constants';
@@ -12,6 +13,7 @@ import { CareerTeam } from '../careers/entities/career-team.entity';
 import { PlayerInstruction } from '../careers/enums/player-instruction.enum';
 import { ChampionArchetype } from '../careers/enums/champion-archetype.enum';
 import { RosterRole } from '../careers/enums/roster-role.enum';
+import { Roster } from '../careers/entities/roster.entity';
 import { MatchSeries } from '../match-series/entities/match-series.entity';
 import { lockActiveManagerCareer } from '../manager-career/manager-access';
 import { Position } from '../players/enums/position.enum';
@@ -30,6 +32,11 @@ import { SimulateMatchDto } from './dto/simulate-match.dto';
 import { MatchPlayerStat } from './entities/match-player-stat.entity';
 import { Match } from './entities/match.entity';
 import { MatchStatsSimulationService } from './simulation/match-stats-simulation.service';
+import { selectPlayerOfGame } from './match-awards';
+import type { DraftState } from '../drafts/draft-state';
+import { applyVariantDraft } from '../drafts/variant-match';
+import { MatchFeedback } from '../match-series/entities/match-feedback.entity';
+import { applyNextSetFeedback } from '../match-series/next-set-feedback';
 import { MatchStatsSimulationResult } from './simulation/match-stats.types';
 import { SimpleMatchSimulationService } from './simulation/simple-match-simulation.service';
 import {
@@ -41,6 +48,8 @@ import {
 export interface MatchSeriesGameContext {
   series: MatchSeries;
   gameNumber: number;
+  draft?: DraftState;
+  feedbackIds?: number[];
 }
 
 @Injectable()
@@ -69,6 +78,7 @@ export class MatchesService {
         teamB: true,
         winnerTeam: true,
         playerStats: true,
+        series: true,
       },
     });
 
@@ -76,7 +86,7 @@ export class MatchesService {
       throw new NotFoundException(`Match ${id} not found`);
     }
 
-    return {
+    const response: MatchSimulationResponseDto = {
       matchId: match.id,
       careerId: match.careerId,
       seriesId: match.seriesId,
@@ -90,7 +100,9 @@ export class MatchesService {
         this.toStoredTeamResponse(match, 'A'),
         this.toStoredTeamResponse(match, 'B'),
       ],
+      draft: match.series?.drafts?.[String(match.seriesGameNumber)] ?? null,
     };
+    return { ...response, pog: selectPlayerOfGame(response) };
   }
 
   async simulate(
@@ -141,8 +153,33 @@ export class MatchesService {
       );
     }
 
-    const teamAInput = this.toSimulationInput(teamA, setBonuses);
-    const teamBInput = this.toSimulationInput(teamB, setBonuses);
+    const draft = seriesContext?.draft;
+    const feedbacks =
+      seriesContext && seriesContext.gameNumber > 1
+        ? await this.dataSource.manager.find(MatchFeedback, {
+            where: {
+              seriesId: seriesContext.series.id,
+              afterGameNumber: seriesContext.gameNumber - 1,
+            },
+            relations: { effects: true },
+            order: { id: 'ASC' },
+          })
+        : [];
+    if (seriesContext) seriesContext.feedbackIds = feedbacks.map((f) => f.id);
+    const teamAInput = applyNextSetFeedback(
+      draft
+        ? applyVariantDraft(this.toSimulationInput(teamA, setBonuses), draft)
+        : this.toSimulationInput(teamA, setBonuses),
+      feedbacks,
+      seriesContext?.gameNumber ?? 1,
+    );
+    const teamBInput = applyNextSetFeedback(
+      draft
+        ? applyVariantDraft(this.toSimulationInput(teamB, setBonuses), draft)
+        : this.toSimulationInput(teamB, setBonuses),
+      feedbacks,
+      seriesContext?.gameNumber ?? 1,
+    );
     const result = this.simulationService.simulate(
       teamAInput,
       teamBInput,
@@ -165,8 +202,9 @@ export class MatchesService {
       seriesContext,
     );
 
-    return {
+    const response: MatchSimulationResponseDto = {
       matchId,
+      draft: draft ?? null,
       careerId: dto.careerId,
       seriesId: seriesContext?.series.id ?? null,
       seriesGameNumber: seriesContext?.gameNumber ?? null,
@@ -192,6 +230,7 @@ export class MatchesService {
         };
       }),
     };
+    return { ...response, pog: selectPlayerOfGame(response) };
   }
 
   private toSimulationInput(
@@ -310,6 +349,60 @@ export class MatchesService {
     return this.dataSource.transaction(async (manager) => {
       // Recheck at the actual write boundary, not only against the earlier snapshot.
       await lockActiveManagerCareer(manager, accountId, dto.careerId);
+      if (seriesContext && seriesContext.gameNumber > 1) {
+        const feedbacks = await manager.find(MatchFeedback, {
+          where: {
+            seriesId: seriesContext.series.id,
+            afterGameNumber: seriesContext.gameNumber - 1,
+          },
+          order: { id: 'ASC' },
+        });
+        if (
+          !isDeepStrictEqual(
+            feedbacks.map((f) => f.id),
+            seriesContext.feedbackIds ?? [],
+          )
+        ) {
+          throw new ConflictException(
+            '세트 사이 피드백이 변경되었습니다. 경기를 다시 시작해 주세요.',
+          );
+        }
+      }
+      if (seriesContext?.draft) {
+        const stored = await manager.findOneByOrFail(MatchSeries, {
+          id: seriesContext.series.id,
+        });
+        const lockedDraft = stored.drafts?.[String(seriesContext.gameNumber)];
+        if (
+          !lockedDraft?.completed ||
+          !isDeepStrictEqual(lockedDraft.actions, seriesContext.draft.actions)
+        )
+          throw new ConflictException(
+            '밴픽 상태가 변경되었습니다. 경기를 다시 불러와 주세요.',
+          );
+        const currentRosters = await manager.find(Roster, {
+          where: {
+            careerTeamId: In([lockedDraft.blue.id, lockedDraft.red.id]),
+            role: RosterRole.STARTER,
+          },
+        });
+        for (const team of [lockedDraft.blue, lockedDraft.red]) {
+          if (
+            team.players.some(
+              (player) =>
+                !currentRosters.some(
+                  (slot) =>
+                    slot.careerTeamId === team.id &&
+                    slot.careerPlayerId === player.id &&
+                    slot.starterPosition === player.position,
+                ),
+            )
+          )
+            throw new ConflictException(
+              '밴픽 도중 선발 선수가 변경되었습니다. 원래 선수단으로 복구해 주세요.',
+            );
+        }
+      }
       const teamAResult = this.findTeamResult(result, teamA.id);
       const teamBResult = this.findTeamResult(result, teamB.id);
       const match = manager.create(Match, {
@@ -462,6 +555,7 @@ export class MatchesService {
     playerStat: MatchPlayerStat,
   ): MatchPlayerStatResponseDto {
     return {
+      feedback: playerStat.feedback ?? null,
       careerPlayerId: playerStat.careerPlayerId,
       position: playerStat.position,
       playerInstruction: playerStat.playerInstruction,

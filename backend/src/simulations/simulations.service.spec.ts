@@ -23,6 +23,7 @@ import { MatchSeriesStatus } from '../match-series/enums/match-series-status.enu
 import { getTransferWindow } from '../transfers/transfer-window';
 import { FastSimStopReason } from './enums/fast-sim-stop-reason.enum';
 import { SimulationsService } from './simulations.service';
+import { InternationalsService } from '../internationals/internationals.service';
 import type { ManagerOverview } from '../manager-career/manager-overview';
 
 describe('SimulationsService', () => {
@@ -41,6 +42,7 @@ describe('SimulationsService', () => {
     findOne: jest.fn(),
   };
   const dataSource = {
+    manager: { exists: jest.fn() },
     transaction: jest.fn(
       (work: (manager: typeof entityManager) => Promise<unknown>) =>
         work(entityManager),
@@ -63,6 +65,7 @@ describe('SimulationsService', () => {
   };
 
   let service: SimulationsService;
+  const internationals = { findAll: jest.fn(), simulate: jest.fn() };
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -80,8 +83,110 @@ describe('SimulationsService', () => {
       calendarsService as unknown as CalendarsService,
       eventQueueService as unknown as EventQueueService,
       leaguesService as unknown as LeaguesService,
+      internationals as unknown as InternationalsService,
     );
   });
+
+  it('focus mode stops on an unchosen weekly activity without advancing', async () => {
+    calendarsService.findOne.mockResolvedValue(
+      createCalendar('2026-01-01', []),
+    );
+    dataSource.manager.exists.mockResolvedValue(false);
+    const result = await service.fastSim(7, 1, {
+      days: 3,
+      focusManagedTeam: true,
+    });
+    expect(result.stopReason).toBe(FastSimStopReason.WEEKLY_ACTIVITY);
+    expect(result.advancedDays).toBe(0);
+    expect(calendarsService.advance).not.toHaveBeenCalled();
+  });
+
+  it('focus mode processes daily changes but stops at the next unused week', async () => {
+    career.currentDate = '2026-01-04';
+    let current = createCalendar('2026-01-04', []);
+    calendarsService.findOne.mockImplementation(() => current);
+    calendarsService.advance.mockImplementation(() => {
+      career.currentDate = '2026-01-05';
+      current = createCalendar(career.currentDate, []);
+      return { ...current, stopReason: CalendarStopReason.TARGET_REACHED };
+    });
+    dataSource.manager.exists
+      .mockResolvedValueOnce(true)
+      .mockResolvedValueOnce(false);
+    const result = await service.fastSim(7, 1, {
+      days: 3,
+      focusManagedTeam: true,
+    });
+    expect(result.stopReason).toBe(FastSimStopReason.WEEKLY_ACTIVITY);
+    expect(result.currentDate).toBe('2026-01-05');
+    expect(calendarsService.advance).toHaveBeenCalledTimes(1);
+  });
+
+  it('focus mode never simulates the managed domestic match', async () => {
+    calendarsService.findOne.mockResolvedValue(
+      createCalendar('2026-01-01', [
+        toCalendarFixture(createFixture(10, 1, 2)),
+      ]),
+    );
+    const result = await service.fastSim(7, 1, {
+      days: 3,
+      focusManagedTeam: true,
+    });
+    expect(result.stopReason).toBe(FastSimStopReason.MANAGED_MATCH);
+    expect(leaguesService.simulateNextFixtureGame).not.toHaveBeenCalled();
+  });
+
+  it('focus mode does not bypass contract decisions for AI international games', async () => {
+    calendarsService.findOne.mockResolvedValue(
+      createCalendar('2026-01-01', [], [createBlockingEvent()]),
+    );
+    const result = await service.fastSim(7, 1, {
+      days: 3,
+      focusManagedTeam: true,
+    });
+    expect(result.stopReason).toBe(FastSimStopReason.BLOCKING_EVENT);
+    expect(internationals.simulate).not.toHaveBeenCalled();
+  });
+
+  it.each([true, false])(
+    'focus mode handles international ownership (managed=%s)',
+    async (isManaged) => {
+      const event = {
+        ...createBlockingEvent(),
+        type: CalendarEventType.SCHEDULED_GAME,
+        payload: { tournamentId: 2, internationalFixtureId: 8 },
+      };
+      let current = createCalendar('2026-01-01', [], [event]);
+      calendarsService.findOne.mockImplementation(() => current);
+      dataSource.manager.exists.mockResolvedValue(false);
+      internationals.findAll.mockResolvedValue({
+        tournaments: [
+          {
+            id: 2,
+            fixtures: [
+              { id: 8, playable: true, teamAId: isManaged ? 1 : 3, teamBId: 4 },
+            ],
+          },
+        ],
+      });
+      internationals.simulate.mockImplementation(() => {
+        current = createCalendar('2026-01-01', []);
+      });
+      const result = await service.fastSim(7, 1, {
+        days: 3,
+        focusManagedTeam: true,
+      });
+      expect(result.stopReason).toBe(
+        isManaged
+          ? FastSimStopReason.MANAGED_MATCH
+          : FastSimStopReason.WEEKLY_ACTIVITY,
+      );
+      expect(internationals.simulate).toHaveBeenCalledTimes(isManaged ? 0 : 1);
+      expect(result.simulatedInternationalFixtures).toHaveLength(
+        isManaged ? 0 : 1,
+      );
+    },
+  );
 
   it('stops fast simulation at an annual season boundary', async () => {
     career.currentDate = '2026-07-28';

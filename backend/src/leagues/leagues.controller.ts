@@ -17,6 +17,7 @@ import {
 } from './dto/league-split-response.dto';
 import { LeaguesService } from './leagues.service';
 import type { RegionalLeagueFormat } from './league-format.types';
+import { SimulateDraftGameDto } from '../drafts/simulate-draft-game.dto';
 
 @Controller('careers/:careerId/league-splits')
 @UseGuards(JwtAuthGuard)
@@ -63,12 +64,31 @@ export class LeaguesController {
     @Param('careerId', ParseIntPipe) careerId: number,
     @Param('splitId', ParseIntPipe) splitId: number,
     @Param('fixtureId', ParseIntPipe) fixtureId: number,
+    @Body() dto: SimulateDraftGameDto,
   ): Promise<LeagueFixtureGameResponseDto> {
     return this.leaguesService.simulateNextFixtureGame(
       account.id,
       careerId,
       splitId,
       fixtureId,
+      false,
+      dto.gameNumber,
+    );
+  }
+
+  @Post(':splitId/fixtures/:fixtureId/prepare')
+  prepare(
+    @CurrentAccount() account: AuthenticatedAccount,
+    @Param('careerId', ParseIntPipe) careerId: number,
+    @Param('splitId', ParseIntPipe) splitId: number,
+    @Param('fixtureId', ParseIntPipe) fixtureId: number,
+  ) {
+    return this.leaguesService.simulateNextFixtureGame(
+      account.id,
+      careerId,
+      splitId,
+      fixtureId,
+      true,
     );
   }
 }

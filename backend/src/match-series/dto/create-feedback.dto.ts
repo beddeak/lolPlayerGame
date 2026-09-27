@@ -3,6 +3,11 @@ import { FeedbackOption } from '../enums/feedback-option.enum';
 import { FeedbackType } from '../enums/feedback-type.enum';
 
 export class CreateFeedbackDto {
+  @IsOptional()
+  @IsInt()
+  @IsPositive()
+  afterGameNumber?: number;
+
   @IsEnum(FeedbackType)
   type!: FeedbackType;
 

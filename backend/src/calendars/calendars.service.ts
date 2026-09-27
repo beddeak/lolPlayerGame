@@ -106,6 +106,7 @@ export class CalendarsService {
     accountId: number,
     careerId: number,
     dto: AdvanceCalendarDto,
+    expectedDate?: string,
   ): Promise<CalendarAdvanceResponseDto> {
     return this.dataSource.transaction(async (manager) => {
       const career = await manager.findOne(Career, {
@@ -121,6 +122,10 @@ export class CalendarsService {
 
       let fixtures = await this.findIncompleteFixtures(manager, careerId);
       const previousDate = career.currentDate;
+      if (expectedDate !== undefined && previousDate !== expectedDate)
+        throw new ConflictException(
+          '다른 작업에서 날짜가 변경됐습니다. 현재 날짜를 다시 확인해 주세요.',
+        );
       const processedEvents: CalendarEventResponseDto[] = [];
       let blockingEvents: CalendarEventResponseDto[] = [];
       let stopReason = CalendarStopReason.TARGET_REACHED;

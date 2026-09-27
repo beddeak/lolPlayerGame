@@ -23,6 +23,7 @@ import { LeagueSplitStatus } from '../src/leagues/enums/league-split-status.enum
 import { LeagueStageStatus } from '../src/leagues/enums/league-stage-status.enum';
 import { MatchSeries } from '../src/match-series/entities/match-series.entity';
 import { MatchSeriesService } from '../src/match-series/match-series.service';
+import { MatchSeriesResponseDto } from '../src/match-series/dto/match-series-response.dto';
 import { MatchFeedbackPlayerEffect } from '../src/match-series/entities/match-feedback-player-effect.entity';
 import { MatchFeedback } from '../src/match-series/entities/match-feedback.entity';
 import { FeedbackOption } from '../src/match-series/enums/feedback-option.enum';
@@ -42,6 +43,14 @@ import { CalendarEvent } from '../src/event-queue/entities/calendar-event.entity
 import { CalendarEventStatus } from '../src/event-queue/enums/calendar-event-status.enum';
 import { CalendarEventType } from '../src/event-queue/enums/calendar-event-type.enum';
 import { FastSimStopReason } from '../src/simulations/enums/fast-sim-stop-reason.enum';
+import { DraftCatalogController } from '../src/drafts/draft-catalog.controller';
+import { finishDraftForTest } from './draft-test.helpers';
+import {
+  automaticVariant,
+  currentTurn,
+  selectionTurn,
+  DraftState,
+} from '../src/drafts/draft-state';
 
 interface IdResponse {
   id: number;
@@ -67,6 +76,7 @@ interface CareerRosterResponse {
   careerPlayer: {
     id: number;
     currentMental: number;
+    currentMechanics: number;
     form: number;
     condition: number;
     personality: PlayerPersonality;
@@ -96,6 +106,7 @@ interface CareerResponse {
 }
 
 interface MatchResponse {
+  draft?: DraftState | null;
   matchId: number;
   careerId: number;
   seriesId: number | null;
@@ -113,6 +124,8 @@ interface MatchResponse {
     archetypeModifier: number;
     stateModifier: number;
     playerStats: Array<{
+      feedback?:
+        import('../src/match-series/next-set-feedback').NextSetFeedback | null;
       careerPlayerId: number;
       position: Position;
       playerInstruction: PlayerInstruction | null;
@@ -180,6 +193,7 @@ interface FeedbackResponse {
   targetTeamId: number;
   targetCareerPlayerId: number | null;
   effects: Array<{
+    reaction: import('../src/match-series/next-set-feedback').FeedbackReaction;
     careerPlayerId: number;
     personality: PlayerPersonality;
     mentalBefore: number;
@@ -232,6 +246,7 @@ interface LeagueSplitResponse {
   status: LeagueSplitStatus;
   activeStageCode: string | null;
   stages: Array<{
+    bracket?: import('../src/leagues/league-bracket-view').BracketView | null;
     code: string;
     status: LeagueStageStatus;
     bestOf: number;
@@ -296,11 +311,6 @@ interface LeagueFixtureGameResponse {
   split: LeagueSplitResponse;
 }
 
-interface QuickSimResponse extends LeagueFixtureGameResponse {
-  mode: 'QUICK';
-  gamesSimulated: number;
-}
-
 interface FastSimResponse {
   mode: 'FAST';
   careerId: number;
@@ -361,6 +371,10 @@ describe('Application authentication and career ownership (e2e)', () => {
     return request(app.getHttpServer()).get('/careers').expect(401);
   });
 
+  it('rejects unauthenticated draft catalog requests', () => {
+    return request(app.getHttpServer()).get('/drafts/catalog').expect(401);
+  });
+
   it('validates the complete account, save, match, and ownership flow', async () => {
     const api = request(app.getHttpServer());
     const accountAEmail = `coach-a-${fixtureKey}@example.com`;
@@ -402,6 +416,27 @@ describe('Application authentication and career ownership (e2e)', () => {
       .expect(200);
     const loginA = loginAResponse.body as unknown as AuthResponse;
     const tokenA = loginA.accessToken;
+
+    const draftResponse = await api
+      .get('/drafts/catalog')
+      .set('Authorization', `Bearer ${tokenA}`)
+      .expect(200);
+    const draft = draftResponse.body as ReturnType<
+      DraftCatalogController['catalog']
+    >;
+    expect(draft.version).toBe(1);
+    expect(draft.turnSeconds).toBe(30);
+    expect(draft.turns).toHaveLength(20);
+    expect(draft.variants).toHaveLength(81);
+    expect(new Set(draft.variants.map((variant) => variant.id)).size).toBe(81);
+    expect(draft.variants.every((variant) => !('proficiency' in variant))).toBe(
+      true,
+    );
+    await api
+      .get('/drafts/catalog')
+      .set('Authorization', `Bearer ${tokenA}`)
+      .expect(200)
+      .expect(({ body }: { body: unknown }) => expect(body).toEqual(draft));
 
     await api
       .get('/auth/me')
@@ -806,6 +841,76 @@ describe('Application authentication and career ownership (e2e)', () => {
       (starter) => starter.starterPosition === Position.TOP,
     )!.careerPlayer.id;
     const promotedTopStarterId = teamA.benches[0].careerPlayer.id;
+    const originalAdc = teamA.starters.find(
+      (starter) => starter.starterPosition === Position.ADC,
+    )!.careerPlayer;
+    const originalMid = teamA.starters.find(
+      (starter) => starter.starterPosition === Position.MID,
+    )!.careerPlayer;
+    const moveUrl = `/careers/${career.id}/teams/${teamA.id}/starters/${Position.MID}/swap`;
+    for (const body of [
+      {},
+      { careerPlayerId: -1 },
+      { careerPlayerId: 'bad' },
+      {
+        careerPlayerId: originalAdc.id,
+        benchCareerPlayerId: promotedTopStarterId,
+      },
+    ]) {
+      await api
+        .patch(moveUrl)
+        .set('Authorization', `Bearer ${tokenA}`)
+        .send(body)
+        .expect(400);
+    }
+    await api
+      .patch(moveUrl)
+      .set('Authorization', `Bearer ${tokenB}`)
+      .send({ careerPlayerId: originalAdc.id })
+      .expect(404);
+    await api
+      .patch(moveUrl)
+      .set('Authorization', `Bearer ${tokenA}`)
+      .send({ careerPlayerId: teamB.starters[0].careerPlayer.id })
+      .expect(404);
+    for (let repeat = 0; repeat < 2; repeat++) {
+      await api
+        .patch(moveUrl)
+        .set('Authorization', `Bearer ${tokenA}`)
+        .send({ careerPlayerId: originalAdc.id })
+        .expect(200);
+    }
+    await api
+      .get(`/careers/${career.id}`)
+      .set('Authorization', `Bearer ${tokenA}`)
+      .expect(200)
+      .expect(({ body }: { body: unknown }) => {
+        const updated = body as typeof career;
+        const slots = updated.teams.find(
+          (team) => team.id === teamA.id,
+        )!.starters;
+        expect(slots).toHaveLength(5);
+        expect(
+          slots.find((slot) => slot.starterPosition === Position.MID)!
+            .careerPlayer.id,
+        ).toBe(originalAdc.id);
+        expect(
+          slots.find((slot) => slot.starterPosition === Position.ADC)!
+            .careerPlayer.id,
+        ).toBe(originalMid.id);
+        expect(
+          slots.find((slot) => slot.starterPosition === Position.MID)!
+            .careerPlayer.currentMechanics,
+        ).toBe(originalAdc.currentMechanics);
+      });
+    // Restore the original assignments; the remainder of this suite exercises their roles.
+    await api
+      .patch(
+        `/careers/${career.id}/teams/${teamA.id}/starters/${Position.ADC}/swap`,
+      )
+      .set('Authorization', `Bearer ${tokenA}`)
+      .send({ careerPlayerId: originalAdc.id })
+      .expect(200);
     await api
       .patch(
         `/careers/${career.id}/teams/${teamA.id}/starters/${Position.TOP}/swap`,
@@ -1214,12 +1319,45 @@ describe('Application authentication and career ownership (e2e)', () => {
     for (const effect of feedback.effects) {
       expect(postFeedbackPlayersById.get(effect.careerPlayerId)).toEqual(
         expect.objectContaining({
-          form: effect.formAfter,
-          currentMental: effect.mentalAfter,
+          form: effect.formBefore,
+          currentMental: effect.mentalBefore,
           coachTrust: effect.coachTrustAfter,
         }),
       );
     }
+
+    const personalRace = await Promise.all(
+      [0, 1].map(() =>
+        api
+          .post(`/match-series/${matchSeriesId}/feedback`)
+          .set('Authorization', `Bearer ${tokenA}`)
+          .send({
+            type: FeedbackType.INDIVIDUAL,
+            option: FeedbackOption.DEMAND_AGGRESSION,
+            careerPlayerId: feedback.effects[0].careerPlayerId,
+            afterGameNumber: 1,
+          }),
+      ),
+    );
+    expect(personalRace.map((r) => r.status).sort()).toEqual([201, 409]);
+    const personalResponse = personalRace.find((r) => r.status === 201)!;
+    const personal = personalResponse.body as FeedbackResponse;
+    expect(personal.effects).toHaveLength(1);
+    await api
+      .post(`/match-series/${matchSeriesId}/feedback`)
+      .set('Authorization', `Bearer ${tokenA}`)
+      .send({
+        type: FeedbackType.INDIVIDUAL,
+        option: FeedbackOption.TRUST_PLAYER,
+        careerPlayerId: feedback.effects[1].careerPlayerId,
+        afterGameNumber: 1,
+      })
+      .expect(409);
+    const bothTalks = await api
+      .get(`/match-series/${matchSeriesId}/feedbacks`)
+      .set('Authorization', `Bearer ${tokenA}`)
+      .expect(200);
+    expect(bothTalks.body).toEqual([feedback, personal]);
 
     await api
       .patch(`/careers/${career.id}/teams/${teamA.id}/strategy`)
@@ -1270,13 +1408,20 @@ describe('Application authentication and career ownership (e2e)', () => {
         playerStat.careerPlayerId,
       );
 
-      expect(playerStat.form).toBe(
-        feedbackEffect?.formAfter ?? previousGame.formAfter,
-      );
+      expect(playerStat.form).toBe(previousGame.formAfter);
       expect(playerStat.condition).toBe(previousGame.conditionAfter);
-      expect(playerStat.mental).toBe(
-        feedbackEffect?.mentalAfter ?? previousGame.mentalAfter,
-      );
+      expect(playerStat.mental).toBe(previousGame.mentalAfter);
+      if (feedbackEffect) {
+        const extra = personal.effects.find(
+          (e) => e.careerPlayerId === playerStat.careerPlayerId,
+        )?.reaction;
+        expect(playerStat.feedback?.mental).toBe(
+          feedbackEffect.reaction.mental + (extra?.mental ?? 0),
+        );
+        expect(playerStat.feedback?.aggression).toBe(extra?.aggression ?? 0);
+      } else {
+        expect(playerStat.feedback).toBeNull();
+      }
     }
     expect(
       game2TeamA.playerStats.find(
@@ -1341,6 +1486,35 @@ describe('Application authentication and career ownership (e2e)', () => {
       .expect(200);
 
     expect(storedSeriesResponse.body).toEqual(completedSeries);
+    const awards = storedSeriesResponse.body as MatchSeriesResponseDto;
+    expect(awards.pom?.teamId).toBe(awards.winnerTeamId);
+    const totals = new Map<number, number>();
+    for (const game of awards.games) {
+      expect(game.pog?.teamId).toBe(game.winnerTeamId);
+      const winners = game.teams.find(
+        (team) => team.teamId === game.winnerTeamId,
+      )!.playerStats;
+      expect(game.pog?.rating).toBe(
+        Math.max(...winners.map((player) => player.rating)),
+      );
+      expect(
+        winners.some(
+          (player) => player.careerPlayerId === game.pog?.careerPlayerId,
+        ),
+      ).toBe(true);
+      for (const player of game.teams.find(
+        (team) => team.teamId === awards.winnerTeamId,
+      )!.playerStats)
+        totals.set(
+          player.careerPlayerId,
+          (totals.get(player.careerPlayerId) ?? 0) + player.rating,
+        );
+    }
+    expect(awards.pom?.totalRating).toBeCloseTo(
+      Math.max(...totals.values()),
+      3,
+    );
+    expect(awards.pom?.gamesPlayed).toBe(awards.games.length);
 
     await api
       .get(`/careers/${career.id}/training-periods/current`)
@@ -1630,6 +1804,10 @@ describe('Application authentication and career ownership (e2e)', () => {
         .post(`/careers/${career.id}/simulations/fast`)
         .set('Authorization', `Bearer ${tokenA}`)
         .send({ days: 90 })
+        .expect((response: { status: number; body: unknown }) => {
+          if (response.status !== 201)
+            throw new Error(JSON.stringify(response.body));
+        })
         .expect(201);
       const run = response.body as unknown as FastSimResponse;
       expect(run.currentDate).toBe(date);
@@ -1654,6 +1832,7 @@ describe('Application authentication and career ownership (e2e)', () => {
     );
 
     let recoveredLegacyFixture = false;
+    let checkedDraftFeedback = false;
     const playLeagueFixture = async (
       fixtureId: number,
     ): Promise<LeagueFixtureGameResponse> => {
@@ -1673,15 +1852,85 @@ describe('Application authentication and career ownership (e2e)', () => {
       let advance: LeagueFixtureGameResponse;
 
       do {
+        const fixturePath = `/careers/${career.id}/league-splits/${leagueSplit.id}/fixtures/${fixtureId}`;
+        const preparedResponse = await api
+          .post(`${fixturePath}/prepare`)
+          .set('Authorization', `Bearer ${tokenA}`)
+          .expect(201);
+        const preparedSeries = (
+          preparedResponse.body as LeagueFixtureGameResponse
+        ).series;
+        await api
+          .post(`${fixturePath}/games/simulate`)
+          .set('Authorization', `Bearer ${tokenA}`)
+          .send({ gameNumber: preparedSeries.nextGameNumber })
+          .expect(409);
+        const checkFeedback =
+          recoveredLegacyFixture &&
+          !checkedDraftFeedback &&
+          preparedSeries.nextGameNumber! > 1;
+        if (checkFeedback) {
+          await api
+            .post(`/match-series/${preparedSeries.seriesId}/feedback`)
+            .set('Authorization', `Bearer ${tokenA}`)
+            .send({
+              type: FeedbackType.TEAM,
+              option: FeedbackOption.REFOCUS_TEAM,
+              afterGameNumber: preparedSeries.nextGameNumber! - 1,
+            })
+            .expect(201);
+        }
+        await finishDraftForTest(
+          dataSource,
+          preparedSeries.seriesId,
+          preparedSeries.nextGameNumber!,
+        );
+        if (checkFeedback) {
+          await api
+            .post(`/match-series/${preparedSeries.seriesId}/feedback`)
+            .set('Authorization', `Bearer ${tokenA}`)
+            .send({
+              type: FeedbackType.INDIVIDUAL,
+              option: FeedbackOption.TRUST_PLAYER,
+              careerPlayerId: teamA.starters[0].careerPlayer.id,
+              afterGameNumber: preparedSeries.nextGameNumber! - 1,
+            })
+            .expect(409);
+          await api
+            .patch(`/careers/${career.id}/teams/${teamA.id}/strategy`)
+            .set('Authorization', `Bearer ${tokenA}`)
+            .send({ strategy: TeamStrategy.BALANCED })
+            .expect(409);
+          const draftStatus = await api
+            .get(`/match-series/${preparedSeries.seriesId}`)
+            .set('Authorization', `Bearer ${tokenA}`)
+            .expect(200);
+          expect(
+            (draftStatus.body as { nextDraftStarted: boolean })
+              .nextDraftStarted,
+          ).toBe(true);
+        }
         const response = await api
           .post(
             `/careers/${career.id}/league-splits/${leagueSplit.id}/fixtures/${fixtureId}/games/simulate`,
           )
           .set('Authorization', `Bearer ${tokenA}`)
+          .send({ gameNumber: preparedSeries.nextGameNumber })
           .expect(201);
 
         const responseBody: unknown = response.body;
         advance = responseBody as LeagueFixtureGameResponse;
+        if (checkFeedback) {
+          const last = advance.series.games.at(-1)!;
+          expect(
+            last.teams
+              .find((t) => t.teamId === teamA.id)!
+              .playerStats.every(
+                (p) => p.feedback !== null && p.feedback !== undefined,
+              ),
+          ).toBe(true);
+          checkedDraftFeedback = true;
+        }
 
         await api
           .post(`/match-series/${advance.series.seriesId}/games/simulate`)
@@ -1763,25 +2012,230 @@ describe('Application authentication and career ownership (e2e)', () => {
       return advance;
     };
 
-    const quickSimResponse = await api
+    await api
       .post(`/careers/${career.id}/simulations/quick`)
       .set('Authorization', `Bearer ${tokenA}`)
       .send({
         leagueSplitId: leagueSplit.id,
         fixtureId: leagueSplit.fixtures[0].id,
       })
-      .expect(201);
-    const firstLeagueSeries =
-      quickSimResponse.body as unknown as QuickSimResponse;
-
-    expect(firstLeagueSeries.mode).toBe('QUICK');
-    expect(firstLeagueSeries.gamesSimulated).toBe(
-      firstLeagueSeries.series.games.length,
+      .expect(409);
+    // Actual interactive API: no set is played while drafting, server owns the
+    // turn/deadline, duplicate/stale actions cannot advance the opponent turn.
+    const firstPath = `/careers/${career.id}/league-splits/${leagueSplit.id}/fixtures/${leagueSplit.fixtures[0].id}`;
+    const prepared = (
+      await api
+        .post(`${firstPath}/prepare`)
+        .set('Authorization', `Bearer ${tokenA}`)
+        .expect(201)
+    ).body as LeagueFixtureGameResponse;
+    expect(prepared.series.games).toHaveLength(0);
+    const draftPath = `/match-series/${prepared.series.seriesId}/drafts/1`;
+    await api
+      .post(draftPath)
+      .set('Authorization', `Bearer ${tokenB}`)
+      .expect(404);
+    let liveDraft = (
+      await api
+        .post(draftPath)
+        .set('Authorization', `Bearer ${tokenA}`)
+        .expect(201)
+    ).body as DraftState;
+    await api
+      .post(`${firstPath}/games/simulate`)
+      .set('Authorization', `Bearer ${tokenA}`)
+      .send({ gameNumber: 1 })
+      .expect(409);
+    expect(liveDraft.version).toBe(3);
+    expect(liveDraft.fearless).toBe(prepared.series.bestOf > 1);
+    await api
+      .post(`${draftPath}/actions`)
+      .set('Authorization', `Bearer ${tokenA}`)
+      .send({ expectedStep: 0, variantId: 'TOP_TANK_A' })
+      .expect(409);
+    for (let step = 0; step < 2; step++) {
+      const selection = selectionTurn(liveDraft)!;
+      const own = selection.teamId === liveDraft.managedTeamId;
+      const choice = selection.options.includes('FIRST_PICK')
+        ? 'FIRST_PICK'
+        : 'RED';
+      if (own)
+        await api
+          .post(`${draftPath}/selection`)
+          .set('Authorization', `Bearer ${tokenA}`)
+          .send({ expectedStep: step })
+          .expect(409);
+      else
+        await api
+          .post(`${draftPath}/selection`)
+          .set('Authorization', `Bearer ${tokenA}`)
+          .send({ expectedStep: step, choice })
+          .expect(403);
+      const body = { expectedStep: step, ...(own ? { choice } : {}) };
+      liveDraft = (
+        await api
+          .post(`${draftPath}/selection`)
+          .set('Authorization', `Bearer ${tokenA}`)
+          .send(body)
+          .expect(201)
+      ).body as DraftState;
+      await api
+        .post(`${draftPath}/selection`)
+        .set('Authorization', `Bearer ${tokenA}`)
+        .send(body)
+        .expect(409);
+    }
+    expect(liveDraft.selection!.choices).toHaveLength(2);
+    for (let step = 0; step < 20; step++) {
+      const turn = currentTurn(liveDraft)!;
+      const own =
+        (turn.side === 'BLUE' ? liveDraft.blue.id : liveDraft.red.id) ===
+        liveDraft.managedTeamId;
+      if (own && step === 0) {
+        await api
+          .post(`${draftPath}/actions`)
+          .set('Authorization', `Bearer ${tokenA}`)
+          .send({ expectedStep: step })
+          .expect(409);
+        await api
+          .post(`${draftPath}/actions`)
+          .set('Authorization', `Bearer ${tokenA}`)
+          .send({ expectedStep: step, variantId: 'NOT_REAL' })
+          .expect(409);
+      }
+      if (!own)
+        await api
+          .post(`${draftPath}/actions`)
+          .set('Authorization', `Bearer ${tokenA}`)
+          .send({
+            expectedStep: step,
+            variantId: automaticVariant(liveDraft).id,
+          })
+          .expect(403);
+      if (own && step === 2) {
+        const saved = await dataSource.manager.findOneByOrFail(MatchSeries, {
+          id: prepared.series.seriesId,
+        });
+        await dataSource.manager.update(MatchSeries, saved.id, {
+          drafts: {
+            ...saved.drafts,
+            '1': {
+              ...saved.drafts!['1'],
+              deadline: new Date(Date.now() - 1000).toISOString(),
+            },
+          },
+        });
+      }
+      const choice = {
+        expectedStep: step,
+        ...(own && step !== 2
+          ? { variantId: automaticVariant(liveDraft).id }
+          : {}),
+      };
+      if (step === 4) {
+        const concurrent = await Promise.all(
+          [1, 2].map(() =>
+            api
+              .post(`${draftPath}/actions`)
+              .set('Authorization', `Bearer ${tokenA}`)
+              .send(choice),
+          ),
+        );
+        expect(concurrent.map((response) => response.status).sort()).toEqual([
+          201, 409,
+        ]);
+        liveDraft = concurrent.find((response) => response.status === 201)!
+          .body as DraftState;
+      } else
+        liveDraft = (
+          await api
+            .post(`${draftPath}/actions`)
+            .set('Authorization', `Bearer ${tokenA}`)
+            .send(choice)
+            .expect(201)
+        ).body as DraftState;
+      if (own && step === 2)
+        expect(liveDraft.actions.at(-1)?.automatic).toBe(true);
+      await api
+        .post(`${draftPath}/actions`)
+        .set('Authorization', `Bearer ${tokenA}`)
+        .send(choice)
+        .expect(409);
+    }
+    expect(liveDraft.completed).toBe(true);
+    expect(liveDraft.assignmentsConfirmed).toBe(false);
+    await api
+      .post(`${firstPath}/games/simulate`)
+      .set('Authorization', `Bearer ${tokenA}`)
+      .send({ gameNumber: 1 })
+      .expect(409);
+    const mySide =
+      liveDraft.blue.id === liveDraft.managedTeamId ? 'BLUE' : 'RED';
+    const lineup = Object.entries(liveDraft.assignments![mySide]).map(
+      ([position, championId]) => ({ position, championId }),
     );
-    expect(firstLeagueSeries.gamesSimulated).toBeGreaterThanOrEqual(1);
-    expect(firstLeagueSeries.gamesSimulated).toBeLessThanOrEqual(
-      leagueSplit.fixtures[0].bestOf,
+    await api
+      .post(`${draftPath}/lineup`)
+      .set('Authorization', `Bearer ${tokenB}`)
+      .send({ expectedRevision: 0, entries: lineup })
+      .expect(404);
+    await api
+      .post(`${draftPath}/lineup`)
+      .set('Authorization', `Bearer ${tokenA}`)
+      .send({ expectedRevision: 0 })
+      .expect(409);
+    await api
+      .post(`${draftPath}/lineup`)
+      .set('Authorization', `Bearer ${tokenA}`)
+      .send({ expectedRevision: 0, entries: lineup.map(() => lineup[0]) })
+      .expect(409);
+    // Free flex assignment: trade top and ADC champions, even if not recommended.
+    [lineup[0].championId, lineup[3].championId] = [
+      lineup[3].championId,
+      lineup[0].championId,
+    ];
+    liveDraft = (
+      await api
+        .post(`${draftPath}/lineup`)
+        .set('Authorization', `Bearer ${tokenA}`)
+        .send({ expectedRevision: 0, entries: lineup })
+        .expect(201)
+    ).body as DraftState;
+    await api
+      .post(`${draftPath}/lineup`)
+      .set('Authorization', `Bearer ${tokenA}`)
+      .send({ expectedRevision: 0, entries: lineup })
+      .expect(409);
+    expect(liveDraft.assignmentsConfirmed).toBe(true);
+    expect(
+      (
+        await api
+          .get(draftPath)
+          .set('Authorization', `Bearer ${tokenA}`)
+          .expect(200)
+      ).body,
+    ).toEqual(expect.objectContaining({ actions: liveDraft.actions }));
+    const firstSet = (
+      await api
+        .post(`${firstPath}/games/simulate`)
+        .set('Authorization', `Bearer ${tokenA}`)
+        .send({ gameNumber: 1 })
+        .expect(201)
+    ).body as LeagueFixtureGameResponse;
+    expect(firstSet.series.games).toHaveLength(1);
+    expect(firstSet.series.games[0].draft?.actions).toEqual(liveDraft.actions);
+    expect(firstSet.series.games[0].draft?.assignments).toEqual(
+      liveDraft.assignments,
     );
+    const repeat = (
+      await api
+        .post(`${firstPath}/games/simulate`)
+        .set('Authorization', `Bearer ${tokenA}`)
+        .send({ gameNumber: 1 })
+        .expect(201)
+    ).body as LeagueFixtureGameResponse;
+    expect(repeat.series.games).toHaveLength(1);
+    const firstLeagueSeries = firstSet;
     const firstCompletedSplit = firstLeagueSeries.split;
     const firstWinnerStanding = firstCompletedSplit.standings.find(
       (standing) => standing.teamId === firstLeagueSeries.series.winnerTeamId,
@@ -1814,6 +2268,20 @@ describe('Application authentication and career ownership (e2e)', () => {
     ).toBe(firstLeagueSeries.series.games.length);
 
     expect(firstCompletedSplit.activeStageCode).toBe('PLAYOFFS');
+    expect(firstCompletedSplit.stages[0].bracket).toBeNull();
+    const bracketStage = firstCompletedSplit.stages.find(
+      (stage) => stage.code === 'PLAYOFFS',
+    )!;
+    expect(bracketStage.bracket?.nodes.length).toBeGreaterThan(0);
+    for (const node of bracketStage.bracket!.nodes.filter(
+      (n) => n.fixtureId !== null,
+    )) {
+      const fixture = bracketStage.fixtures.find(
+        (f) => f.id === node.fixtureId,
+      )!;
+      expect(node.a.teamId).toBe(fixture.teamA.id);
+      expect(node.b.teamId).toBe(fixture.teamB.id);
+    }
     expect(firstCompletedSplit.stages[0].status).toBe(
       LeagueStageStatus.COMPLETED,
     );
@@ -1842,6 +2310,7 @@ describe('Application authentication and career ownership (e2e)', () => {
     expect(completedLeagueSplit.activeStageCode).toBeNull();
     expect(playoffSeriesCount).toBeGreaterThanOrEqual(2);
     expect(recoveredLegacyFixture).toBe(true);
+    expect(checkedDraftFeedback).toBe(true);
     expect(
       completedLeagueSplit.fixtures.every(
         (fixture) => fixture.status === LeagueFixtureStatus.COMPLETED,

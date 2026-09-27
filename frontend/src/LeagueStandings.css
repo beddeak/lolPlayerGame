@@ -1,0 +1,30 @@
+.league-groups { display: grid; gap: 1rem; min-width: 0; }
+.league-group-guide, .league-group-empty { margin: 0; color: #b9cbe0; font-size: .82rem; line-height: 1.7; }
+.league-group-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 34rem), 1fr)); gap: 1rem; }
+.league-group-card { min-width: 0; overflow: hidden; border: 1px solid #364b63; border-radius: 10px; background: #101c2b; }
+.league-group-heading { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 1.1rem 1.2rem; border-top: 3px solid #82baff; background: linear-gradient(120deg, #243951, #132031); }
+.league-group-card:is([data-group="BARON"], [data-group="A"]) .league-group-heading { border-top-color: #c4a0ff; background: linear-gradient(120deg, #312844, #132031); }
+.league-group-card:is([data-group="ELDER"], [data-group="B"]) .league-group-heading { border-top-color: #85dbc5; background: linear-gradient(120deg, #1b3837, #132031); }
+.league-group-heading h3 { margin: .35rem 0 0; color: #eef4fc; font-size: 1.3rem; }
+.league-group-heading > div > span, .league-group-mode { color: #c2d2e5; font-size: .72rem; letter-spacing: .05em; }
+.league-group-score { display: grid; text-align: right; gap: .2rem; }
+.league-group-score strong { color: #f1d598; font-size: 2rem; }
+.league-group-score small { margin-left: .35rem; font-size: .85rem; }
+.league-group-total { margin: 0; padding: .7rem 1.2rem; color: #b9cbe0; border-bottom: 1px solid #364b63; font-size: .8rem; }
+.league-standings-scroll { max-width: 100%; overflow-x: auto; border-radius: 6px; background: #101c2b; }
+.league-standings-scroll:focus-visible { outline: 2px solid #e4c384; outline-offset: 2px; }
+.league-standings-table { width: 100%; min-width: 31rem; border-collapse: collapse; color: #edf3fc; font-size: .82rem; }
+.league-standings-table caption { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.league-standings-table th, .league-standings-table td { padding: .85rem .65rem; text-align: center; border-bottom: 1px solid #2c4056; }
+.league-standings-table thead th { color: #b9cbe0; background: #152437; font-size: .72rem; white-space: nowrap; }
+.league-standings-table th[scope="row"] { text-align: left; }
+.league-standings-table tbody tr:last-child > * { border-bottom: 0; }
+.league-standings-table .is-managed { background: #24384f; box-shadow: inset 3px 0 #e4c384; }
+.league-group-team { display: flex; align-items: center; gap: .7rem; min-width: 10rem; }
+.league-group-team > span { display: grid; gap: .15rem; }
+.league-group-team strong { color: #edf3fc; }
+.league-group-team small { color: #b9cbe0; font-size: .67rem; font-weight: 400; }
+.league-group-team .league-group-mine { color: #f1d598; }
+.league-standings-table .league-group-rank { font-size: 1.1rem; font-weight: 800; }
+.league-standings-table .is-positive { color: #8de0bf; }
+.league-standings-table .is-negative { color: #ffb2b8; }

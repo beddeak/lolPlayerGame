@@ -40,6 +40,7 @@ import { Theme } from '../src/players/entities/theme.entity';
 import { PlayerPersonality } from '../src/players/enums/player-personality.enum';
 import { Position } from '../src/players/enums/position.enum';
 import { FastSimResponseDto } from '../src/simulations/dto/simulation-response.dto';
+import { playFixtureForTest } from './draft-test.helpers';
 
 interface AuthResult {
   accessToken: string;
@@ -343,14 +344,12 @@ describe('full season calendar and existing career continuity (e2e)', () => {
       );
       if (managedFixture) {
         expect(simulatedIds.has(managedFixture.id)).toBe(false);
-        await api()
-          .post(`/careers/${career.id}/simulations/quick`)
-          .set(auth())
-          .send({
-            leagueSplitId: managedFixture.leagueSplitId,
-            fixtureId: managedFixture.id,
-          })
-          .expect(201);
+        await playFixtureForTest(
+          app,
+          dataSource,
+          ownerToken,
+          `/careers/${career.id}/league-splits/${managedFixture.leagueSplitId}/fixtures/${managedFixture.id}`,
+        );
         simulatedIds.add(managedFixture.id);
         quickCount += 1;
         current = await calendar(career.id);
@@ -559,6 +558,84 @@ describe('full season calendar and existing career continuity (e2e)', () => {
         .getRepository(LeagueSplit)
         .countBy({ careerId: career.id }),
     ).toBe(4);
+  });
+
+  it('focus progression persists AI results, stops weekly, and never auto-plays the managed match', async () => {
+    const career = await createCareer();
+    await start(career.id);
+    const path = `/careers/${career.id}/simulations/fast`;
+    const run = async (days = 3) =>
+      json<FastSimResponseDto>(
+        await api()
+          .post(path)
+          .set(auth())
+          .send({ days, maxFixtures: 5, focusManagedTeam: true })
+          .expect(201),
+      );
+    await api()
+      .post(path)
+      .send({ days: 3, focusManagedTeam: true })
+      .expect(401);
+    await api()
+      .post(path)
+      .set(auth())
+      .send({ days: 3, focusManagedTeam: 'yes' })
+      .expect(400);
+    expect((await run()).stopReason).toBe('WEEKLY_ACTIVITY');
+    await api()
+      .post(`/careers/${career.id}/training-periods/current/team`)
+      .set(auth())
+      .send({ type: 'REST' })
+      .expect(201);
+    const fixtures = await dataSource.getRepository(LeagueFixture).find({
+      where: { leagueSplit: { careerId: career.id } },
+      relations: { teamA: true, teamB: true },
+    });
+    const ai = fixtures.find(
+      (fixture) =>
+        !fixture.teamA.isUserControlled && !fixture.teamB.isUserControlled,
+    )!;
+    const own = fixtures.find(
+      (fixture) =>
+        fixture.teamA.isUserControlled || fixture.teamB.isUserControlled,
+    )!;
+    await dataSource
+      .getRepository(LeagueFixture)
+      .update(ai.id, { scheduledDate: '2026-01-02' });
+    const progressed = await run();
+    expect(
+      progressed.simulatedFixtures.some(
+        (fixture) => fixture.fixtureId === ai.id,
+      ),
+    ).toBe(true);
+    expect(
+      (
+        await dataSource
+          .getRepository(LeagueFixture)
+          .findOneByOrFail({ id: ai.id })
+      ).seriesId,
+    ).not.toBeNull();
+    expect(
+      (
+        await dataSource
+          .getRepository(LeagueFixture)
+          .findOneByOrFail({ id: own.id })
+      ).seriesId,
+    ).toBeNull();
+    const weekly = await run();
+    expect(weekly.stopReason).toBe('WEEKLY_ACTIVITY');
+    expect(weekly.currentDate).toBe('2026-01-05');
+    await dataSource
+      .getRepository(LeagueFixture)
+      .update(own.id, { scheduledDate: weekly.currentDate });
+    expect((await run()).stopReason).toBe('MANAGED_MATCH');
+    expect(
+      (
+        await dataSource
+          .getRepository(LeagueFixture)
+          .findOneByOrFail({ id: own.id })
+      ).seriesId,
+    ).toBeNull();
   });
 
   afterAll(async () => {

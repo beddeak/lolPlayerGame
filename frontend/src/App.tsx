@@ -1,20 +1,31 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import ClubSelectionView from "./ClubSelectionView";
 import ClubLogo from "./ClubLogo";
+import DeleteCareerButton from "./DeleteCareerButton";
+import PlayerCardArtwork from "./PlayerCardArtwork";
+import { hasCardArtwork } from "./card-artwork";
 import GoogleAuthButton from "./GoogleAuthButton";
 import GoogleAccountLink from "./GoogleAccountLink";
+import AppNavigation from "./AppNavigation";
+import TestAdminPanel from "./TestAdminPanel";
 import "./App.css";
+import LoginBackground from "./LoginBackground";
 import ContractsView from "./ContractsView";
 import MarketView from "./MarketView";
 import SeasonHubView from "./SeasonHubView";
 import SquadView from "./SquadView";
 import TrainingPanel from "./TrainingPanel";
 import {
+  playerForPositionDisplay,
+  positionDisplayOverall,
+} from "./position-fit";
+import {
   ApiError,
   apiRequest,
   clearStoredAccessToken,
   getStoredAccessToken,
   storeAccessToken,
+  subscribeToSessionInvalidation,
 } from "./api";
 import {
   type Account,
@@ -29,8 +40,9 @@ import {
 } from "./types";
 
 type AppView =
-  "saves" | "create" | "career" | "squad" | "season" | "contracts" | "legends";
+  "saves" | "create" | "career" | "squad" | "season" | "contracts" | "legends" | "admin";
 type AuthMode = "login" | "register";
+const SESSION_EXPIRED_NOTICE = "로그인 인증이 만료되었거나 변경됐습니다. 다시 로그인해 주세요. 저장된 커리어는 유지됩니다.";
 
 const POSITION_LABELS: Record<Position, string> = {
   TOP: "TOP",
@@ -90,6 +102,7 @@ function App() {
   );
   const [booting, setBooting] = useState(() => Boolean(getStoredAccessToken()));
   const [pageError, setPageError] = useState("");
+  const [authNotice, setAuthNotice] = useState("");
   const [creatingClubCode, setCreatingClubCode] = useState<string | null>(null);
   const sessionVersion = useRef(0);
   const sessionToken = useRef<string | null>(null);
@@ -97,6 +110,9 @@ function App() {
   const careerRequestVersion = useRef(0);
   const selectedCareerId = useRef<number | null>(null);
   const pendingCreation = useRef<number | null>(null);
+  const pendingDeletion = useRef<{ id: number; session: number } | null>(null);
+  const deletedCareerIds = useRef(new Set<number>());
+  const [deletingCareerId, setDeletingCareerId] = useState<number | null>(null);
 
   function isCurrentSession(requestToken: string, session: number) {
     return (
@@ -138,6 +154,11 @@ function App() {
     [],
   );
 
+  useEffect(() => subscribeToSessionInvalidation((failedToken) => {
+    // A delayed response from a previous login must not invalidate the new session.
+    if (sessionToken.current === failedToken) clearSession(SESSION_EXPIRED_NOTICE);
+  }), []);
+
   useEffect(() => {
     const savedToken = getStoredAccessToken();
 
@@ -177,6 +198,9 @@ function App() {
     const session = ++sessionVersion.current;
     sessionToken.current = response.accessToken;
     pendingCreation.current = null;
+    pendingDeletion.current = null;
+    deletedCareerIds.current.clear();
+    setDeletingCareerId(null);
     setCreatingClubCode(null);
     careerSelection.current++;
     selectedCareerId.current = null;
@@ -191,16 +215,19 @@ function App() {
     setActiveCareer(null);
     setSelectedContractOfferId(null);
     setPageError("");
+    setAuthNotice("");
     setView("saves");
   }
 
-  async function logout() {
-    const logoutToken = sessionToken.current;
+  function clearSession(notice = "") {
     sessionVersion.current++;
     sessionToken.current = null;
     careerSelection.current++;
     selectedCareerId.current = null;
     pendingCreation.current = null;
+    pendingDeletion.current = null;
+    deletedCareerIds.current.clear();
+    setDeletingCareerId(null);
     clearStoredAccessToken();
     setCreatingClubCode(null);
     setToken(null);
@@ -209,7 +236,14 @@ function App() {
     setActiveCareer(null);
     setSelectedContractOfferId(null);
     setPageError("");
+    setAuthNotice(notice);
+    setBooting(false);
     setView("saves");
+  }
+
+  async function logout() {
+    const logoutToken = sessionToken.current;
+    clearSession();
     if (logoutToken) {
       await apiRequest<{ message: string }>("/auth/logout", {
         method: "POST",
@@ -220,6 +254,8 @@ function App() {
 
   async function openCareer(id: number) {
     if (!token || token !== sessionToken.current) return;
+    if (pendingDeletion.current?.id === id || deletedCareerIds.current.has(id))
+      return;
     const session = sessionVersion.current;
     const selection = ++careerSelection.current;
     const request = ++careerRequestVersion.current;
@@ -243,6 +279,53 @@ function App() {
     careerSelection.current++;
     setPageError("");
     setView("create");
+  }
+
+  async function deleteCareer(id: number) {
+    if (!token || token !== sessionToken.current)
+      throw new Error("다시 로그인해 주세요.");
+    if (pendingDeletion.current)
+      throw new Error("이미 세이브를 삭제하고 있습니다.");
+    const session = sessionVersion.current;
+    const operation = { id, session };
+    pendingDeletion.current = operation;
+    setDeletingCareerId(id);
+    const finish = () => {
+      deletedCareerIds.current.add(id);
+      setCareers((current) => current.filter((career) => career.id !== id));
+      if (selectedCareerId.current === id) {
+        careerSelection.current++;
+        careerRequestVersion.current++;
+        selectedCareerId.current = null;
+        setActiveCareer(null);
+        setSelectedContractOfferId(null);
+        setView("saves");
+      }
+    };
+    try {
+      await apiRequest(`/careers/${id}`, { token, method: "DELETE" });
+      if (isCurrentSession(token, session)) finish();
+    } catch (reason) {
+      if (!isCurrentSession(token, session)) return;
+      // Reconcile a lost delete response; never repeat the destructive request automatically.
+      const remaining = await apiRequest<CareerSummary[]>("/careers", {
+        token,
+      }).catch(() => null);
+      if (!isCurrentSession(token, session)) return;
+      if (remaining && !remaining.some((career) => career.id === id)) {
+        finish();
+        return;
+      }
+      throw reason;
+    } finally {
+      if (
+        isCurrentSession(token, session) &&
+        pendingDeletion.current === operation
+      ) {
+        pendingDeletion.current = null;
+        setDeletingCareerId(null);
+      }
+    }
   }
 
   function navigate(nextView: AppView) {
@@ -298,7 +381,11 @@ function App() {
           token,
         });
         if (isCurrentCareerRequest(token, session, selection, request))
-          setCareers(savedCareers);
+          setCareers(
+            savedCareers.filter(
+              (item) => !deletedCareerIds.current.has(item.id),
+            ),
+          );
       } catch (error) {
         if (!isCurrentCareerRequest(token, session, selection, request)) return;
         setPageError(
@@ -320,7 +407,7 @@ function App() {
   async function swapStarter(
     teamId: number,
     position: Position,
-    benchCareerPlayerId: number,
+    careerPlayerId: number,
   ) {
     if (
       !token ||
@@ -341,7 +428,7 @@ function App() {
         {
           method: "PATCH",
           token,
-          body: { benchCareerPlayerId },
+          body: { careerPlayerId },
         },
       );
       mutationCompleted = true;
@@ -385,7 +472,9 @@ function App() {
       ]);
       if (!isCurrentCareerRequest(token, session, selection, request)) return;
       setActiveCareer(refreshedCareer);
-      setCareers(savedCareers);
+      setCareers(
+        savedCareers.filter((item) => !deletedCareerIds.current.has(item.id)),
+      );
     } catch (error) {
       if (!isCurrentCareerRequest(token, session, selection, request)) return;
       handleAuthenticatedError(error);
@@ -395,7 +484,7 @@ function App() {
 
   function handleAuthenticatedError(error: unknown) {
     if (error instanceof ApiError && error.status === 401) {
-      void logout();
+      clearSession(SESSION_EXPIRED_NOTICE);
       return;
     }
     setPageError(toMessage(error));
@@ -408,15 +497,19 @@ function App() {
 
   if (booting) return <LoadingScreen />;
   if (!account || !token)
-    return <AuthScreen onAuthenticated={finishAuthentication} />;
+    return <AuthScreen onAuthenticated={finishAuthentication} notice={authNotice} />;
 
   return (
     <div className="app-shell">
       <AppHeader
+        key={`${token}:${activeCareer?.id ?? "none"}`}
         account={account}
         view={view}
         onHome={() => navigate("saves")}
-        onCreate={() => void openCreateCareer()}
+        onClubHome={() => navigate("career")}
+        clubName={
+          activeCareer?.teams.find((team) => team.isUserControlled)?.name
+        }
         onSeason={() => navigate("season")}
         onSquad={() => navigate("squad")}
         onContracts={() => openContracts()}
@@ -429,6 +522,8 @@ function App() {
       />
 
       <main className="app-main">
+        <div className="test-admin-entry"><button type="button" disabled={!activeCareer} onClick={() => navigate("admin")}>임시 관리자 · 테스트 도구</button></div>
+        {view === "admin" && activeCareer && <TestAdminPanel key={`${token}:${activeCareer.id}`} careerId={activeCareer.id} token={token} onRefresh={refreshActiveCareer} onBack={() => navigate("career")} />}
         {pageError && <div className="notice error-notice">{pageError}</div>}
         {creatingClubCode && (
           <div className="notice" role="status">
@@ -440,10 +535,13 @@ function App() {
         {view === "saves" && (
           <>
             <SaveSelectScreen
+              key={token}
               account={account}
               careers={careers}
               onOpen={openCareer}
               onCreate={() => void openCreateCareer()}
+              onDelete={deleteCareer}
+              deletingId={deletingCareerId}
             />
             <GoogleAccountLink key={token} token={token} />
           </>
@@ -475,11 +573,16 @@ function App() {
 
         {view === "season" && activeCareer && (
           <SeasonHubView
+            key={`${activeCareer.id}:${activeCareer.teams.find((team) => team.isUserControlled)?.id}`}
             career={activeCareer}
             token={token}
             onBack={() => navigate("career")}
             onCareerRefresh={refreshActiveCareer}
             onOpenContracts={openContracts}
+            onOpenMarket={() => {
+              setMarketSection("players");
+              navigate("legends");
+            }}
             onOpenLegends={() => {
               setMarketSection("legends");
               navigate("legends");
@@ -536,8 +639,10 @@ function LoadingScreen() {
 
 function AuthScreen({
   onAuthenticated,
+  notice,
 }: {
   onAuthenticated: (response: AuthResponse) => Promise<void>;
+  notice?: string;
 }) {
   const [mode, setMode] = useState<AuthMode>("login");
   const [email, setEmail] = useState("");
@@ -599,32 +704,24 @@ function AuthScreen({
   }
 
   return (
-    <main className="auth-layout">
+    <main className="auth-layout auth-cinematic">
       <section className="auth-hero">
         <div className="auth-brand">
           <span>GM</span> LEAGUE OFFICE
         </div>
         <div className="hero-copy">
-          <p className="eyebrow">THE SEASON STARTS HERE</p>
+          <p className="eyebrow">FROM YOUR FIRST FIVE TO YOUR DYNASTY</p>
           <h1>
-            당신의 팀.
+            다음 트로피는,
             <br />
-            당신의 왕조.
+            <span>당신의 팀으로.</span>
           </h1>
           <p>
-            신인 선발부터 메타 대응까지. 감독의 모든 결정이 다음 시즌의 기록이
-            됩니다.
+            최고의 순간은 다섯 명과 하나의 결정에서 시작됩니다.
+            당신만의 로스터로, 새로운 왕조를 만드세요.
           </p>
         </div>
-        <div className="card-fan" aria-hidden="true">
-          <img src="/player-cards/dev-red-mid.svg" alt="" />
-          <img src="/player-cards/dev-blue-adc.svg" alt="" />
-          <img src="/player-cards/dev-blue-top.svg" alt="" />
-        </div>
-        <div className="hero-stat">
-          <strong>2026</strong>
-          <span>YOUR NEXT SEASON</span>
-        </div>
+        <div className="login-hero-rule" aria-hidden="true" />
       </section>
 
       <section className="auth-panel">
@@ -636,6 +733,8 @@ function AuthScreen({
               ? "계정에 연결된 커리어를 불러와 마지막 시즌부터 계속합니다."
               : "계정을 만들면 커리어 진행 상황이 서버에 저장됩니다."}
           </p>
+
+          {notice && <p className="notice" role="status">{notice}</p>}
 
           <div className="mode-tabs" role="tablist" aria-label="계정 메뉴">
             <button
@@ -742,6 +841,7 @@ function AuthScreen({
           </div>
         </div>
       </section>
+      <LoginBackground />
     </main>
   );
 }
@@ -750,7 +850,8 @@ function AppHeader({
   account,
   view,
   onHome,
-  onCreate,
+  onClubHome,
+  clubName,
   onSeason,
   onSquad,
   onContracts,
@@ -761,7 +862,8 @@ function AppHeader({
   account: Account;
   view: AppView;
   onHome: () => void;
-  onCreate: () => void;
+  onClubHome: () => void;
+  clubName?: string;
   onSeason: () => void;
   onSquad: () => void;
   onContracts: () => void;
@@ -770,62 +872,45 @@ function AppHeader({
   onLogout: () => void;
 }) {
   return (
-    <header className="app-header">
-      <button className="wordmark" onClick={onHome}>
-        <span>GM</span> LEAGUE OFFICE
-      </button>
-      <nav aria-label="주요 메뉴">
-        <button className={view === "saves" ? "active" : ""} onClick={onHome}>
-          커리어
-        </button>
-        {hasActiveCareer && (
-          <>
-            <button
-              className={view === "season" ? "active" : ""}
-              onClick={onSeason}
-            >
-              시즌
-            </button>
-            <button
-              className={view === "squad" ? "active" : ""}
-              onClick={onSquad}
-            >
-              선수단
-            </button>
-            <button
-              className={view === "contracts" ? "active" : ""}
-              onClick={onContracts}
-            >
-              계약
-            </button>
-            <button
-              className={view === "legends" ? "active" : ""}
-              onClick={onLegends}
-            >
-              일반 시장
-            </button>
-          </>
-        )}
+    <>
+      <header className="app-header">
         <button
-          className={view === "create" ? "active" : ""}
-          onClick={onCreate}
+          className="wordmark"
+          onClick={hasActiveCareer ? onClubHome : onHome}
+          aria-label={hasActiveCareer ? "구단 홈" : "세이브 목록"}
         >
-          새 게임
+          <span>GM</span> LEAGUE OFFICE
         </button>
-      </nav>
-      <div className="account-menu">
-        <div className="avatar">
-          {account.displayName.slice(0, 1).toUpperCase()}
+        <div className="account-menu">
+          <div className="avatar">
+            {account.displayName.slice(0, 1).toUpperCase()}
+          </div>
+          <div>
+            <strong>{account.displayName}</strong>
+            <small>HEAD COACH</small>
+          </div>
+          <button className="text-button" onClick={onLogout}>
+            로그아웃
+          </button>
         </div>
-        <div>
-          <strong>{account.displayName}</strong>
-          <small>HEAD COACH</small>
-        </div>
-        <button className="text-button" onClick={onLogout}>
-          로그아웃
-        </button>
-      </div>
-    </header>
+      </header>
+      <AppNavigation
+        view={view}
+        hasActiveCareer={hasActiveCareer}
+        clubName={clubName}
+        onNavigate={(destination) => {
+          const actions = {
+            saves: onHome,
+            career: onClubHome,
+            season: onSeason,
+            squad: onSquad,
+            contracts: onContracts,
+            legends: onLegends,
+          };
+          actions[destination]();
+        }}
+      />
+    </>
   );
 }
 
@@ -834,11 +919,15 @@ function SaveSelectScreen({
   careers,
   onOpen,
   onCreate,
+  onDelete,
+  deletingId,
 }: {
   account: Account;
   careers: CareerSummary[];
   onOpen: (id: number) => Promise<void>;
   onCreate: () => void;
+  onDelete: (id: number) => Promise<void>;
+  deletingId: number | null;
 }) {
   const [openingId, setOpeningId] = useState<number | null>(null);
 
@@ -895,19 +984,20 @@ function SaveSelectScreen({
                   {STRATEGY_LABELS[career.currentMeta] ?? career.currentMeta}
                 </dd>
               </div>
-              <div>
-                <dt>세이브 ID</dt>
-                <dd>#{String(career.id).padStart(4, "0")}</dd>
-              </div>
             </dl>
             <button
               className="primary-button"
-              disabled={openingId !== null}
+              disabled={openingId !== null || deletingId !== null}
               onClick={() => void open(career.id)}
             >
               {openingId === career.id ? "불러오는 중..." : "커리어 계속하기"}{" "}
               <span>→</span>
             </button>
+            <DeleteCareerButton
+              career={career}
+              busy={openingId !== null || deletingId !== null}
+              onDelete={onDelete}
+            />
           </article>
         ))}
 
@@ -950,20 +1040,36 @@ function CareerDashboard({
 }) {
   const managedTeam =
     career.teams.find((team) => team.isUserControlled) ?? career.teams[0];
-  const [detailPlayer, setDetailPlayer] = useState<CareerPlayer | null>(null);
+  const [detailPlayerSelection, setDetailPlayer] =
+    useState<CareerPlayer | null>(null);
+  const detailRoster = managedTeam
+    ? [...managedTeam.starters, ...managedTeam.benches].find(
+        (roster) => roster.careerPlayer.id === detailPlayerSelection?.id,
+      )
+    : undefined;
+  const detailPlayer = detailRoster
+    ? playerForPositionDisplay(
+        detailRoster.careerPlayer,
+        detailRoster.starterPosition,
+      )
+    : undefined;
   const selectedTeam = managedTeam;
 
   if (!selectedTeam) return null;
 
   const rosterOverall = Math.round(
     selectedTeam.starters.reduce(
-      (total, roster) => total + calculatePlayerOverall(roster.careerPlayer),
+      (total, roster) =>
+        total +
+        positionDisplayOverall(
+          playerForPositionDisplay(roster.careerPlayer, roster.starterPosition),
+        ),
       0,
     ) / Math.max(selectedTeam.starters.length, 1),
   );
 
   return (
-    <section className="dashboard-page">
+    <section className="dashboard-page dashboard-page--management">
       <div className="dashboard-topbar">
         <button className="back-button" onClick={onBack}>
           ← 세이브 목록
@@ -1011,13 +1117,11 @@ function CareerDashboard({
           <div>
             <p className="eyebrow">MANAGED CLUB · {managedTeam.region}</p>
             <h1>{managedTeam.name}</h1>
-            <p>
-              {managedTeam.code} · Career #{career.id}
-            </p>
+            <p>{managedTeam.code}</p>
           </div>
         </div>
         <div className="club-metrics">
-          <Metric label="TEAM OVR" value={rosterOverall} />
+          <Metric label="POSITION OVR" value={rosterOverall} />
           <Metric label="CHEMISTRY" value={managedTeam.chemistry} suffix="%" />
           <Metric
             label="STRATEGY"
@@ -1030,7 +1134,7 @@ function CareerDashboard({
         </div>
       </section>
 
-      <div className="dashboard-grid">
+      <div className="dashboard-team-management">
         <TrainingPanel
           key={`${career.id}:${token}:${career.currentDate}`}
           career={career}
@@ -1039,67 +1143,12 @@ function CareerDashboard({
           onCareerRefresh={onCareerRefresh}
           onOpenPlayer={setDetailPlayer}
         />
-
-        <aside className="side-panels">
-          <section className="info-panel">
-            <p className="eyebrow">TEAM IDENTITY</p>
-            <h2>{selectedTeam.name}</h2>
-            <dl className="compact-stats">
-              <div>
-                <dt>지역</dt>
-                <dd>{selectedTeam.region}</dd>
-              </div>
-              <div>
-                <dt>운영 전술</dt>
-                <dd>
-                  {STRATEGY_LABELS[selectedTeam.teamStrategy] ??
-                    selectedTeam.teamStrategy}
-                </dd>
-              </div>
-              <div>
-                <dt>팀워크</dt>
-                <dd>{selectedTeam.chemistry}</dd>
-              </div>
-            </dl>
-          </section>
-          <section className="info-panel">
-            <p className="eyebrow">STRATEGY MASTERY</p>
-            <h2>전술 숙련도</h2>
-            <div className="proficiency-list">
-              {selectedTeam.strategyProficiencies
-                .slice()
-                .sort((a, b) => b.proficiency - a.proficiency)
-                .slice(0, 5)
-                .map((item) => (
-                  <div key={item.strategy}>
-                    <span>
-                      {STRATEGY_LABELS[item.strategy] ?? item.strategy}
-                    </span>
-                    <strong>{item.proficiency}</strong>
-                    <i>
-                      <b style={{ width: `${item.proficiency}%` }} />
-                    </i>
-                  </div>
-                ))}
-            </div>
-          </section>
-          <section className="phase-note">
-            <span>FRONTEND 02</span>
-            <strong>시즌 진행 준비 완료</strong>
-            <p>
-              일정 생성부터 날짜 진행, 이벤트 처리, Quick Sim까지 시즌 허브에서
-              이어집니다.
-            </p>
-            <button type="button" onClick={onOpenSeason}>
-              시즌 허브 열기
-            </button>
-          </section>
-        </aside>
       </div>
       {detailPlayer && (
         <PlayerDetailModal
           card={detailPlayer.playerCard}
           careerPlayer={detailPlayer}
+          assignedPosition={detailRoster?.starterPosition ?? undefined}
           onClose={() => setDetailPlayer(null)}
         />
       )}
@@ -1132,10 +1181,12 @@ function Metric({
 function PlayerDetailModal({
   card,
   careerPlayer,
+  assignedPosition,
   onClose,
 }: {
   card: PlayerCard;
   careerPlayer?: CareerPlayer;
+  assignedPosition?: Position;
   onClose: () => void;
 }) {
   useEffect(() => {
@@ -1190,17 +1241,23 @@ function PlayerDetailModal({
           ×
         </button>
         <div className="player-modal-visual">
-          <span className="modal-position">
-            {POSITION_LABELS[card.mainPosition]}
-          </span>
-          <img
-            src={cardImage(card, card.id)}
-            alt={`${card.player.nickname} 선수 카드`}
-          />
-          <div className="modal-overall">
-            <small>OVR</small>
-            <strong>{overall}</strong>
-          </div>
+          {hasCardArtwork(card) ? (
+            <PlayerCardArtwork card={card} player={careerPlayer} />
+          ) : (
+            <>
+              <span className="modal-position">
+                {POSITION_LABELS[card.mainPosition]}
+              </span>
+              <img
+                src={cardImage(card, card.id)}
+                alt={`${card.player.nickname} 선수 카드`}
+              />
+              <div className="modal-overall">
+                <small>OVR</small>
+                <strong>{overall}</strong>
+              </div>
+            </>
+          )}
         </div>
 
         <div className="player-modal-content">
@@ -1209,6 +1266,11 @@ function PlayerDetailModal({
           <p className="modal-subtitle">
             {card.player.nationality} · AGE {age} · {card.theme.name}
           </p>
+          {assignedPosition && (
+            <p className="modal-subtitle">
+              {POSITION_LABELS[assignedPosition]} 배치 기준 OVR·능력치
+            </p>
+          )}
 
           <div className="player-meta-grid">
             <div>
@@ -1247,7 +1309,9 @@ function PlayerDetailModal({
                           ? "good"
                           : ""
                     }
-                    style={{ width: `${stat.value}%` }}
+                    style={{
+                      width: `${(Math.max(0, Math.min(119, stat.value)) / 119) * 100}%`,
+                    }}
                   />
                 </i>
               </div>
@@ -1266,7 +1330,13 @@ function PlayerDetailModal({
               </div>
               <div>
                 <span>현재 포지션</span>
-                <strong>{POSITION_LABELS[careerPlayer.currentPosition]}</strong>
+                <strong>
+                  {
+                    POSITION_LABELS[
+                      assignedPosition ?? careerPlayer.currentPosition
+                    ]
+                  }
+                </strong>
               </div>
             </div>
           )}

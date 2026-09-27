@@ -624,6 +624,137 @@ describe('Transfer, free agency and contract expiration (e2e)', () => {
       .expect(409);
   });
 
+  it('sells without a replacement, blocks incomplete matches, then fills the vacancy with a new signing', async () => {
+    const career = await createCareer(0);
+    const home = team(career, 'TRANSFER_HOME');
+    const buyer = team(career, 'TRANSFER_SELLER');
+    const playerId = starter(home, Position.TOP).careerPlayer.id;
+    const quote = await api()
+      .get(`${transferBase(career.id)}/sale-candidates`)
+      .set(auth())
+      .expect(200);
+    const candidate = (quote.body as TransferMarketEntryResponse[]).find(
+      (item) => item.careerPlayerId === playerId,
+    )!;
+    expect(candidate.canNegotiate).toBe(true);
+    expect(candidate.blockedReason).toBeNull();
+    const response = await api()
+      .post(`${contractsBase(career.id)}/sales`)
+      .set(auth())
+      .send({
+        careerPlayerId: playerId,
+        buyerCareerTeamId: buyer.id,
+        askingFee: candidate.requiredFee,
+      })
+      .expect(201);
+    const sale = response.body as ContractOfferResponse;
+    for (let day = 0; day < 3; day++) {
+      if ((await getCareer(career.id)).currentDate >= sale.responseDate) break;
+      await api()
+        .post(`/careers/${career.id}/calendar/advance`)
+        .set(auth())
+        .send({ mode: 'ONE_DAY' })
+        .expect(201);
+    }
+    expect(
+      (
+        await dataSource
+          .getRepository(ContractOffer)
+          .findOneByOrFail({ id: sale.id })
+      ).status,
+    ).toBe(ContractOfferStatus.SIGNED);
+    const afterSale = team(await getCareer(career.id), 'TRANSFER_HOME');
+    expect(afterSale.starters).toHaveLength(4);
+    expect(afterSale.benches).toHaveLength(0);
+    expect(
+      afterSale.starters.some((slot) => slot.starterPosition === Position.TOP),
+    ).toBe(false);
+    expect(
+      (await listHistory(career.id)).filter(
+        (record) => record.careerPlayerId === playerId,
+      ),
+    ).toEqual([
+      expect.objectContaining({
+        type: TransferRecordType.TRANSFER,
+        transferFee: candidate.requiredFee,
+      }),
+    ]);
+    await api()
+      .post('/matches/simulate')
+      .set(auth())
+      .send({
+        careerId: career.id,
+        teamAId: home.id,
+        teamBId: buyer.id,
+        seed: 123,
+      })
+      .expect(409);
+
+    const replacement = buyer.benches[0].careerPlayer;
+    const { accepted } = await createAcceptedAgreement(
+      career.id,
+      replacement.id,
+    );
+    const offer = await createContractOffer(
+      career.id,
+      replacement.id,
+      accepted.id,
+    );
+    await advanceToContractResponse(career.id, offer);
+    await acceptContract(career.id, offer.id);
+    // Signings remain on the bench until the manager assigns the vacant slot.
+    expect(
+      team(await getCareer(career.id), 'TRANSFER_HOME').starters,
+    ).toHaveLength(4);
+    await api()
+      .patch(`/careers/${career.id}/teams/${home.id}/starters/TOP/swap`)
+      .set(auth())
+      .send({ careerPlayerId: replacement.id })
+      .expect(200);
+    const restored = team(await getCareer(career.id), 'TRANSFER_HOME');
+    expect(restored.starters).toHaveLength(5);
+    expect(starter(restored, Position.TOP).careerPlayer.id).toBe(
+      replacement.id,
+    );
+    await api()
+      .post('/matches/simulate')
+      .set(auth())
+      .send({
+        careerId: career.id,
+        teamAId: home.id,
+        teamBId: buyer.id,
+        seed: 123,
+      })
+      .expect(201);
+  });
+
+  it('buys a starter even when the selling club has no same-position bench', async () => {
+    const career = await createCareer(0);
+    const home = team(career, 'TRANSFER_HOME');
+    const seller = team(career, 'TRANSFER_SELLER');
+    const target = starter(seller, Position.JUNGLE).careerPlayer;
+    expect(
+      (await listMarket(career.id)).find(
+        (item) => item.careerPlayerId === target.id,
+      ),
+    ).toMatchObject({ canNegotiate: true, blockedReason: null });
+    const { accepted } = await createAcceptedAgreement(career.id, target.id);
+    const offer = await createContractOffer(career.id, target.id, accepted.id);
+    await advanceToContractResponse(career.id, offer);
+    await acceptContract(career.id, offer.id);
+    const after = await getCareer(career.id);
+    expect(team(after, 'TRANSFER_SELLER').starters).toHaveLength(4);
+    expect(team(after, 'TRANSFER_SELLER').benches).toHaveLength(1);
+    expect(team(after, 'TRANSFER_HOME').benches).toContainEqual(
+      expect.objectContaining({
+        careerPlayer: expect.objectContaining({
+          id: target.id,
+          currentTeamId: home.id,
+        }) as unknown,
+      }),
+    );
+  });
+
   it('cancels a sale without releasing the player or charging the AI club', async () => {
     const career = await createCareer();
     const home = team(career, 'TRANSFER_HOME');
@@ -685,7 +816,7 @@ describe('Transfer, free agency and contract expiration (e2e)', () => {
       .expect(201);
   });
 
-  it('protects sale ownership, validation, closed windows and starters without replacements', async () => {
+  it('protects sale ownership, validation and closed windows', async () => {
     const career = await createCareer(0);
     const home = team(career, 'TRANSFER_HOME');
     const buyer = team(career, 'TRANSFER_SELLER');
@@ -708,11 +839,6 @@ describe('Transfer, free agency and contract expiration (e2e)', () => {
       .set(auth(otherToken))
       .send(body)
       .expect(404);
-    await api()
-      .post(`${contractsBase(career.id)}/sales`)
-      .set(auth())
-      .send(body)
-      .expect(409);
     await api()
       .post(`${contractsBase(career.id)}/sales`)
       .set(auth())
@@ -889,7 +1015,7 @@ describe('Transfer, free agency and contract expiration (e2e)', () => {
         careerPlayerId: starter(seller, Position.JUNGLE).careerPlayer.id,
         offeredFee: 500_000,
       })
-      .expect(409);
+      .expect(201);
 
     const homeSupport = starter(home, Position.SUPPORT).careerPlayer;
     await api()

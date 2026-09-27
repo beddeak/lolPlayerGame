@@ -18,7 +18,11 @@ import { MatchFeedbackPlayerEffect } from './match-feedback-player-effect.entity
 import { MatchSeries } from './match-series.entity';
 
 @Entity({ name: 'match_feedbacks' })
-@Unique('UQ_match_feedbacks_series_game', ['seriesId', 'afterGameNumber'])
+@Unique('UQ_match_feedbacks_series_game_type', [
+  'seriesId',
+  'afterGameNumber',
+  'type',
+])
 export class MatchFeedback {
   @PrimaryGeneratedColumn({ type: 'int', unsigned: true })
   id!: number;

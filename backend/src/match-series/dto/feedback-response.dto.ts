@@ -1,8 +1,10 @@
 import { PlayerPersonality } from '../../players/enums/player-personality.enum';
 import { FeedbackOption } from '../enums/feedback-option.enum';
 import { FeedbackType } from '../enums/feedback-type.enum';
+import type { FeedbackReaction } from '../next-set-feedback';
 
 export class FeedbackPlayerEffectResponseDto {
+  reaction!: FeedbackReaction | null;
   careerPlayerId!: number;
   personality!: PlayerPersonality;
   mentalBefore!: number;

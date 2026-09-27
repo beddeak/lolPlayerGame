@@ -8,6 +8,7 @@ import { EventQueueModule } from '../event-queue/event-queue.module';
 import { LeaguesModule } from '../leagues/leagues.module';
 import { SimulationsController } from './simulations.controller';
 import { SimulationsService } from './simulations.service';
+import { InternationalsModule } from '../internationals/internationals.module';
 
 @Module({
   imports: [
@@ -15,6 +16,7 @@ import { SimulationsService } from './simulations.service';
     CalendarsModule,
     EventQueueModule,
     LeaguesModule,
+    InternationalsModule,
     TypeOrmModule.forFeature([Career, CareerTeam]),
   ],
   controllers: [SimulationsController],

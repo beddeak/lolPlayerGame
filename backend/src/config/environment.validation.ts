@@ -27,6 +27,10 @@ function normalizeBooleanString(value: unknown): unknown {
 }
 
 export class EnvironmentVariables {
+  @IsOptional()
+  @IsIn(['true', 'false'])
+  TEST_ADMIN_ENABLED?: string;
+
   @IsString()
   @IsNotEmpty()
   DB_HOST!: string;

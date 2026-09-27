@@ -1,4 +1,8 @@
-import { BadRequestException, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  NotFoundException,
+} from '@nestjs/common';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Test, TestingModule } from '@nestjs/testing';
 import { DataSource } from 'typeorm';
@@ -34,6 +38,7 @@ describe('CareerTeamsService', () => {
     save: jest.fn(),
   };
   const transactionManager = {
+    find: jest.fn(),
     findOne: jest.fn(),
     save: jest.fn(),
     getRepository: (entity: unknown) =>
@@ -91,6 +96,7 @@ describe('CareerTeamsService', () => {
 
   beforeEach(async () => {
     jest.clearAllMocks();
+    transactionManager.find.mockResolvedValue([]);
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -335,6 +341,81 @@ describe('CareerTeamsService', () => {
     });
     expect(result.demotedBench).toBeNull();
     expect(transactionManager.save).toHaveBeenCalledTimes(1);
+  });
+
+  it('swaps two starters across positions without losing either starter or their base stats', async () => {
+    benchRoster.role = RosterRole.STARTER;
+    benchRoster.starterPosition = Position.MID;
+    roster.playerInstruction = PlayerInstruction.HYPER_CARRY;
+    const result = await service.swapStarter(7, 1, 1, Position.MID, {
+      careerPlayerId: roster.careerPlayerId,
+    });
+    expect(result.promotedStarter.starterPosition).toBe(Position.MID);
+    expect(result.swappedStarter?.starterPosition).toBe(Position.ADC);
+    expect(result.demotedBench).toBeNull();
+    expect(
+      careerTeam.rosters.filter((r) => r.role === RosterRole.STARTER),
+    ).toHaveLength(2);
+    expect(roster.playerInstruction).toBeNull();
+    expect(transactionManager.save).toHaveBeenCalledTimes(3);
+    for (const [entity] of transactionManager.save.mock.calls)
+      expect(entity).toBe(Roster);
+  });
+
+  it('treats dropping a starter onto itself as an idempotent no-op', async () => {
+    const result = await service.swapStarter(7, 1, 1, Position.ADC, {
+      careerPlayerId: roster.careerPlayerId,
+    });
+    expect(result.promotedStarter.careerPlayerId).toBe(roster.careerPlayerId);
+    expect(transactionManager.save).not.toHaveBeenCalled();
+  });
+
+  it('blocks roster mutation while a drafted set is still pending', async () => {
+    transactionManager.find.mockResolvedValue([
+      { drafts: { '1': {} }, games: [] },
+    ]);
+    await expect(
+      service.swapStarter(7, 1, 1, Position.MID, {
+        careerPlayerId: roster.careerPlayerId,
+      }),
+    ).rejects.toBeInstanceOf(ConflictException);
+    expect(transactionManager.save).not.toHaveBeenCalled();
+  });
+
+  it('allows roster changes after the drafted set was played', async () => {
+    transactionManager.find.mockResolvedValue([
+      { drafts: { '1': {} }, games: [{ seriesGameNumber: 1 }] },
+    ]);
+    await service.swapStarter(7, 1, 1, Position.MID, {
+      careerPlayerId: roster.careerPlayerId,
+    });
+    expect(roster.starterPosition).toBe(Position.MID);
+  });
+
+  it('locks strategy during a draft and unlocks it after that set', async () => {
+    transactionManager.find.mockResolvedValue([
+      { drafts: { '2': {} }, games: [{ seriesGameNumber: 1 }] },
+    ]);
+    await expect(
+      service.updateStrategy(7, 1, 1, { strategy: TeamStrategy.MID_CARRY }),
+    ).rejects.toBeInstanceOf(ConflictException);
+    expect(careerTeamsRepository.save).not.toHaveBeenCalled();
+    transactionManager.find.mockResolvedValue([
+      { drafts: { '2': {} }, games: [{ seriesGameNumber: 2 }] },
+    ]);
+    await expect(
+      service.updateStrategy(7, 1, 1, { strategy: TeamStrategy.MID_CARRY }),
+    ).resolves.toMatchObject({ strategy: TeamStrategy.MID_CARRY });
+  });
+
+  it('rejects ambiguous legacy and new player identifiers', async () => {
+    await expect(
+      service.swapStarter(7, 1, 1, Position.MID, {
+        careerPlayerId: 100,
+        benchCareerPlayerId: 101,
+      }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(transactionManager.save).not.toHaveBeenCalled();
   });
 
   it('rejects a swap when the selected player is not on the bench', async () => {

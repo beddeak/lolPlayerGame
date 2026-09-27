@@ -20,7 +20,12 @@ export class JwtAuthGuard implements CanActivate {
     const [type, token] = authorization?.split(' ') ?? [];
 
     if (type !== 'Bearer' || !token) {
-      throw new UnauthorizedException('Bearer access token is required');
+      throw new UnauthorizedException({
+        statusCode: 401,
+        error: 'Unauthorized',
+        code: 'AUTH_SESSION_INVALID',
+        message: 'Bearer access token is required',
+      });
     }
 
     try {
@@ -42,7 +47,12 @@ export class JwtAuthGuard implements CanActivate {
 
       return true;
     } catch {
-      throw new UnauthorizedException('Invalid or expired access token');
+      throw new UnauthorizedException({
+        statusCode: 401,
+        error: 'Unauthorized',
+        code: 'AUTH_SESSION_INVALID',
+        message: 'Invalid or expired access token',
+      });
     }
   }
 }

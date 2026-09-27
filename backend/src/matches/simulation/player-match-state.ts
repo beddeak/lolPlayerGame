@@ -1,11 +1,16 @@
 import { CAREER_PLAYER_STATE_CONFIG } from '../../careers/config/player-state.config';
 import { formRecovery } from '../../careers/config/form-recovery';
 import {
+  feedbackPerformance,
+  NextSetFeedback,
+} from '../../match-series/next-set-feedback';
+import {
   PLAYER_CARD_STAT_MAX,
   PLAYER_CARD_STAT_MIN,
 } from '../../players/constants/player-card.constants';
 
 export interface PlayerMatchState {
+  feedback?: NextSetFeedback | null;
   form: number;
   condition: number;
   mental: number;
@@ -29,7 +34,7 @@ export function calculatePlayerMatchStateModifiers(
 ): PlayerMatchStateModifiers {
   const config = CAREER_PLAYER_STATE_CONFIG;
   const formModifier = calculateBoundedModifier(
-    state.form,
+    clampState(state.form + (state.feedback?.form ?? 0)),
     config.matchModifier.form,
   );
   const conditionModifier = calculateBoundedModifier(
@@ -37,7 +42,11 @@ export function calculatePlayerMatchStateModifiers(
     config.matchModifier.condition,
   );
   const mentalModifier = calculateBoundedModifier(
-    state.mental,
+    clamp(
+      state.mental + (state.feedback?.mental ?? 0),
+      0,
+      PLAYER_CARD_STAT_MAX,
+    ),
     config.matchModifier.mental,
   );
 
@@ -45,7 +54,12 @@ export function calculatePlayerMatchStateModifiers(
     formModifier: round(formModifier),
     conditionModifier: round(conditionModifier),
     mentalModifier: round(mentalModifier),
-    stateModifier: round(formModifier + conditionModifier + mentalModifier),
+    stateModifier: round(
+      formModifier +
+        conditionModifier +
+        mentalModifier +
+        feedbackPerformance(state.feedback),
+    ),
   };
 }
 

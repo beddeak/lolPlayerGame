@@ -1,0 +1,19 @@
+.test-admin-entry { display:flex; justify-content:flex-end; margin-bottom:1rem; }
+.test-admin-entry button { padding:.7rem 1rem; border:1px solid #ddb97a; border-radius:8px; background:#263243; color:#f7deb3; cursor:pointer; }
+.test-admin-panel { padding:clamp(1rem,3vw,2.5rem); background:#121c29; color:#eaf0f8; border:1px solid #394a60; border-radius:16px; }
+.test-admin-panel header { display:flex; align-items:center; justify-content:space-between; gap:1rem; }
+.test-admin-panel h1 { font-size:2rem; margin:.5rem 0; }
+.test-admin-panel h2 { font-size:1.25rem; }
+.test-admin-panel p { color:#bfccdd; line-height:1.7; }
+.test-admin-panel header span { color:#f7deb3; }
+.test-admin-columns { display:grid; grid-template-columns:1fr 1fr; gap:1.5rem; margin-top:1.5rem; }
+.test-admin-columns article { padding:1.25rem; border:1px solid #41516a; border-radius:12px; min-width:0; }
+.test-admin-panel label { display:grid; gap:.5rem; color:#eaf0f8; }
+.test-admin-panel select,.test-admin-panel input[type=number] { width:100%; padding:.7rem; background:#0c1420; color:#f3f6fa; border:1px solid #52647b; border-radius:6px; box-sizing:border-box; }
+.test-admin-stats { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:1rem; margin:1rem 0; }
+.test-admin-panel button { padding:.7rem 1rem; margin:.4rem .5rem .4rem 0; background:#294666; color:#f6f8fc; border:1px solid #6f8caf; border-radius:6px; cursor:pointer; }
+.test-admin-panel button:disabled,.test-admin-entry button:disabled { opacity:.6; cursor:not-allowed; }
+.test-admin-panel .test-admin-confirm { display:flex; align-items:flex-start; margin:1.5rem 0; line-height:1.6; }
+.test-admin-confirm input { margin-top:.4rem; }
+.test-admin-panel .test-admin-error { color:#ffc4bc; border:1px solid #9e5a50; padding:1rem; }
+@media(max-width:800px) { .test-admin-columns { grid-template-columns:1fr; } }

@@ -12,6 +12,7 @@ import { CareerTeam } from '../../careers/entities/career-team.entity';
 import { Career } from '../../careers/entities/career.entity';
 import { Match } from '../../matches/entities/match.entity';
 import { MatchFeedback } from './match-feedback.entity';
+import type { DraftState } from '../../drafts/draft-state';
 
 @Entity({ name: 'match_series' })
 export class MatchSeries {
@@ -56,6 +57,9 @@ export class MatchSeries {
 
   @Column({ type: 'tinyint', unsigned: true, default: 3 })
   bestOf!: number;
+
+  @Column({ type: 'json', nullable: true })
+  drafts!: Record<string, DraftState> | null;
 
   @CreateDateColumn({
     type: 'timestamp',

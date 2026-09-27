@@ -320,7 +320,13 @@ export interface CalendarFixture {
 export interface SeasonPeriod {
   code: string;
   label: string;
-  kind: "PRESEASON" | "REGIONAL" | "INTERNATIONAL" | "BREAK" | "REVIEW" | "OFFSEASON";
+  kind:
+    | "PRESEASON"
+    | "REGIONAL"
+    | "INTERNATIONAL"
+    | "BREAK"
+    | "REVIEW"
+    | "OFFSEASON";
   startsAt: string;
   endsAt: string;
   splitNumber: number | null;
@@ -355,7 +361,11 @@ export interface CalendarResponse {
   seasonReadiness: Array<{
     region: Region;
     teamCount: number;
-    status: "READY" | "INSUFFICIENT_TEAMS" | "WAITING_FOR_PREVIOUS_SPLIT" | "NO_REMAINING_SPLIT";
+    status:
+      | "READY"
+      | "INSUFFICIENT_TEAMS"
+      | "WAITING_FOR_PREVIOUS_SPLIT"
+      | "NO_REMAINING_SPLIT";
     splitNumber: number | null;
     message: string;
   }>;
@@ -380,6 +390,7 @@ export interface ManagerOverview {
   fanApproval: number;
   boardConfidence: number;
   canManage: boolean;
+  pendingJobOfferCount?: number;
   trackingStartedDate: string | null;
   reviewYear: number;
   record: {
@@ -399,7 +410,16 @@ export interface ManagerOverview {
   recentReviews: Array<{
     id: number;
     date: string;
-    type: "BASELINE" | "EXPECTATION" | "SERIES" | "SPLIT" | "TRANSFER" | "SEASON" | "WARNING" | "RECOVERED" | "DISMISSED";
+    type:
+      | "BASELINE"
+      | "EXPECTATION"
+      | "SERIES"
+      | "SPLIT"
+      | "TRANSFER"
+      | "SEASON"
+      | "WARNING"
+      | "RECOVERED"
+      | "DISMISSED";
     title: string;
     reason: string;
     fanDelta: number;
@@ -453,6 +473,8 @@ export interface LeagueStanding {
 }
 
 export interface LeagueStage {
+  bracket?: { nodes: BracketNode[]; dynamic: boolean } | null;
+  groups?: LeagueGroup[];
   id: number;
   sequence: number;
   code: string;
@@ -473,6 +495,33 @@ export interface LeagueStage {
   standings: LeagueStanding[];
 }
 
+export interface LeagueGroup {
+  code: string;
+  name: string;
+  points: number;
+  seriesWins: number;
+  seriesLosses: number;
+  gameDifference: number;
+  battleStatus: "PENDING" | "TIED" | "LEADING" | "TRAILING" | "WINNER" | "LOSER" | null;
+  battleTiebreaker?: "GAME_DIFFERENCE" | "INITIAL_SEED" | null;
+  standings: LeagueStanding[];
+}
+
+export interface BracketSlot {
+  teamId: number | null;
+  source?: { key: string; result: "WINNER" | "LOSER" };
+}
+export interface BracketNode {
+  key: string;
+  round: number;
+  lane: "UPPER" | "LOWER" | "FINAL" | "QUALIFIER";
+  label: string;
+  bestOf: number;
+  fixtureId: number | null;
+  a: BracketSlot;
+  b: BracketSlot;
+}
+
 export interface LeagueSplit {
   id: number;
   careerId: number;
@@ -489,6 +538,13 @@ export interface LeagueSplit {
 }
 
 export interface MatchPlayerStat {
+  feedback?: NextSetFeedback | null;
+  form: number;
+  condition: number;
+  mental: number;
+  formAfter: number;
+  conditionAfter: number;
+  mentalAfter: number;
   careerPlayerId: number;
   position: Position;
   kills: number;
@@ -506,6 +562,13 @@ export interface MatchPlayerStat {
 }
 
 export interface MatchSimulation {
+  draft?: {
+    version: number;
+    blue: {id:number}; red: {id:number};
+    assignments?: Record<'BLUE'|'RED', Record<Position,string>>;
+    actions: Array<{variantId:string;kind:'PICK'|'BAN';championName?:string;championImageUrl?:string}>;
+  } | null;
+  pog?: PlayerOfGame | null;
   matchId: number;
   seriesGameNumber: number | null;
   durationMinutes: number;
@@ -516,12 +579,21 @@ export interface MatchSimulation {
     teamCode: string;
     teamStrategy: TeamStrategy;
     performance: number;
+    baseAbility?: number;
+    stateModifier?: number;
+    chemistryModifier?: number;
+    strategyProficiencyModifier?: number;
+    archetypeModifier?: number;
+    metaModifier?: number;
+    rngModifier?: number;
     teamKills: number;
     playerStats: MatchPlayerStat[];
   }>;
 }
 
 export interface MatchSeries {
+  nextDraftStarted?: boolean;
+  pom?: PlayerOfMatch | null;
   seriesId: number;
   careerId: number;
   bestOf: number;
@@ -538,6 +610,67 @@ export interface MatchSeries {
   games: MatchSimulation[];
 }
 
+export interface NextSetFeedback {
+  mental: number;
+  form: number;
+  confidence: number;
+  motivation: number;
+  pressure: number;
+  aggression: number;
+  riskTaking: number;
+  carryBonus: number;
+}
+export interface MatchFeedback {
+  id: number;
+  afterGameNumber: number;
+  type: "TEAM" | "INDIVIDUAL";
+  option: string;
+  targetTeamId: number;
+  targetCareerPlayerId: number | null;
+  effects: Array<{
+    careerPlayerId: number;
+    personality: string;
+    mentalBefore: number;
+    mentalAfter: number;
+    mentalDelta: number;
+    formBefore: number;
+    formAfter: number;
+    formDelta: number;
+    coachTrustBefore: number;
+    coachTrustAfter: number;
+    coachTrustDelta: number;
+    reaction:
+      | (NextSetFeedback & {
+          version: 1;
+          acceptance: number;
+          chemistry: number;
+          text: string;
+        })
+      | null;
+  }>;
+}
+
+export interface PlayerOfGame {
+  careerPlayerId: number;
+  teamId: number;
+  rating: number;
+  kills: number;
+  deaths: number;
+  assists: number;
+}
+
+export interface PlayerOfMatch {
+  careerPlayerId: number;
+  teamId: number;
+  gamesPlayed: number;
+  totalRating: number;
+  averageRating: number;
+  pogCount: number;
+  kills: number;
+  deaths: number;
+  assists: number;
+}
+
 export interface QuickSimResponse {
   mode: "QUICK";
   fixtureId: number;
@@ -547,6 +680,7 @@ export interface QuickSimResponse {
 }
 
 export type FastSimStopReason =
+  | "WEEKLY_ACTIVITY"
   | "TARGET_REACHED"
   | "MANAGED_MATCH"
   | "BLOCKING_EVENT"
@@ -556,6 +690,10 @@ export type FastSimStopReason =
   | "TRANSFER_WINDOW_BOUNDARY";
 
 export interface FastSimResponse {
+  simulatedInternationalFixtures?: Array<{
+    tournamentId: number;
+    fixtureId: number;
+  }>;
   mode: "FAST";
   careerId: number;
   previousDate: string;

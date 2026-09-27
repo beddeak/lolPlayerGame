@@ -26,6 +26,8 @@ import { MatchSeriesStatus } from './enums/match-series-status.enum';
 import { deriveSeriesGameSeed } from './match-series.utils';
 import { lockActiveManagerCareer } from '../manager-career/manager-access';
 import { InternationalFixture } from '../internationals/entities/international-fixture.entity';
+import { selectPlayerOfMatch } from '../matches/match-awards';
+import { updateSeriesDraft } from '../drafts/series-draft.store';
 
 @Injectable()
 export class MatchSeriesService {
@@ -130,15 +132,43 @@ export class MatchSeriesService {
   async simulateNextGame(
     accountId: number,
     id: number,
+    options?: { requireDraft: boolean; expectedGameNumber?: number },
   ): Promise<MatchSeriesResponseDto> {
     const series = await this.findOwnedSeries(accountId, id);
     const state = this.calculateState(series);
+
+    if (
+      options?.expectedGameNumber !== undefined &&
+      options.expectedGameNumber <= series.games.length
+    )
+      return this.toResponse(accountId, series);
 
     if (state.status === MatchSeriesStatus.COMPLETED) {
       throw new ConflictException(`MatchSeries ${id} is already completed`);
     }
 
     const gameNumber = state.nextGameNumber!;
+    if (
+      options?.expectedGameNumber !== undefined &&
+      options.expectedGameNumber !== gameNumber
+    )
+      throw new ConflictException(
+        '현재 세트 번호가 달라졌습니다. 경기를 다시 불러와 주세요.',
+      );
+    const draft = options?.requireDraft
+      ? await updateSeriesDraft(
+          this.dataSource,
+          accountId,
+          id,
+          gameNumber,
+          undefined,
+          true,
+        )
+      : undefined;
+    if (draft?.managedTeamId && options?.expectedGameNumber === undefined)
+      throw new ConflictException(
+        '밴픽 화면에서 세트 번호를 지정하여 경기를 시작해 주세요.',
+      );
     const seed = deriveSeriesGameSeed(
       series.seed,
       gameNumber,
@@ -154,7 +184,7 @@ export class MatchSeriesService {
           teamBId: series.teamBId,
           seed,
         },
-        { series, gameNumber },
+        { series, gameNumber, draft },
       );
     } catch (error) {
       if (this.isDuplicateEntryError(error)) {
@@ -194,7 +224,9 @@ export class MatchSeriesService {
       status: series.status,
       score: series.teams,
       analyzedGameNumber: lastGame.seriesGameNumber,
-      adjustmentsAllowed: series.status === MatchSeriesStatus.IN_PROGRESS,
+      adjustmentsAllowed:
+        series.status === MatchSeriesStatus.IN_PROGRESS &&
+        !series.nextDraftStarted,
       teams: [
         this.toTeamAnalysis(lastGame, teamA, teamB),
         this.toTeamAnalysis(lastGame, teamB, teamA),
@@ -241,6 +273,9 @@ export class MatchSeriesService {
 
     return {
       seriesId: series.id,
+      nextDraftStarted:
+        state.nextGameNumber !== null &&
+        !!series.drafts?.[String(state.nextGameNumber)],
       careerId: series.careerId,
       bestOf: this.getBestOf(series),
       winsRequired: getSeriesWinsRequired(this.getBestOf(series)),
@@ -253,6 +288,7 @@ export class MatchSeriesService {
         this.toSeriesTeam(series.teamB, state.teamBWins),
       ],
       games,
+      pom: selectPlayerOfMatch(games, state.winnerTeamId),
     };
   }
 

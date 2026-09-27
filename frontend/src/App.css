@@ -685,6 +685,26 @@ button {
   font-size: 0.72rem;
   font-weight: 700;
 }
+/* Decorative layers must never intercept save actions or confirmation inputs. */
+.save-card::before,
+.save-card-accent,
+.save-card-accent::after,
+.save-card .team-monogram::after {
+  pointer-events: none;
+}
+
+.save-delete-area {
+  position: relative;
+  z-index: 1;
+  margin-top: 12px;
+}
+.save-delete-button { padding: 9px 14px; background: #fff4f1; color: #a32b19; border: 1px solid #d69c90; cursor: pointer; }
+.save-delete-button:disabled { opacity: .5; cursor: not-allowed; }
+.save-delete-confirm { display: grid; gap: 10px; padding: 14px; border: 1px solid #d69c90; background: #fff8f5; color: #6c281f; }
+.save-delete-confirm p { margin: 0; font-size: 13px; line-height: 1.6; }
+.save-delete-confirm label { display: grid; gap: 6px; font-size: 13px; }
+.save-delete-confirm input { min-width: 0; padding: 9px; border: 1px solid #c4a59e; background: #fff; color: #172d43; }
+.save-delete-confirm > div { display: flex; gap: 8px; }
 .save-card .primary-button {
   width: 100%;
   margin-top: auto;

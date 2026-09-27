@@ -21,6 +21,9 @@ import { LegendsModule } from './legends/legends.module';
 import { AiClubsModule } from './ai-clubs/ai-clubs.module';
 import { ManagerCareerModule } from './manager-career/manager-career.module';
 import { InternationalsModule } from './internationals/internationals.module';
+import { DraftsModule } from './drafts/drafts.module';
+import { TestAdminModule } from './test-admin/test-admin.module';
+import { SeasonSkipModule } from './season-skip/season-skip.module';
 
 @Module({
   imports: [
@@ -66,6 +69,9 @@ import { InternationalsModule } from './internationals/internationals.module';
     AiClubsModule,
     ManagerCareerModule,
     InternationalsModule,
+    DraftsModule,
+    TestAdminModule,
+    SeasonSkipModule,
   ],
   controllers: [AppController],
   providers: [AppService],

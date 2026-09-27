@@ -37,7 +37,8 @@ describe('catalog-only seed safety', () => {
     expect(isCatalogOnlySeed(data.managedTeamCode, [])).toBe(true);
     expect(data.managedTeamCode).toBeUndefined();
     expect(
-      data.playerCards.some((card) => /^(blue_|red_|demo_)/i.test(card.key)),
+      // RED is a real CBLOL club; its roster prefix is not a demo marker.
+      data.playerCards.some((card) => /^(blue_|demo_)/i.test(card.key)),
     ).toBe(false);
     expect(data.teams.some((team) => /^DEV_|^DEMO_/i.test(team.code))).toBe(
       false,

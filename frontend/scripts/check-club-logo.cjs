@@ -48,10 +48,11 @@ function harness(club) {
 const cases = [];
 const test = (name, run) => cases.push({ name, run });
 
-test("all ten official clubs resolve a bundled logo without saved logoUrl", () => {
+test("all catalog clubs resolve a bundled logo without saved logoUrl", () => {
   const { getClubLogoUrl } = loadClubLogo();
-  for (const code of ["T1", "HLE", "GEN", "DK", "BLG", "AL", "G2", "FNC", "LYON", "FLY"]) {
-    const expected = `/club-logos/${code.toLowerCase()}.png`;
+  const { logos } = JSON.parse(fs.readFileSync(path.resolve(__dirname, "../public/club-logos/sources.json"), "utf8"));
+  for (const { code, file } of logos) {
+    const expected = `/club-logos/${file}`;
     assert.equal(getClubLogoUrl({ code }), expected);
     assert.equal(getClubLogoUrl({ code, logoUrl: null }), expected);
     assert.match(harness({ code }).render(), new RegExp(`src="${expected}"`));
@@ -64,17 +65,24 @@ test("official logo files, source manifest and catalog paths stay in sync", () =
   const seed = JSON.parse(fs.readFileSync(path.resolve(__dirname, "../../backend/data/development-seed.json"), "utf8"));
   const { getClubLogoUrl } = loadClubLogo();
   assert.equal(manifest.season, 2026);
-  assert.equal(manifest.logos.length, 10);
-  assert.equal(new Set(manifest.logos.map((logo) => logo.code)).size, 10);
+  assert.deepEqual(manifest.logos.map(logo => logo.code).sort(), seed.teams.map(team => team.code).sort());
+  assert.equal(new Set(manifest.logos.map((logo) => logo.code)).size, manifest.logos.length);
   for (const logo of manifest.logos) {
-    assert.equal(logo.file, `${logo.code.toLowerCase()}.png`);
+    assert.match(logo.file, new RegExp(`^${logo.code.toLowerCase()}\\.(png|webp)$`));
     assert.equal(new URL(logo.sourceUrl).origin, "https://static.lolesports.com");
     const expected = `/club-logos/${logo.file}`;
     assert.equal(getClubLogoUrl({ code: logo.code }), expected);
     assert.equal(seed.teams.find((team) => team.code === logo.code)?.logoUrl, expected);
     const bytes = fs.readFileSync(path.join(directory, logo.file));
-    assert.equal(bytes.subarray(0, 8).toString("hex"), "89504e470d0a1a0a");
-    assert.ok(bytes.readUInt32BE(16) > 0 && bytes.readUInt32BE(20) > 0);
+    if (logo.file.endsWith('.webp')) {
+      assert.equal(bytes.subarray(0, 4).toString(), 'RIFF');
+      assert.equal(bytes.subarray(8, 12).toString(), 'WEBP');
+      assert.equal(bytes.readUInt32LE(4) + 8, bytes.length);
+    } else {
+      assert.equal(bytes.subarray(0, 8).toString("hex"), "89504e470d0a1a0a");
+      assert.ok(bytes.readUInt32BE(16) > 0 && bytes.readUInt32BE(20) > 0);
+    }
+    assert.match(harness({code: logo.code}).render(), /club-logo--official/);
   }
 });
 
@@ -88,6 +96,11 @@ test("canonical clubCode supports old saves and normalizes case", () => {
   const { getClubLogoUrl } = loadClubLogo();
   assert.equal(getClubLogoUrl({ code: "My Club", clubCode: "DK" }), "/club-logos/dk.png");
   assert.equal(getClubLogoUrl({ code: " gen ", logoUrl: "  " }), "/club-logos/gen.png");
+  for (const [code, file] of [['BFX', 'bnk.png'], ['KRX', 'drx.png'], ['DNS', 'dn.webp'], ['TLAW', 'tl.png'], ['PAIN', 'png.png']]) {
+    assert.equal(getClubLogoUrl({code}), `/club-logos/${file}`);
+    assert.equal(getClubLogoUrl({code: 'My Club', clubCode: code, logoUrl: null}), `/club-logos/${file}`);
+    assert.match(harness({code}).render(), /club-logo--official/);
+  }
 });
 
 test("unknown clubs retain initials without inventing an asset path", () => {
@@ -137,6 +150,30 @@ test("official light broadcast marks have a contrast surface without recoloring 
   assert.match(harness({ code: "DK" }).render(), /club-logo--official/);
   assert.match(harness({ code: "DK", logoUrl: "/club-logos/dk.png" }).render(), /club-logo--official/);
   assert.doesNotMatch(harness({ code: "DK", logoUrl: "/custom/dk.png" }).render(), /club-logo--official/);
+});
+
+test("black FURIA artwork uses a light surface without affecting other or custom logos", () => {
+  assert.match(harness({ code: "FUR" }).render(), /club-logo--light-surface/);
+  assert.match(harness({ code: "OLD", logoUrl: "/club-logos/fur.png" }).render(), /club-logo--light-surface/);
+  assert.doesNotMatch(harness({ code: "GAM" }).render(), /club-logo--light-surface/);
+  assert.doesNotMatch(harness({ code: "FUR", logoUrl: "/custom/fur.png" }).render(), /club-logo--light-surface/);
+  const view = harness({ code: "FUR" });
+  view.render();
+  view.image().props.onError();
+  assert.doesNotMatch(view.render(), /club-logo--light-surface/);
+  const css = fs.readFileSync(path.resolve(__dirname, "../src/ClubLogo.css"), "utf8");
+  assert.match(css, /\.club-logo\.club-logo--official\.club-logo--light-surface\s*\{[^}]*background:\s*#f4f6f8/);
+});
+
+test("LOUD uses the official CDN rendition instead of decoding the 8334px original", () => {
+  const directory = path.resolve(__dirname, "../public/club-logos");
+  const manifest = JSON.parse(fs.readFileSync(path.join(directory, "sources.json"), "utf8"));
+  const loud = manifest.logos.find(logo => logo.code === "LOUD");
+  assert.equal(new URL(loud.downloadUrl).origin, "https://am-a.akamaihd.net");
+  assert.equal(new URL(loud.downloadUrl).searchParams.get("f"), loud.sourceUrl);
+  const bytes = fs.readFileSync(path.join(directory, loud.file));
+  assert.equal(bytes.readUInt32BE(16), 512);
+  assert.equal(bytes.readUInt32BE(20), 512);
 });
 
 module.exports = { loadClubLogo };

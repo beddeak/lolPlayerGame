@@ -211,7 +211,7 @@ export class InternationalsService {
     return this.findAll(accountId, careerId);
   }
 
-  async simulate(
+  private async prepareFixtureContext(
     accountId: number,
     careerId: number,
     tournamentId: number,
@@ -293,16 +293,70 @@ export class InternationalsService {
       }
       return { seriesId: fixture.seriesId, done: false };
     });
-    // The existing simulator persists each game transactionally, with unique series-game slots.
+    return context;
+  }
+
+  async prepareFixture(
+    accountId: number,
+    careerId: number,
+    tournamentId: number,
+    fixtureId: number,
+  ) {
+    const context = await this.prepareFixtureContext(
+      accountId,
+      careerId,
+      tournamentId,
+      fixtureId,
+    );
+    const series = await this.series.findOne(accountId, context.seriesId);
+    // Reopen after a saved result but failed bracket/event progression.
+    if (!context.done && series.status === MatchSeriesStatus.COMPLETED) {
+      await this.simulate(accountId, careerId, tournamentId, fixtureId, {
+        single: true,
+        gameNumber: series.games.length,
+      });
+    }
+    return { series };
+  }
+
+  async simulate(
+    accountId: number,
+    careerId: number,
+    tournamentId: number,
+    fixtureId: number,
+    options?: { single: boolean; gameNumber?: number },
+  ) {
+    const context = await this.prepareFixtureContext(
+      accountId,
+      careerId,
+      tournamentId,
+      fixtureId,
+    );
+    // Persist one managed set; only AI-only fixtures may run the whole series.
+    const managed = await this.db.manager.findOneBy(CareerTeam, {
+      careerId,
+      isUserControlled: true,
+    });
     let series = await this.series.findOne(accountId, context.seriesId);
+    if (
+      !options?.single &&
+      series.teams.some((team) => team.teamId === managed?.id) &&
+      series.status !== MatchSeriesStatus.COMPLETED
+    )
+      throw new ConflictException(
+        '내 구단 경기는 경기 시작 버튼에서 세트별 밴픽을 진행해 주세요.',
+      );
     for (
       let game = 0;
       !context.done &&
       series.status !== MatchSeriesStatus.COMPLETED &&
-      game < 5;
+      game < (options?.single ? 1 : 5);
       game++
     )
-      series = await this.series.simulateNextGame(accountId, context.seriesId);
+      series = await this.series.simulateNextGame(accountId, context.seriesId, {
+        requireDraft: true,
+        expectedGameNumber: options?.gameNumber,
+      });
     if (series.status === MatchSeriesStatus.COMPLETED) {
       await this.db.transaction(async (manager) => {
         const career = await lockActiveManagerCareer(

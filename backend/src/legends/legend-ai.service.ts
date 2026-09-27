@@ -6,10 +6,7 @@ import { Career } from '../careers/entities/career.entity';
 import { CareerPlayer } from '../careers/entities/career-player.entity';
 import { CareerTeam } from '../careers/entities/career-team.entity';
 import { ContractsService } from '../contracts/contracts.service';
-import {
-  ContractExpectedRole,
-  type ContractTerms,
-} from '../contracts/contract.types';
+import { buildAiContractTerms } from '../ai-clubs/ai-contract-terms';
 import { CalendarEvent } from '../event-queue/entities/calendar-event.entity';
 import { CalendarEventStatus } from '../event-queue/enums/calendar-event-status.enum';
 import { CalendarEventType } from '../event-queue/enums/calendar-event-type.enum';
@@ -17,15 +14,6 @@ import { createSeededRandom } from '../matches/simulation/seeded-random';
 import { getTransferWindow } from '../transfers/transfer-window';
 import { LEGEND_EVENT_CONFIG } from './config/legend-event.config';
 import { LegendEventPlayer } from './entities/legend-event-player.entity';
-
-// Prototype terms only: no fictitious bank balance or club-reputation bonus.
-export const LEGEND_AI_CONTRACT_TERMS: Readonly<ContractTerms> = {
-  annualSalary: 200_000,
-  years: 2,
-  starterGuarantee: true,
-  expectedRole: ContractExpectedRole.CORE,
-  promises: [],
-};
 
 @Injectable()
 export class LegendAiService {
@@ -97,7 +85,7 @@ export class LegendAiService {
             datedCareer,
             teamId,
             player.id,
-            structuredClone(LEGEND_AI_CONTRACT_TERMS),
+            buildAiContractTerms(player),
           );
           if (!signed) continue;
           const team = await manager.findOneBy(CareerTeam, {

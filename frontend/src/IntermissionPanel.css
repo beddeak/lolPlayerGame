@@ -1,0 +1,227 @@
+.intermission-panel,
+.set-analysis {
+  margin: 1.25rem;
+  padding: 1.5rem;
+  border: 1px solid #35485e;
+  border-radius: 14px;
+  background: #121c29;
+  color: #edf3fa;
+  min-width: 0;
+}
+.intermission-eyebrow {
+  color: #ddbd81;
+  font-size: 0.7rem;
+  letter-spacing: 0.13em;
+  font-weight: 800;
+}
+.intermission-panel h3,
+.set-analysis h3 {
+  font-family: inherit;
+  font-size: 1.4rem;
+  margin: 0.5rem 0;
+  color: #f2f6fc;
+}
+.intermission-panel h4,
+.set-analysis h4 {
+  font-size: 1rem;
+  color: #f2f6fc;
+  margin: 1rem 0 0.65rem;
+}
+.intermission-panel p,
+.set-analysis p,
+.set-analysis li {
+  font-size: 0.85rem;
+  line-height: 1.7;
+}
+.intermission-panel .intermission-note,
+.set-analysis .intermission-note,
+.set-analysis small {
+  color: #b7c5d6;
+  font-size: 0.75rem;
+  line-height: 1.6;
+}
+.intermission-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.8fr) minmax(230px, 1fr);
+  gap: 1.5rem;
+  margin-top: 1.2rem;
+}
+.intermission-panel label {
+  display: grid;
+  gap: 0.45rem;
+  color: #cfdae8;
+  font-size: 0.8rem;
+  margin: 0.8rem 0;
+}
+.intermission-panel select {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid #43576e;
+  border-radius: 7px;
+  background: #1b293a;
+  color: #f2f6fc;
+}
+.intermission-panel button,
+.set-analysis button {
+  padding: 0.75rem 1rem;
+  border: 1px solid #43576e;
+  border-radius: 8px;
+  background: #25384d;
+  color: #f2f6fc;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.85rem;
+}
+.intermission-panel button:hover:not(:disabled),
+.set-analysis button:hover {
+  background: #344f6c;
+}
+.intermission-panel button[aria-pressed="true"],
+.set-analysis button[aria-pressed="true"] {
+  border-color: #ddbd81;
+  box-shadow: inset 0 0 0 1px #ddbd81;
+}
+.intermission-panel button:disabled {
+  opacity: 1;
+  color: #b7c5d6;
+  background: #1d2938;
+  cursor: not-allowed;
+}
+.intermission-panel button:focus-visible,
+.set-analysis button:focus-visible {
+  outline: 2px solid #ddbd81;
+  outline-offset: 3px;
+}
+.intermission-tabs,
+.set-analysis-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+.feedback-options {
+  display: grid;
+  gap: 0.55rem;
+  margin: 1rem 0;
+}
+.feedback-options button {
+  text-align: left;
+  display: grid;
+  gap: 0.35rem;
+}
+.feedback-options small {
+  color: #c3cfde;
+  font-size: 0.75rem;
+  line-height: 1.5;
+}
+.intermission-panel .feedback-confirm {
+  background: #dfbd80;
+  color: #152031;
+  font-weight: 800;
+  width: 100%;
+}
+.intermission-panel .feedback-confirm:disabled {
+  background: #263447;
+  color: #b7c5d6;
+}
+.intermission-adjustments {
+  padding: 0 1rem 1rem;
+  background: #192535;
+  border-radius: 10px;
+}
+.feedback-player-reaction {
+  border-left: 3px solid #ad9261;
+  padding: 0.7rem 1rem;
+  margin: 0.8rem 0;
+  background: #192535;
+}
+.feedback-player-reaction strong small {
+  color: #b7c5d6;
+  font-size: 0.75rem;
+  margin-left: 0.5rem;
+}
+.feedback-deltas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+.feedback-deltas span {
+  padding: 0.3rem 0.5rem;
+  background: #25364a;
+  border-radius: 4px;
+  font-size: 0.73rem;
+  color: #dce7f5;
+}
+.intermission-panel .intermission-error {
+  color: #ffb7b0;
+  padding: 0.75rem;
+  border: 1px solid #87534f;
+  border-radius: 8px;
+}
+.set-analysis > header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: center;
+  justify-content: space-between;
+}
+.set-analysis-summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+  margin: 1rem 0;
+}
+.set-analysis-summary article {
+  background: #192535;
+  border-radius: 10px;
+  padding: 0 1rem 1rem;
+}
+.set-analysis-summary ul {
+  padding-left: 1.2rem;
+}
+.set-table-scroll {
+  overflow-x: auto;
+  border: 1px solid #35485e;
+  border-radius: 8px;
+}
+.set-team-stats table {
+  border-collapse: collapse;
+  width: 100%;
+  min-width: 1040px;
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+  color: #edf3fa;
+}
+.set-team-stats th,
+.set-team-stats td {
+  padding: 0.8rem 0.6rem;
+  text-align: right;
+  white-space: nowrap;
+  border-bottom: 1px solid #35485e;
+}
+.set-team-stats th:first-child {
+  text-align: left;
+}
+.set-team-stats thead {
+  background: #233449;
+  color: #d4e0ee;
+}
+.set-team-stats th small {
+  display: block;
+}
+.set-team-stats .negative {
+  color: #ffb7b0;
+}
+.set-team-stats .positive {
+  color: #86e0c2;
+}
+@media (max-width: 760px) {
+  .intermission-grid,
+  .set-analysis-summary {
+    grid-template-columns: 1fr;
+  }
+  .intermission-panel,
+  .set-analysis {
+    padding: 1rem;
+    margin: 0.75rem;
+  }
+}

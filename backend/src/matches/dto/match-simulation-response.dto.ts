@@ -3,8 +3,11 @@ import { TeamStrategy } from '../../careers/enums/team-strategy.enum';
 import { PlayerInstruction } from '../../careers/enums/player-instruction.enum';
 import { SetBonusSnapshot } from '../../set-bonuses/set-bonus.types';
 import { ChampionArchetype } from '../../careers/enums/champion-archetype.enum';
+import type { PlayerOfGame } from '../match-awards';
 
 export class MatchPlayerStatResponseDto {
+  feedback?:
+    import('../../match-series/next-set-feedback').NextSetFeedback | null;
   careerPlayerId!: number;
   position!: Position;
   playerInstruction!: PlayerInstruction | null;
@@ -57,6 +60,8 @@ export class MatchTeamSimulationResponseDto {
 }
 
 export class MatchSimulationResponseDto {
+  draft?: import('../../drafts/draft-state').DraftState | null;
+  pog?: PlayerOfGame | null;
   matchId!: number;
   careerId!: number;
   seriesId!: number | null;
