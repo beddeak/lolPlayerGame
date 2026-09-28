@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import SetAnalysis from "./SetAnalysis";
 import MatchSpectator from "./MatchSpectator";
+import TacticalMatchViewer from "./TacticalMatchViewer";
 import { buildSpectatorReplay, type SpectatorReplay } from "./match-spectator";
 import ClubLogo from "./ClubLogo";
 import PlayerCardArtwork from "./PlayerCardArtwork";
@@ -24,6 +25,7 @@ export default function QuickSimReport({
   onNext,
   nextDisabled = false,
   closeDisabled = false,
+  token,
 }: {
   result: Pick<QuickSimResponse, "series">;
   career: Career;
@@ -31,12 +33,14 @@ export default function QuickSimReport({
   onNext?: () => void;
   nextDisabled?: boolean;
   closeDisabled?: boolean;
+  token?: string;
 }) {
   const { series } = result;
   const complete = series.status === "COMPLETED";
   const lastGame = series.games.at(-1);
   const dialogRef = useRef<HTMLDialogElement>(null);
   const [spectator, setSpectator] = useState<SpectatorReplay | null>(null);
+  const [tacticalMatch, setTacticalMatch] = useState<number | null>(null);
   const managed = career.teams.find((team) => team.isUserControlled);
   const [teamId, setTeamId] = useState(
     series.teams.some((team) => team.teamId === managed?.id)
@@ -44,7 +48,7 @@ export default function QuickSimReport({
       : (series.winnerTeamId ?? series.teams[0]?.teamId),
   );
   useEffect(() => {
-    if (spectator) return;
+    if (spectator || tacticalMatch !== null) return;
     const dialog = dialogRef.current;
     const previousOverflow = document.body.style.overflow;
     dialog?.showModal();
@@ -53,7 +57,7 @@ export default function QuickSimReport({
       dialog?.close();
       document.body.style.overflow = previousOverflow;
     };
-  }, [spectator]);
+  }, [spectator, tacticalMatch]);
 
   const winner = series.teams.find(
     (team) => team.teamId === series.winnerTeamId,
@@ -86,6 +90,7 @@ export default function QuickSimReport({
         ? "VICTORY"
         : "DEFEAT";
 
+  if (tacticalMatch !== null && token) return <TacticalMatchViewer key={`${token}:${career.id}:${tacticalMatch}`} careerId={career.id} matchId={tacticalMatch} token={token} onClose={() => setTacticalMatch(null)} />;
   if (spectator) return <MatchSpectator key={spectator.key} replay={spectator} onClose={() => setSpectator(null)} />;
   return (
     <dialog
@@ -224,7 +229,7 @@ export default function QuickSimReport({
             {orderedGames(series).map((game, index) => {
               const pog =
                 game.pog?.teamId === game.winnerTeamId ? game.pog : null;
-              const shortReplay = game.durationMinutes < 18;
+              const shortReplay = !game.tacticalReplay && game.durationMinutes < 18;
               return (
                 <article key={game.matchId} className="result-game-row">
                   <div className="result-game-index">
@@ -249,9 +254,9 @@ export default function QuickSimReport({
                   <b className="result-game-rating">
                     {pog?.rating.toFixed(1) ?? "—"}
                   </b>
-                  <button className="rift-replay-button" type="button" disabled={closeDisabled || shortReplay}
+                  <button className="rift-replay-button" type="button" disabled={closeDisabled || shortReplay || (!!game.tacticalReplay && !token)}
                     title={shortReplay ? "18분 미만의 과거 기록은 관전 단계 모델을 지원하지 않습니다." : undefined}
-                    onClick={() => setSpectator(buildSpectatorReplay(game, career))}>
+                    onClick={() => game.tacticalReplay ? setTacticalMatch(game.matchId) : setSpectator(buildSpectatorReplay(game, career))}>
                     {shortReplay ? "짧은 경기 · 결과 기록만 제공" : `${game.seriesGameNumber ?? index + 1}세트 협곡 다시보기`}
                   </button>
                 </article>

@@ -1,10 +1,10 @@
 import { useState } from "react";
-import type { Career, MatchSeries, MatchSimulation } from "./types";
+import type { Career, MatchPlayerStat, MatchSeries, MatchSimulation } from "./types";
 import "./IntermissionPanel.css";
 
 const signed = (n: number) =>
   n > 0 ? `+${n.toLocaleString()}` : n.toLocaleString();
-const metric = (n: number | undefined, digits = 0) =>
+const metric = (n: number | null | undefined, digits = 0) =>
   Number.isFinite(n)
     ? n!.toLocaleString(undefined, { maximumFractionDigits: digits })
     : "—";
@@ -72,7 +72,8 @@ export default function SetAnalysis({
   };
   const factors = setWeaknesses(game, team?.teamId);
   const lane = [...(team?.playerStats ?? [])]
-    .filter((p) => p.gdAt15 < 0)
+    .filter((p): p is MatchPlayerStat & { gdAt15: number } =>
+      p.gdAt15 !== null && Number.isFinite(p.gdAt15) && p.gdAt15 < 0)
     .sort((a, b) => a.gdAt15 - b.gdAt15)[0];
   const deaths = [...(team?.playerStats ?? [])].sort(
     (a, b) => b.deaths - a.deaths,
@@ -105,7 +106,9 @@ export default function SetAnalysis({
               ? "승리 속 점검 사항"
               : "패배 요인 분석"}
           </h4>
-          {factors.length ? (
+          {game.tacticalReplay ? (
+            <p>새 엔진은 이동·성장·전투와 넥서스 파괴의 실제 사건으로 승패를 결정합니다. 관전 기록에서 해당 시점의 상태와 사건을 확인할 수 있습니다.</p>
+          ) : factors.length ? (
             <ul>
               {factors.map((f) => (
                 <li key={f.label}>
@@ -120,16 +123,19 @@ export default function SetAnalysis({
             </p>
           )}
           <small>
-            시뮬레이션의 실제 보정값 비교입니다. 승패는 여러 요인과 변동성을
-            합산한 결과입니다.
+            {game.tacticalReplay
+              ? "아래 지표는 해당 경기의 사건과 보상 원장에서 집계했습니다."
+              : "시뮬레이션의 실제 보정값 비교입니다. 승패는 여러 요인과 변동성을 합산한 결과입니다."}
           </small>
         </article>
         <article>
           <h4>기록상 확인할 장면</h4>
           <p>
             {lane
-              ? `${name(lane.careerPlayerId)} · 15분 골드 차이 ${signed(lane.gdAt15)}, CS 차이 ${signed(lane.csdAt15)}`
-              : "15분 지표에서 확인된 라인 열세가 없습니다."}
+              ? `${name(lane.careerPlayerId)} · 15분 골드 차이 ${signed(lane.gdAt15)}, CS 차이 ${lane.csdAt15 === null ? '—' : signed(lane.csdAt15)}`
+              : team?.playerStats.some(player => player.gdAt15 !== null && Number.isFinite(player.gdAt15))
+                ? "15분 지표에서 확인된 라인 열세가 없습니다."
+                : "15분 시점의 기록이 없습니다."}
           </p>
           <p>
             {deaths
@@ -138,8 +144,7 @@ export default function SetAnalysis({
           </p>
           <small>
             라인 지표와 데스는 점검 신호이며, 특정 선수 때문에 패배했다고
-            단정하지 않습니다. 로밍·시야·오브젝트 실패는 아직 별도 기록하지
-            않습니다.
+            단정하지 않습니다. {game.tacticalReplay ? "이동·귀환·오브젝트의 경과는 관전 기록을 함께 확인하세요." : "로밍·시야·오브젝트 실패는 아직 별도 기록하지 않습니다."}
           </small>
         </article>
       </div>
@@ -189,7 +194,7 @@ export default function SetAnalysis({
                     <td>{metric(p.damageShare, 1)}%</td>
                     <td>{metric(p.gold)}</td>
                     <td>{metric(p.goldShare, 1)}%</td>
-                    <td className={p.gdAt15 < 0 ? "negative" : "positive"}>
+                    <td className={p.gdAt15 === null ? undefined : p.gdAt15 < 0 ? "negative" : "positive"}>
                       {metric(p.gdAt15)}
                     </td>
                     <td>{metric(p.csdAt15)}</td>

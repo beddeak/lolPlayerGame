@@ -42,7 +42,7 @@ describe('SimulationsService', () => {
     findOne: jest.fn(),
   };
   const dataSource = {
-    manager: { exists: jest.fn() },
+    manager: { exists: jest.fn(), findOne: jest.fn() },
     transaction: jest.fn(
       (work: (manager: typeof entityManager) => Promise<unknown>) =>
         work(entityManager),
@@ -69,6 +69,7 @@ describe('SimulationsService', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    dataSource.manager.findOne.mockResolvedValue(null);
     career.currentDate = '2026-01-01';
     entityManager.findOne.mockResolvedValue(career);
     careerTeamsRepository.findOne.mockResolvedValue(managedTeam);

@@ -16,9 +16,14 @@ import {
   MatchSeriesGameContext,
 } from '../matches/matches.service';
 import { Position } from '../players/enums/position.enum';
+import { RosterRole } from '../careers/enums/roster-role.enum';
+import { updateSeriesDraft } from '../drafts/series-draft.store';
 import { MatchSeries } from './entities/match-series.entity';
 import { MatchSeriesStatus } from './enums/match-series-status.enum';
 import { MatchSeriesService } from './match-series.service';
+import * as seriesDraftStore from '../drafts/series-draft.store';
+
+jest.spyOn(seriesDraftStore, 'updateSeriesDraft');
 
 describe('MatchSeriesService', () => {
   const career = { id: 1, accountId: 7, currentMeta: TeamStrategy.BALANCED };
@@ -64,13 +69,20 @@ describe('MatchSeriesService', () => {
   const leagueFixturesRepository = { findOneBy: jest.fn() };
   const manager = {
     findOne: jest.fn(),
+    find: jest.fn(),
+    update: jest.fn(),
     getRepository: (entity: unknown) =>
       entity === CareerTeam ? careerTeamsRepository : matchSeriesRepository,
   };
   const dataSource = {
     manager: { existsBy: jest.fn().mockResolvedValue(false) },
-    transaction: (work: (value: typeof manager) => Promise<unknown>) =>
-      work(manager),
+    transaction: (
+      isolationOrWork: string | ((value: typeof manager) => Promise<unknown>),
+      isolatedWork?: (value: typeof manager) => Promise<unknown>,
+    ) =>
+      (typeof isolationOrWork === 'function' ? isolationOrWork : isolatedWork!)(
+        manager,
+      ),
   };
 
   let service: MatchSeriesService;
@@ -80,13 +92,45 @@ describe('MatchSeriesService', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     series.games = [];
+    series.drafts = null;
     series.bestOf = 3;
+    for (const team of [teamA, teamB]) {
+      team.isUserControlled = false;
+      team.teamStrategy = TeamStrategy.BALANCED;
+      team.rosters = Object.values(Position).map((position, index) => ({
+        role: RosterRole.STARTER,
+        starterPosition: position,
+        playerInstruction: null,
+        careerPlayerId: team.id * 100 + index,
+        careerPlayer: {
+          id: team.id * 100 + index,
+          currentMechanics: 70,
+          currentGameSense: 70,
+          currentLaning: 70,
+          currentTeamFight: 70,
+          playerCard: { player: { nickname: `${team.code}-${position}` } },
+        },
+      })) as CareerTeam['rosters'];
+    }
     winners = [teamA.id, teamB.id, teamA.id];
     simulatedSeeds = [];
     leagueFixturesRepository.findOneBy.mockResolvedValue(null);
     careerTeamsRepository.find.mockResolvedValue([teamA, teamB]);
     manager.findOne.mockImplementation((entity: unknown) =>
-      Promise.resolve(entity === Career ? career : null),
+      Promise.resolve(
+        entity === Career ? career : entity === MatchSeries ? series : null,
+      ),
+    );
+    manager.find.mockImplementation((entity: unknown) =>
+      Promise.resolve(entity === CareerTeam ? [teamA, teamB] : []),
+    );
+    manager.update.mockImplementation(
+      (entity: unknown, id: number, values: Partial<MatchSeries>) => {
+        if (entity !== MatchSeries || id !== series.id)
+          throw new Error('Unexpected update');
+        Object.assign(series, values);
+        return Promise.resolve({ affected: 1 });
+      },
     );
     matchSeriesRepository.findOne.mockResolvedValue(series);
     matchesService.findOne.mockImplementation(
@@ -134,6 +178,17 @@ describe('MatchSeriesService', () => {
 
     expect(result.games).toHaveLength(1);
     expect(matchesService.simulate).toHaveBeenCalledTimes(1);
+    const draft = series.drafts?.['1'];
+    expect(draft).toEqual(
+      expect.objectContaining({
+        version: 3,
+        completed: true,
+        assignmentsConfirmed: true,
+      }),
+    );
+    expect(matchesService.simulate.mock.calls[0][2].draft).toEqual(
+      expect.objectContaining(draft!),
+    );
   });
 
   it('prevents direct series simulation from bypassing league progression', async () => {
@@ -199,6 +254,26 @@ describe('MatchSeriesService', () => {
     expect(game3.nextGameNumber).toBeNull();
     expect(game3.games).toHaveLength(3);
     expect(simulatedSeeds).toEqual([100, 101, 102]);
+    expect(updateSeriesDraft).toHaveBeenNthCalledWith(
+      1,
+      dataSource,
+      7,
+      series.id,
+      1,
+      undefined,
+      true,
+      true,
+    );
+    expect(updateSeriesDraft).toHaveBeenNthCalledWith(
+      2,
+      dataSource,
+      7,
+      series.id,
+      2,
+      undefined,
+      true,
+      true,
+    );
     await expect(service.simulateNextGame(7, series.id)).rejects.toBeInstanceOf(
       ConflictException,
     );
@@ -219,6 +294,18 @@ describe('MatchSeriesService', () => {
     expect(result.status).toBe(MatchSeriesStatus.COMPLETED);
     expect(result.winnerTeamId).toBe(teamA.id);
     expect(result.games).toHaveLength(5);
+    const drafts = Object.values(series.drafts!);
+    const picks = drafts.flatMap((draft) =>
+      draft.actions
+        .filter((action) => action.kind === 'PICK')
+        .map((action) => action.variantId),
+    );
+    expect(drafts).toHaveLength(5);
+    expect(
+      drafts.every((draft) => draft.completed && draft.assignmentsConfirmed),
+    ).toBe(true);
+    expect(picks).toHaveLength(50);
+    expect(new Set(picks).size).toBe(50);
   });
 
   it('completes a BO1 after one game', async () => {
@@ -230,6 +317,35 @@ describe('MatchSeriesService', () => {
     expect(result.winsRequired).toBe(1);
     expect(result.status).toBe(MatchSeriesStatus.COMPLETED);
     expect(result.games).toHaveLength(1);
+  });
+
+  it('keeps direct draft choices outside automatic delegation', async () => {
+    await service.simulateNextGame(7, series.id, {
+      requireDraft: true,
+      expectedGameNumber: 1,
+    });
+    expect(updateSeriesDraft).toHaveBeenCalledWith(
+      dataSource,
+      7,
+      series.id,
+      1,
+      undefined,
+      true,
+      false,
+    );
+  });
+
+  it('reconnecting with an already committed set does not advance another set or draft', async () => {
+    await service.simulateNextGame(7, series.id);
+    jest.mocked(updateSeriesDraft).mockClear();
+    matchesService.simulate.mockClear();
+    const result = await service.simulateNextGame(7, series.id, {
+      requireDraft: true,
+      expectedGameNumber: 1,
+    });
+    expect(result.games).toHaveLength(1);
+    expect(updateSeriesDraft).not.toHaveBeenCalled();
+    expect(matchesService.simulate).not.toHaveBeenCalled();
   });
 
   it('returns a structured analysis of the latest game', async () => {
@@ -252,6 +368,101 @@ describe('MatchSeriesService', () => {
     );
     expect(analysis.teams?.[0].playerPlans).toHaveLength(5);
   });
+
+  it('returns an already committed requested set without starting the next draft', async () => {
+    await service.simulateNextGame(7, series.id, {
+      requireDraft: false,
+      expectedGameNumber: 1,
+    });
+    const savedDrafts = JSON.stringify(series.drafts);
+    manager.update.mockClear();
+
+    const retry = await service.simulateNextGame(7, series.id, {
+      requireDraft: false,
+      expectedGameNumber: 1,
+    });
+
+    expect(retry.games).toHaveLength(1);
+    expect(retry.nextGameNumber).toBe(2);
+    expect(matchesService.simulate).toHaveBeenCalledTimes(1);
+    expect(manager.update).not.toHaveBeenCalled();
+    expect(JSON.stringify(series.drafts)).toBe(savedDrafts);
+    expect(series.drafts?.['2']).toBeUndefined();
+  });
+
+  it('rejects a future requested set before drafting or simulation', async () => {
+    await expect(
+      service.simulateNextGame(7, series.id, {
+        requireDraft: false,
+        expectedGameNumber: 2,
+      }),
+    ).rejects.toThrow('현재 세트 번호가 달라졌습니다');
+    expect(manager.update).not.toHaveBeenCalled();
+    expect(matchesService.simulate).not.toHaveBeenCalled();
+  });
+
+  it('keeps mandatory human draft decisions pending for direct play', async () => {
+    teamA.isUserControlled = true;
+
+    await expect(
+      service.simulateNextGame(7, series.id, {
+        requireDraft: true,
+        expectedGameNumber: 1,
+      }),
+    ).rejects.toThrow('밴픽을 먼저 완료');
+
+    expect(series.drafts).toBeNull();
+    expect(manager.update).not.toHaveBeenCalled();
+    expect(matchesService.simulate).not.toHaveBeenCalled();
+  });
+
+  it('requires the explicit set number after a human draft is complete and preserves the decisions', async () => {
+    teamA.isUserControlled = true;
+    // Complete a legal stored draft; direct simulation must consume this exact snapshot.
+    await updateSeriesDraft(
+      dataSource as unknown as DataSource,
+      7,
+      series.id,
+      1,
+      undefined,
+      true,
+      true,
+    );
+    const decisions = JSON.stringify(series.drafts?.['1']);
+
+    await expect(
+      service.simulateNextGame(7, series.id, { requireDraft: true }),
+    ).rejects.toThrow('세트 번호를 지정');
+    expect(matchesService.simulate).not.toHaveBeenCalled();
+    await service.simulateNextGame(7, series.id, {
+      requireDraft: true,
+      expectedGameNumber: 1,
+    });
+
+    expect(JSON.stringify(series.drafts?.['1'])).toBe(decisions);
+    expect(matchesService.simulate).toHaveBeenCalledTimes(1);
+    expect(matchesService.simulate.mock.calls[0][2].draft).toEqual(
+      expect.objectContaining(JSON.parse(decisions!)),
+    );
+    expect(series.drafts?.['2']).toBeUndefined();
+  });
+
+  it.each([true, false])(
+    'keeps unavailable 15-minute aggregate null (all missing: %s)',
+    async (allMissing) => {
+      await service.simulateNextGame(7, series.id);
+      const response = createMatchResponse(1, teamA.id);
+      for (const team of response.teams)
+        team.playerStats.forEach((player, index) => {
+          if (allMissing || index === 0) player.gdAt15 = null;
+        });
+      matchesService.findOne.mockResolvedValue(response);
+
+      const analysis = await service.analyze(7, series.id);
+
+      expect(analysis.teams?.map((team) => team.gdAt15)).toEqual([null, null]);
+    },
+  );
 
   it('rejects a series where both ids point to the same team', async () => {
     await expect(

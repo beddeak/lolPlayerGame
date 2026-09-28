@@ -8,6 +8,14 @@ import { applyVariantDraft } from '../../drafts/variant-match';
 import { Position } from '../../players/enums/position.enum';
 import { selectPlayerOfGame, selectPlayerOfMatch } from '../match-awards';
 
+function requireAt15(value: number | null): number {
+  if (value === null)
+    throw new Error(
+      'Legacy fixtures lasting at least 25 minutes require a 15-minute measurement',
+    );
+  return value;
+}
+
 describe('MatchStatsSimulationService', () => {
   const createTeam = (
     teamId: number,
@@ -121,8 +129,8 @@ describe('MatchStatsSimulationService', () => {
     const offRole = statsSimulationService.simulate(novice, teamB, match, 77)
       .teams[0].playerStats[0];
     expect(offRole.dpm).toBeLessThan(normal.dpm);
-    expect(offRole.gdAt15).toBeLessThan(normal.gdAt15);
-    expect(offRole.csdAt15).toBeLessThan(normal.csdAt15);
+    expect(offRole.gdAt15).toBeLessThan(requireAt15(normal.gdAt15));
+    expect(offRole.csdAt15).toBeLessThan(requireAt15(normal.csdAt15));
     expect(novice).toEqual(snapshot);
     novice.players[0].positionProficiency = 100;
     expect(
@@ -208,15 +216,17 @@ describe('MatchStatsSimulationService', () => {
       )!;
       expect(after.dpm).toBeLessThan(before.dpm);
       expect(after.gold).toBeLessThan(before.gold);
-      expect(after.gdAt15).toBeLessThan(before.gdAt15);
-      expect(after.csdAt15).toBeLessThan(before.csdAt15);
+      expect(after.gdAt15).toBeLessThan(requireAt15(before.gdAt15));
+      expect(after.csdAt15).toBeLessThan(requireAt15(before.csdAt15));
       expect(after.rating).not.toBe(before.rating);
       expect(after.mental).toBe(before.mental);
       const opponent = offRole.teams[1].playerStats.find(
         (p) => p.position === position,
       )!;
-      expect(after.gdAt15 + opponent.gdAt15).toBe(0);
-      expect(after.csdAt15 + opponent.csdAt15).toBe(0);
+      expect(requireAt15(after.gdAt15) + requireAt15(opponent.gdAt15)).toBe(0);
+      expect(requireAt15(after.csdAt15) + requireAt15(opponent.csdAt15)).toBe(
+        0,
+      );
     }
     expect(strong).toEqual(snapshot);
     const pog = selectPlayerOfGame(offRole)!;
@@ -360,8 +370,12 @@ describe('MatchStatsSimulationService', () => {
         (player) => player.position === position,
       )!;
 
-      expect(teamAPlayer.gdAt15 + teamBPlayer.gdAt15).toBe(0);
-      expect(teamAPlayer.csdAt15 + teamBPlayer.csdAt15).toBe(0);
+      expect(
+        requireAt15(teamAPlayer.gdAt15) + requireAt15(teamBPlayer.gdAt15),
+      ).toBe(0);
+      expect(
+        requireAt15(teamAPlayer.csdAt15) + requireAt15(teamBPlayer.csdAt15),
+      ).toBe(0);
     }
   });
 
@@ -417,7 +431,9 @@ describe('MatchStatsSimulationService', () => {
       const after = improved.teams[0].playerStats[index];
       expect(after.dpm - before.dpm).toBeCloseTo(19 * 5);
       expect(after.gold).toBeGreaterThan(before.gold);
-      expect(after.gdAt15 - before.gdAt15).toBeCloseTo(19 * 20);
+      expect(
+        requireAt15(after.gdAt15) - requireAt15(before.gdAt15),
+      ).toBeCloseTo(19 * 20);
     }
   });
 

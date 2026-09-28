@@ -103,7 +103,7 @@ export function buildSpectatorReplay(game: MatchSimulation, career: Career): Spe
     const pick=game.draft?.actions.find(a=>a.kind==="PICK" && a.variantId===champId);
     return {id:p.careerPlayerId,name:person?.playerCard.player.nickname??`선수 ${p.careerPlayerId}`,
       champion:pick?.championName??p.position,image:pick?.championImageUrl??person?.playerCard.imageUrl??null,
-      side:side as ReplaySide,position:p.position,kills:count(p.kills),deaths:count(p.deaths),assists:count(p.assists),farmBonus:Number.isFinite(p.csdAt15)?clamp(p.csdAt15/30,-1,1):0};
+      side:side as ReplaySide,position:p.position,kills:count(p.kills),deaths:count(p.deaths),assists:count(p.assists),farmBonus:p.csdAt15!==null&&Number.isFinite(p.csdAt15)?clamp(p.csdAt15/30,-1,1):0};
   }));
   if (new Set(players.map(p=>p.id)).size!==players.length) return null;
   const duration=Number.isFinite(game.durationMinutes)?clamp(game.durationMinutes*60,60,7200):1800;

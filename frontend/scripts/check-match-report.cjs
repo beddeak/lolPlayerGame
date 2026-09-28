@@ -269,6 +269,17 @@ const markup = (view, label) => renderToStaticMarkup(section(view, label));
     null,
   );
   const incomplete = fixture();
+  const tactical = fixture();
+  tactical.result.series.games[0].tacticalReplay = {engineVersion:'tactical-core-3'};
+  tactical.result.series.games[0].durationMinutes = 10;
+  const tacticalView = viewFor({...tactical,token:'owner',onClose(){}});
+  tacticalView.render();
+  const tacticalReplay = tacticalView.button('1세트 협곡 다시보기');
+  assert.equal(tacticalReplay.props.disabled,false,'short authoritative recordings are replayable');
+  tacticalReplay.props.onClick();tacticalView.render();
+  const tacticalPlayer = tacticalView.nodes().find(node=>node.type.name==='TacticalMatchViewer');
+  assert.equal(tacticalPlayer.props.matchId,1);
+  assert.equal(tacticalPlayer.props.token,'owner');
   incomplete.result.series.status = "IN_PROGRESS";
   incomplete.result.series.nextGameNumber = 2;
   let nextClicked = 0;

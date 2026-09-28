@@ -7,20 +7,24 @@ import { MatchPlayerStat } from './entities/match-player-stat.entity';
 import { Match } from './entities/match.entity';
 import { MatchesController } from './matches.controller';
 import { MatchesService } from './matches.service';
-import { MatchStatsSimulationService } from './simulation/match-stats-simulation.service';
-import { SimpleMatchSimulationService } from './simulation/simple-match-simulation.service';
+import { MatchTacticalRun } from './entities/match-tactical-run.entity';
+import { MatchTacticalChunk } from './entities/match-tactical-chunk.entity';
+import { TacticalRunsService } from './tactical-runs.service';
 
 @Module({
   imports: [
     AuthModule,
-    TypeOrmModule.forFeature([CareerTeam, Match, MatchPlayerStat, SetBonus]),
+    TypeOrmModule.forFeature([
+      CareerTeam,
+      Match,
+      MatchPlayerStat,
+      SetBonus,
+      MatchTacticalRun,
+      MatchTacticalChunk,
+    ]),
   ],
   controllers: [MatchesController],
-  providers: [
-    MatchesService,
-    SimpleMatchSimulationService,
-    MatchStatsSimulationService,
-  ],
-  exports: [MatchesService, SimpleMatchSimulationService],
+  providers: [MatchesService, TacticalRunsService],
+  exports: [MatchesService],
 })
 export class MatchesModule {}

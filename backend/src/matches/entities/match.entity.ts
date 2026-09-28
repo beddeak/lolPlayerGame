@@ -15,10 +15,14 @@ import { TeamStrategy } from '../../careers/enums/team-strategy.enum';
 import { MatchSeries } from '../../match-series/entities/match-series.entity';
 import { SetBonusSnapshot } from '../../set-bonuses/set-bonus.types';
 import { MatchPlayerStat } from './match-player-stat.entity';
+import { MatchTacticalRun } from './match-tactical-run.entity';
 
 @Entity({ name: 'matches' })
 @Unique('UQ_matches_series_game_number', ['seriesId', 'seriesGameNumber'])
 export class Match {
+  @OneToMany(() => MatchTacticalRun, (run) => run.match)
+  tacticalRuns!: MatchTacticalRun[];
+
   @PrimaryGeneratedColumn({ type: 'int', unsigned: true })
   id!: number;
 

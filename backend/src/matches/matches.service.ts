@@ -31,14 +31,15 @@ import {
 import { SimulateMatchDto } from './dto/simulate-match.dto';
 import { MatchPlayerStat } from './entities/match-player-stat.entity';
 import { Match } from './entities/match.entity';
-import { MatchStatsSimulationService } from './simulation/match-stats-simulation.service';
 import { selectPlayerOfGame } from './match-awards';
 import type { DraftState } from '../drafts/draft-state';
+import { adaptTacticalResult } from './simulation-v2/career-result';
+import { TacticalRunsService } from './tactical-runs.service';
+import { MatchTacticalRun } from './entities/match-tactical-run.entity';
 import { applyVariantDraft } from '../drafts/variant-match';
 import { MatchFeedback } from '../match-series/entities/match-feedback.entity';
 import { applyNextSetFeedback } from '../match-series/next-set-feedback';
 import { MatchStatsSimulationResult } from './simulation/match-stats.types';
-import { SimpleMatchSimulationService } from './simulation/simple-match-simulation.service';
 import {
   SimpleMatchSimulationResult,
   SimpleMatchTeamInput,
@@ -62,8 +63,7 @@ export class MatchesService {
     @InjectRepository(SetBonus)
     private readonly setBonusesRepository: Repository<SetBonus>,
     private readonly dataSource: DataSource,
-    private readonly simulationService: SimpleMatchSimulationService,
-    private readonly matchStatsSimulationService: MatchStatsSimulationService,
+    private readonly tacticalRunsService: TacticalRunsService,
   ) {}
 
   async findOne(
@@ -79,6 +79,7 @@ export class MatchesService {
         winnerTeam: true,
         playerStats: true,
         series: true,
+        tacticalRuns: true,
       },
     });
 
@@ -86,6 +87,7 @@ export class MatchesService {
       throw new NotFoundException(`Match ${id} not found`);
     }
 
+    const tacticalRun = match.tacticalRuns?.[0];
     const response: MatchSimulationResponseDto = {
       matchId: match.id,
       careerId: match.careerId,
@@ -100,7 +102,13 @@ export class MatchesService {
         this.toStoredTeamResponse(match, 'A'),
         this.toStoredTeamResponse(match, 'B'),
       ],
-      draft: match.series?.drafts?.[String(match.seriesGameNumber)] ?? null,
+      draft:
+        tacticalRun?.draft ??
+        match.series?.drafts?.[String(match.seriesGameNumber)] ??
+        null,
+      tacticalReplay: tacticalRun
+        ? { engineVersion: tacticalRun.engineVersion }
+        : null,
     };
     return { ...response, pog: selectPlayerOfGame(response) };
   }
@@ -180,18 +188,25 @@ export class MatchesService {
       feedbacks,
       seriesContext?.gameNumber ?? 1,
     );
-    const result = this.simulationService.simulate(
-      teamAInput,
-      teamBInput,
-      dto.seed,
+    const run = await this.tacticalRunsService.simulate(
+      accountId,
+      dto,
+      [teamAInput, teamBInput],
       teamA.career.currentMeta,
+      seriesContext,
     );
-    const statsResult = this.matchStatsSimulationService.simulate(
-      teamAInput,
-      teamBInput,
-      result,
-      dto.seed,
+    if (run.matchId) return this.findOne(accountId, run.matchId);
+    if (!run.input || !run.manifest || run.status !== 'FINISHED')
+      throw new ConflictException('완료된 새 엔진 경기 결과가 없습니다.');
+    const { result, statsResult } = adaptTacticalResult(
+      run.input,
+      run.manifest.report,
+      run.currentMeta,
     );
+    if (seriesContext) {
+      seriesContext.draft = run.draft;
+      seriesContext.feedbackIds = run.feedbackIds;
+    }
     const matchId = await this.persistMatch(
       accountId,
       dto,
@@ -200,11 +215,13 @@ export class MatchesService {
       teamA,
       teamB,
       seriesContext,
+      run,
     );
 
     const response: MatchSimulationResponseDto = {
       matchId,
-      draft: draft ?? null,
+      draft: run.draft,
+      tacticalReplay: { engineVersion: run.engineVersion },
       careerId: dto.careerId,
       seriesId: seriesContext?.series.id ?? null,
       seriesGameNumber: seriesContext?.gameNumber ?? null,
@@ -213,22 +230,24 @@ export class MatchesService {
       durationMinutes: statsResult.durationMinutes,
       winnerTeamId: result.winnerTeamId,
       winnerTeamCode: result.winnerTeamCode,
-      teams: result.teams.map((teamResult) => {
-        const teamStats = statsResult.teams.find(
-          (candidate) => candidate.teamId === teamResult.teamId,
-        )!;
+      teams: [dto.teamAId, dto.teamBId]
+        .map((teamId) => result.teams.find((team) => team.teamId === teamId)!)
+        .map((teamResult) => {
+          const teamStats = statsResult.teams.find(
+            (candidate) => candidate.teamId === teamResult.teamId,
+          )!;
 
-        return {
-          ...teamResult,
-          teamKills: teamStats.teamKills,
-          playerStats: teamStats.playerStats.map((playerStat) => {
-            const { careerTeamId, ...response } = playerStat;
+          return {
+            ...teamResult,
+            teamKills: teamStats.teamKills,
+            playerStats: teamStats.playerStats.map((playerStat) => {
+              const { careerTeamId, ...response } = playerStat;
 
-            void careerTeamId;
-            return response;
-          }),
-        };
-      }),
+              void careerTeamId;
+              return response;
+            }),
+          };
+        }),
     };
     return { ...response, pog: selectPlayerOfGame(response) };
   }
@@ -345,10 +364,30 @@ export class MatchesService {
     teamA: CareerTeam,
     teamB: CareerTeam,
     seriesContext?: MatchSeriesGameContext,
+    tacticalRun?: MatchTacticalRun,
   ): Promise<number> {
     return this.dataSource.transaction(async (manager) => {
       // Recheck at the actual write boundary, not only against the earlier snapshot.
-      await lockActiveManagerCareer(manager, accountId, dto.careerId);
+      await lockActiveManagerCareer(
+        manager,
+        accountId,
+        dto.careerId,
+        tacticalRun?.executionKey,
+      );
+      if (tacticalRun) {
+        const storedRun = await manager.findOne(MatchTacticalRun, {
+          where: { id: tacticalRun.id },
+          lock: { mode: 'pessimistic_write' },
+        });
+        if (
+          !storedRun ||
+          storedRun.careerId !== dto.careerId ||
+          storedRun.status !== 'FINISHED' ||
+          storedRun.inputHash !== tacticalRun.inputHash
+        )
+          throw new ConflictException('경기 실행 결과가 변경되었습니다.');
+        if (storedRun.matchId) return storedRun.matchId;
+      }
       if (seriesContext && seriesContext.gameNumber > 1) {
         const feedbacks = await manager.find(MatchFeedback, {
           where: {
@@ -375,7 +414,28 @@ export class MatchesService {
         const lockedDraft = stored.drafts?.[String(seriesContext.gameNumber)];
         if (
           !lockedDraft?.completed ||
-          !isDeepStrictEqual(lockedDraft.actions, seriesContext.draft.actions)
+          !isDeepStrictEqual(
+            {
+              actions: lockedDraft.actions,
+              selection: lockedDraft.selection,
+              assignments: lockedDraft.assignments,
+              assignmentsConfirmed: lockedDraft.assignmentsConfirmed,
+              blue: lockedDraft.blue,
+              red: lockedDraft.red,
+              unavailable: lockedDraft.unavailable,
+              fearless: lockedDraft.fearless,
+            },
+            {
+              actions: seriesContext.draft.actions,
+              selection: seriesContext.draft.selection,
+              assignments: seriesContext.draft.assignments,
+              assignmentsConfirmed: seriesContext.draft.assignmentsConfirmed,
+              blue: seriesContext.draft.blue,
+              red: seriesContext.draft.red,
+              unavailable: seriesContext.draft.unavailable,
+              fearless: seriesContext.draft.fearless,
+            },
+          )
         )
           throw new ConflictException(
             '밴픽 상태가 변경되었습니다. 경기를 다시 불러와 주세요.',
@@ -451,6 +511,12 @@ export class MatchesService {
         currentMeta: result.currentMeta,
       });
       const savedMatch = await manager.save(Match, match);
+      if (tacticalRun)
+        await manager.update(
+          MatchTacticalRun,
+          { id: tacticalRun.id },
+          { matchId: savedMatch.id },
+        );
       const playerStats = statsResult.teams.flatMap((teamStats) =>
         teamStats.playerStats.map((playerStat) =>
           manager.create(MatchPlayerStat, {

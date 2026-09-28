@@ -13,11 +13,32 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { MatchSimulationResponseDto } from './dto/match-simulation-response.dto';
 import { SimulateMatchDto } from './dto/simulate-match.dto';
 import { MatchesService } from './matches.service';
+import { TacticalRunsService } from './tactical-runs.service';
 
 @Controller('matches')
 @UseGuards(JwtAuthGuard)
 export class MatchesController {
-  constructor(private readonly matchesService: MatchesService) {}
+  constructor(
+    private readonly matchesService: MatchesService,
+    private readonly tacticalRunsService: TacticalRunsService,
+  ) {}
+
+  @Get(':id/tactical-run')
+  tacticalRun(
+    @CurrentAccount() account: AuthenticatedAccount,
+    @Param('id', ParseIntPipe) id: number,
+  ) {
+    return this.tacticalRunsService.findOne(account.id, id);
+  }
+
+  @Get(':id/tactical-run/chunks/:index')
+  tacticalChunk(
+    @CurrentAccount() account: AuthenticatedAccount,
+    @Param('id', ParseIntPipe) id: number,
+    @Param('index', ParseIntPipe) index: number,
+  ) {
+    return this.tacticalRunsService.findChunk(account.id, id, index);
+  }
 
   @Post('simulate')
   simulate(

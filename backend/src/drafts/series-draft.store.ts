@@ -7,7 +7,10 @@ import { DataSource, EntityManager, In } from 'typeorm';
 import { MatchSeries } from '../match-series/entities/match-series.entity';
 import { CareerTeam } from '../careers/entities/career-team.entity';
 import { RosterRole } from '../careers/enums/roster-role.enum';
-import { lockActiveManagerCareer } from '../manager-career/manager-access';
+import {
+  lockActiveManagerCareer,
+  tacticalSeriesExecutionKey,
+} from '../manager-career/manager-access';
 import { STARTER_POSITIONS } from '../careers/constants/career.constants';
 import {
   applyDraftAction,
@@ -101,7 +104,14 @@ export async function updateSeriesDraft(
 ) {
   return db.transaction('READ COMMITTED', async (manager) => {
     const initial = await owned(manager, accountId, id);
-    await lockActiveManagerCareer(manager, accountId, initial.careerId);
+    await lockActiveManagerCareer(
+      manager,
+      accountId,
+      initial.careerId,
+      forSimulation
+        ? tacticalSeriesExecutionKey(initial.careerId, id, game)
+        : undefined,
+    );
     const series = await owned(manager, accountId, id);
     const wins = Math.floor(series.bestOf / 2) + 1;
     if (

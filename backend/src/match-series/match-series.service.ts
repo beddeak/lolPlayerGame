@@ -155,17 +155,20 @@ export class MatchSeriesService {
       throw new ConflictException(
         '현재 세트 번호가 달라졌습니다. 경기를 다시 불러와 주세요.',
       );
-    const draft = options?.requireDraft
-      ? await updateSeriesDraft(
-          this.dataSource,
-          accountId,
-          id,
-          gameNumber,
-          undefined,
-          true,
-        )
-      : undefined;
-    if (draft?.managedTeamId && options?.expectedGameNumber === undefined)
+    const draft = await updateSeriesDraft(
+      this.dataSource,
+      accountId,
+      id,
+      gameNumber,
+      undefined,
+      true,
+      !options?.requireDraft,
+    );
+    if (
+      options?.requireDraft &&
+      draft?.managedTeamId &&
+      options?.expectedGameNumber === undefined
+    )
       throw new ConflictException(
         '밴픽 화면에서 세트 번호를 지정하여 경기를 시작해 주세요.',
       );
@@ -363,10 +366,16 @@ export class MatchSeriesService {
       (total, player) => total + player.gold,
       0,
     );
-    const gdAt15 = team.playerStats.reduce(
-      (total, player) => total + player.gdAt15,
-      0,
-    );
+    const gdAt15 =
+      team.playerStats.length === 0
+        ? null
+        : team.playerStats.reduce<number | null>(
+            (total, player) =>
+              total === null || player.gdAt15 === null
+                ? null
+                : total + player.gdAt15,
+            0,
+          );
     const averageRating =
       team.playerStats.reduce((total, player) => total + player.rating, 0) /
       team.playerStats.length;

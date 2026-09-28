@@ -8,6 +8,8 @@ import { InjectRepository } from '@nestjs/typeorm';
 import {
   DataSource,
   EntityManager,
+  In,
+  IsNull,
   QueryFailedError,
   Repository,
 } from 'typeorm';
@@ -19,6 +21,8 @@ import { getLeagueStageRoundBudgets } from './league-calendar';
 import {
   assertManagerActive,
   lockActiveManagerCareer,
+  tacticalSeriesExecutionKey,
+  withTacticalExecution,
 } from '../manager-career/manager-access';
 import { ManagerCareerService } from '../manager-career/manager-career.service';
 import { EventQueueService } from '../event-queue/event-queue.service';
@@ -26,6 +30,7 @@ import { getSeriesWinsRequired } from '../match-series/config/bo3-series.config'
 import { MatchSeries } from '../match-series/entities/match-series.entity';
 import { MatchSeriesStatus } from '../match-series/enums/match-series-status.enum';
 import { MatchSeriesService } from '../match-series/match-series.service';
+import { MatchTacticalRun } from '../matches/entities/match-tactical-run.entity';
 import {
   getRegionalLeagueFormat,
   REGIONAL_LEAGUE_FORMATS,
@@ -317,7 +322,47 @@ export class LeaguesService {
     prepareOnly = false,
     expectedGameNumber?: number,
   ): Promise<LeagueFixtureGameResponseDto> {
-    await this.assertNoBlockingEvents(accountId, careerId);
+    const snapshot = await this.dataSource.manager.findOne(LeagueFixture, {
+      where: {
+        id: fixtureId,
+        leagueSplitId: splitId,
+        leagueSplit: { careerId, career: { accountId } },
+      },
+      relations: { series: { games: true } },
+    });
+    const executionKey =
+      snapshot?.seriesId && snapshot.series
+        ? tacticalSeriesExecutionKey(
+            careerId,
+            snapshot.seriesId,
+            expectedGameNumber ?? snapshot.series.games.length + 1,
+          )
+        : undefined;
+    const execute = () =>
+      this.runNextFixtureGame(
+        accountId,
+        careerId,
+        splitId,
+        fixtureId,
+        prepareOnly,
+        expectedGameNumber,
+        executionKey,
+      );
+    return executionKey
+      ? withTacticalExecution(executionKey, execute)
+      : execute();
+  }
+
+  private async runNextFixtureGame(
+    accountId: number,
+    careerId: number,
+    splitId: number,
+    fixtureId: number,
+    prepareOnly: boolean,
+    expectedGameNumber: number | undefined,
+    executionKey: string | undefined,
+  ): Promise<LeagueFixtureGameResponseDto> {
+    await this.assertNoBlockingEvents(accountId, careerId, executionKey);
 
     const gameContext = await this.dataSource.transaction(async (manager) => {
       const career = await lockActiveManagerCareer(
@@ -325,7 +370,8 @@ export class LeaguesService {
         accountId,
         careerId,
       );
-      await this.managerCareerService.prepareLeague(manager, career, splitId);
+      if (!(await this.isResumingRun(manager, careerId, executionKey)))
+        await this.managerCareerService.prepareLeague(manager, career, splitId);
       const fixture = await manager.findOne(LeagueFixture, {
         where: {
           id: fixtureId,
@@ -465,6 +511,7 @@ export class LeaguesService {
   private async assertNoBlockingEvents(
     accountId: number,
     careerId: number,
+    executionKey?: string,
   ): Promise<void> {
     const career = await this.careersRepository.findOneBy({
       id: careerId,
@@ -482,11 +529,12 @@ export class LeaguesService {
           accountId,
           careerId,
         );
-        await this.eventQueueService.processThroughDate(
-          manager,
-          careerId,
-          currentCareer.currentDate,
-        );
+        if (!(await this.isResumingRun(manager, careerId, executionKey)))
+          await this.eventQueueService.processThroughDate(
+            manager,
+            careerId,
+            currentCareer.currentDate,
+          );
 
         return this.eventQueueService.findBlockingEvents(
           manager,
@@ -503,6 +551,25 @@ export class LeaguesService {
           .join(', ')}`,
       );
     }
+  }
+
+  /** Called under the Career lock; retries cannot reapply day/pre-match changes. */
+  private async isResumingRun(
+    manager: EntityManager,
+    careerId: number,
+    executionKey?: string,
+  ): Promise<boolean> {
+    if (!executionKey) return false;
+    const pending = await manager.findOne(MatchTacticalRun, {
+      where: {
+        careerId,
+        executionKey,
+        matchId: IsNull(),
+        status: In(['RUNNING', 'FINISHED']),
+      },
+      select: { id: true, executionKey: true },
+    });
+    return pending?.executionKey === executionKey;
   }
 
   private async orderInitialTeams(

@@ -140,17 +140,17 @@ export class MatchPlayerStat {
   @Column({ type: 'double' })
   damageShare!: number;
 
-  @Column({ type: 'int', unsigned: true })
+  @Column({ type: 'double' })
   gold!: number;
 
   @Column({ type: 'double' })
   goldShare!: number;
 
-  @Column({ type: 'smallint' })
-  gdAt15!: number;
+  @Column({ type: 'double', nullable: true })
+  gdAt15!: number | null;
 
-  @Column({ type: 'smallint' })
-  csdAt15!: number;
+  @Column({ type: 'smallint', nullable: true })
+  csdAt15!: number | null;
 
   @Column({ type: 'double' })
   kp!: number;

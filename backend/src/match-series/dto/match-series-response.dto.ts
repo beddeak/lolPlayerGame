@@ -45,7 +45,7 @@ export class MatchSeriesTeamAnalysisDto {
   killGap!: number;
   totalGold!: number;
   goldGap!: number;
-  gdAt15!: number;
+  gdAt15!: number | null;
   averageRating!: number;
   playerPlans!: MatchSeriesPlayerPlanDto[];
 }

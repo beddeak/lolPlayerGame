@@ -30,8 +30,8 @@ export interface MatchPlayerStatsResult {
   damageShare: number;
   gold: number;
   goldShare: number;
-  gdAt15: number;
-  csdAt15: number;
+  gdAt15: number | null;
+  csdAt15: number | null;
   kp: number;
   rating: number;
 }

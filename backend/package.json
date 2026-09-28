@@ -23,6 +23,7 @@
     "sim:battle": "ts-node scripts/run-battle-lab.ts",
     "sim:series": "ts-node scripts/run-tactical-series-lab.ts",
     "test:sim:scenarios": "ts-node scripts/check-tactical-scenarios.ts",
+    "test:sim:stage6": "ts-node scripts/check-stage6.ts",
     "typeorm": "typeorm-ts-node-commonjs -d src/database/data-source.ts",
     "migration:show": "npm run typeorm -- migration:show",
     "migration:run": "npm run typeorm -- migration:run",

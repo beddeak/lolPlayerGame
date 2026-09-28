@@ -1,0 +1,20 @@
+.tactical-notice { padding:12px 24px; color:#bed0e1; font-size:12px; }
+.tactical-notice p { margin:6px 0 12px; }
+.tactical-notice [role="alert"] { color:#ffbac4; }
+.tactical-time { display:flex; flex-wrap:wrap; gap:20px; padding:10px 24px; font-size:11px; color:#b6cada; background:#142333; }
+.tactical-content { display:grid; grid-template-columns:minmax(0,1.15fr) minmax(340px,1fr); gap:22px; padding:20px 24px; }
+.tactical-content .rift-map-wrap { max-width:none; }
+.tactical-rosters { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+.tactical-rosters h3 { margin:0 0 10px; font-size:14px; }
+.tactical-actor { display:flex; flex-direction:column; gap:7px; padding:10px; margin-bottom:8px; border-left:2px solid #8dd5ff; background:#142131; font-size:11px; }
+.tactical-actor[data-side="RED"] { border-color:#ffa0b1; }
+.tactical-actor strong { font-size:13px; }.tactical-actor strong small { display:block; margin-top:4px; }
+.tactical-actor small { color:#b0c3d5; font-size:10px; }
+.tactical-events { padding:0 24px 18px; color:#d7e3ef; font-size:12px; }
+.tactical-events p { margin:8px 0; }.tactical-events time { color:#e1ca98; font-variant-numeric:tabular-nums; }
+.tactical-events small { color:#9fb8cc; }
+.tactical-report { padding:0 24px 20px; }.tactical-report h3 { font-size:17px; }.tactical-report p { color:#a9c0d4; font-size:11px; }
+.tactical-report table { border-collapse:collapse; width:100%; font-size:12px; white-space:nowrap; }.tactical-report th,.tactical-report td { padding:10px; border-bottom:1px solid #30465b; text-align:right; }.tactical-report th:first-child { text-align:left; }
+.tactical-dialog .rift-scoreboard { grid-template-columns:1fr 1fr 100px; }.tactical-dialog .rift-scoreboard>div[data-side="1"] { justify-content:center; }
+@media(max-width:950px) { .tactical-content { grid-template-columns:1fr; }.tactical-content .rift-map-wrap { max-width:65dvh; }.tactical-content { padding:12px; }.tactical-notice,.tactical-events,.tactical-report { padding-left:12px; padding-right:12px; } }
+@media(max-width:540px) { .tactical-dialog .rift-scoreboard { grid-template-columns:1fr 1fr 65px; }.tactical-dialog .rift-playback { flex-wrap:wrap; }.tactical-dialog .rift-playback [role="group"] { margin-left:0; }.tactical-rosters { gap:7px; }.tactical-actor { padding:8px; font-size:10px; } }

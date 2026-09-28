@@ -21,6 +21,16 @@ import { MatchesService } from './matches.service';
 import { Career } from '../careers/entities/career.entity';
 import { MatchStatsSimulationService } from './simulation/match-stats-simulation.service';
 import { SimpleMatchSimulationService } from './simulation/simple-match-simulation.service';
+import { TacticalRunsService } from './tactical-runs.service';
+import { MatchTacticalRun } from './entities/match-tactical-run.entity';
+import type { SimpleMatchTeamInput } from './simulation/simple-match.types';
+import type { SimulateMatchDto } from './dto/simulate-match.dto';
+import { buildCareerEngineInput } from './simulation-v2/career-input';
+import { startSimulation } from './simulation-v2/engine';
+import { emit } from './simulation-v2/contracts';
+import { projectMatch } from './simulation-v2/projection';
+import { canonicalHash } from './simulation-v2/seeded-rng';
+import { grantReward } from './simulation-v2/economy-ledger';
 
 describe('MatchesService', () => {
   type SaveableEntity = { id?: number };
@@ -34,6 +44,18 @@ describe('MatchesService', () => {
   const setBonusesRepository = {
     find: jest.fn(),
   };
+  const legacyWinner = {
+    simulate: jest.fn(() => {
+      throw new Error('Legacy winner simulation must not run');
+    }),
+  };
+  const legacyStats = {
+    simulate: jest.fn(() => {
+      throw new Error('Synthetic statistics must not run');
+    }),
+  };
+  const tacticalRuns = { simulate: jest.fn() };
+  let completedRun: MatchTacticalRun | null = null;
   const entityManager = {
     findOne: jest.fn(),
     create: jest.fn((_entity: unknown, value: Record<string, unknown>) => ({
@@ -128,8 +150,9 @@ describe('MatchesService', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         MatchesService,
-        SimpleMatchSimulationService,
-        MatchStatsSimulationService,
+        { provide: SimpleMatchSimulationService, useValue: legacyWinner },
+        { provide: MatchStatsSimulationService, useValue: legacyStats },
+        { provide: TacticalRunsService, useValue: tacticalRuns },
         { provide: DataSource, useValue: dataSource },
         {
           provide: getRepositoryToken(CareerTeam),
@@ -153,8 +176,79 @@ describe('MatchesService', () => {
       rosterEntry.careerPlayer.roleProficiencies = [];
     }
     careerTeamsRepository.find.mockResolvedValue([teamA, teamB]);
-    entityManager.findOne.mockImplementation((entity: unknown) =>
-      Promise.resolve(entity === Career ? teamA.career : null),
+    completedRun = null;
+    // Boundary fixture: core tests independently prove physical Nexus death.
+    // This service must persist this exact server report, never roll another win.
+    tacticalRuns.simulate.mockImplementation(
+      (
+        _accountId: number,
+        dto: SimulateMatchDto,
+        teams: [SimpleMatchTeamInput, SimpleMatchTeamInput],
+        currentMeta: TeamStrategy,
+      ) => {
+        const built = buildCareerEngineInput({
+          teams,
+          seed: dto.seed,
+          careerId: dto.careerId,
+          gameId: 23,
+        });
+        const state = startSimulation(built.input);
+        state.simTimeMs = 60_000;
+        state.status = 'FINISHED';
+        state.winnerTeamId = teamB.id;
+        const killer = state.actors.find(
+          (actor) => actor.input.teamId === teamB.id,
+        )!;
+        const victim = state.actors.find(
+          (actor) => actor.input.teamId === teamA.id,
+        )!;
+        emit(state, {
+          kind: 'DAMAGE',
+          actorId: killer.id,
+          targetId: victim.id,
+          amount: 123.5,
+        });
+        emit(state, { kind: 'DEATH', actorId: killer.id, targetId: victim.id });
+        grantReward(state, {
+          key: 'fixture-kill',
+          actorId: killer.id,
+          sourceId: victim.id,
+          kind: 'KILL',
+          gold: 300.125,
+          xp: 100,
+          cs: 0,
+        });
+        completedRun = Object.assign(new MatchTacticalRun(), {
+          id: 23,
+          careerId: dto.careerId,
+          executionKey: canonicalHash({
+            careerId: dto.careerId,
+            teamAId: dto.teamAId,
+            teamBId: dto.teamBId,
+            seed: dto.seed,
+          }),
+          input: built.input,
+          inputHash: canonicalHash(built.input),
+          status: 'FINISHED',
+          engineVersion: built.input.engineVersion,
+          currentMeta,
+          matchId: null,
+          feedbackIds: [],
+          draft: built.draft,
+          manifest: { report: projectMatch(state) },
+        });
+        return Promise.resolve(completedRun);
+      },
+    );
+    entityManager.findOne.mockImplementation(
+      (entity: unknown, options?: { select?: unknown }) =>
+        Promise.resolve(
+          entity === Career
+            ? teamA.career
+            : entity === MatchTacticalRun && !options?.select
+              ? completedRun
+              : null,
+        ),
     );
     setBonusesRepository.find.mockResolvedValue([]);
     teamA.chemistry = 50;
@@ -185,7 +279,7 @@ describe('MatchesService', () => {
     expect(result.teams[0].playerStats).toHaveLength(5);
     expect(result.teams[0].baseAbility).toBe(70);
     expect(result.teams[0].archetypeModifier).toBe(0);
-    expect(result.teams[0].stateModifier).toBe(1.6);
+    expect(result.teams[0].stateModifier).toBe(0);
     expect(result.teams[0].playerStats[0]).toEqual(
       expect.objectContaining({
         form: 50,
@@ -193,8 +287,87 @@ describe('MatchesService', () => {
         mental: 70,
       }),
     );
-    expect(entityManager.update).toHaveBeenCalledTimes(10);
-    expect([teamA.id, teamB.id]).toContain(result.winnerTeamId);
+    expect(
+      entityManager.update.mock.calls.filter(
+        ([entity]) => entity === CareerPlayer,
+      ),
+    ).toHaveLength(10);
+    expect(entityManager.update).toHaveBeenCalledWith(
+      MatchTacticalRun,
+      { id: 23 },
+      { matchId: 500 },
+    );
+    expect(result.winnerTeamId).toBe(teamB.id);
+    expect(result.tacticalReplay?.engineVersion).toBe(
+      completedRun!.engineVersion,
+    );
+    const winningTeam = result.teams.find((team) => team.teamId === teamB.id)!;
+    expect(winningTeam.teamKills).toBe(1);
+    expect(winningTeam.playerStats[0]).toMatchObject({
+      kills: 1,
+      dpm: 123.5,
+      gold: 300.125,
+      gdAt15: null,
+      csdAt15: null,
+    });
+    expect(result.durationMinutes).toBe(1);
+    for (const player of result.teams.flatMap((team) => team.playerStats)) {
+      expect(entityManager.update).toHaveBeenCalledWith(
+        CareerPlayer,
+        player.careerPlayerId,
+        {
+          form: player.formAfter,
+          condition: player.conditionAfter,
+          currentMental: player.mentalAfter,
+        },
+      );
+    }
+    expect(legacyWinner.simulate).not.toHaveBeenCalled();
+    expect(legacyStats.simulate).not.toHaveBeenCalled();
+  });
+
+  it('never commits a horizon result or updates career state when the tactical engine did not finish', async () => {
+    tacticalRuns.simulate.mockResolvedValueOnce(
+      Object.assign(new MatchTacticalRun(), {
+        id: 23,
+        status: 'HORIZON_REACHED',
+        matchId: null,
+        input: null,
+        manifest: null,
+      }),
+    );
+    await expect(
+      service.simulate(7, {
+        careerId: 1,
+        teamAId: teamA.id,
+        teamBId: teamB.id,
+        seed: 123,
+      }),
+    ).rejects.toBeInstanceOf(ConflictException);
+    expect(entityManager.save).not.toHaveBeenCalled();
+    expect(entityManager.update).not.toHaveBeenCalled();
+    expect(legacyWinner.simulate).not.toHaveBeenCalled();
+    expect(legacyStats.simulate).not.toHaveBeenCalled();
+  });
+
+  it('returns a committed tactical run on retry without reapplying postgame state', async () => {
+    const dto = {
+      careerId: 1,
+      teamAId: teamA.id,
+      teamBId: teamB.id,
+      seed: 123,
+    };
+    const first = await service.simulate(7, dto);
+    completedRun!.matchId = first.matchId;
+    tacticalRuns.simulate.mockResolvedValueOnce(completedRun);
+    const stored = jest.spyOn(service, 'findOne').mockResolvedValueOnce(first);
+    entityManager.save.mockClear();
+    entityManager.update.mockClear();
+    expect(await service.simulate(7, dto)).toEqual(first);
+    expect(stored).toHaveBeenCalledWith(7, first.matchId);
+    expect(entityManager.save).not.toHaveBeenCalled();
+    expect(entityManager.update).not.toHaveBeenCalled();
+    stored.mockRestore();
   });
 
   it('rechecks dismissal before persisting a match or player state', async () => {
@@ -215,7 +388,7 @@ describe('MatchesService', () => {
     expect(entityManager.update).not.toHaveBeenCalled();
   });
 
-  it('activates a data-driven set bonus only for the matching roster', async () => {
+  it('pins the matching roster set bonuses without claiming a legacy additive win modifier', async () => {
     setBonusesRepository.find.mockResolvedValue([
       {
         id: 1,
@@ -240,8 +413,11 @@ describe('MatchesService', () => {
     });
 
     expect(result.teams[0].activeSetBonuses).toHaveLength(1);
-    expect(result.teams[0].effectiveChemistry).toBe(60);
-    expect(result.teams[0].setBonusModifier).toBeGreaterThan(0);
+    expect(
+      completedRun!.input!.teams.find((team) => team.teamId === teamA.id)!
+        .sourceTeam!.activeSetBonuses[0].code,
+    ).toBe('TEAM_A_DUO');
+    expect(result.teams[0].setBonusModifier).toBe(0);
     expect(result.teams[1].activeSetBonuses).toEqual([]);
   });
 
@@ -299,7 +475,7 @@ describe('MatchesService', () => {
       (playerStat) => playerStat.position === Position.SUPPORT,
     )!;
 
-    expect(result.teams[0].archetypeModifier).not.toBe(0);
+    expect(result.teams[0].archetypeModifier).toBe(0);
     expect(adcStats.championArchetype).toBe(ChampionArchetype.HYPER_CARRY);
     expect(supportStats.championArchetype).toBe(ChampionArchetype.UTILITY);
   });
@@ -452,6 +628,15 @@ describe('MatchesService', () => {
         seed: 1,
       }),
     ).rejects.toBeInstanceOf(NotFoundException);
+    expect(tacticalRuns.simulate).not.toHaveBeenCalled();
+    expect(careerTeamsRepository.find).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          careerId: 1,
+          career: { accountId: 7 },
+        }),
+      }),
+    );
   });
 
   it('rejects an incomplete starting roster', async () => {

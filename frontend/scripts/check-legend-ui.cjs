@@ -89,6 +89,7 @@ function harness(file, props, request, overrides = {}) {
       if (name === "./DraftPreviewDialog") return { __esModule: true, default: () => null };
       if (name === "./MatchFlowDialog") return { __esModule: true, default: () => null };
       if (name === "./MatchSpectator") return { __esModule: true, default: function MatchSpectator() { return null; } };
+      if (name === "./TacticalMatchViewer") return { __esModule: true, default: function TacticalMatchViewer() { return null; } };
       if (name === "./match-spectator") return require('./load-source.cjs').loadSource('match-spectator');
       if (name === "./ChampionDraftBoard") return { __esModule: true, default: () => null };
       if (name === "./DraftSoundControl") return { __esModule: true, default: () => null };

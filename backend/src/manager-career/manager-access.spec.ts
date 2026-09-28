@@ -5,11 +5,13 @@ import { CareerPlayer } from '../careers/entities/career-player.entity';
 import { Roster } from '../careers/entities/roster.entity';
 import { STARTER_POSITIONS } from '../careers/constants/career.constants';
 import { ManagerCareerState } from './entities/manager-career-state.entity';
+import { MatchTacticalRun } from '../matches/entities/match-tactical-run.entity';
 import {
   assertManagerActive,
   getManagedLineupStrength,
   lockActiveManagerCareer,
   withExpectedManagerTeam,
+  withTacticalExecution,
 } from './manager-access';
 
 describe('Manager mutation access', () => {
@@ -78,6 +80,55 @@ describe('Manager mutation access', () => {
       lockActiveManagerCareer(manager as unknown as EntityManager, 8, 1),
     ).rejects.toBeInstanceOf(NotFoundException);
     expect(manager.findOne).toHaveBeenCalledTimes(1);
+  });
+
+  it.each(['RUNNING', 'FINISHED'])(
+    'blocks career mutations while a %s game has not committed its match',
+    async (status) => {
+      const manager = {
+        findOne: jest.fn(async (entity: unknown) =>
+          entity === MatchTacticalRun
+            ? { id: 45, executionKey: 'game-a', status }
+            : null,
+        ),
+      };
+      await expect(
+        assertManagerActive(manager as unknown as EntityManager, 1),
+      ).rejects.toThrow('경기 도중');
+      expect(manager.findOne).toHaveBeenCalledWith(
+        MatchTacticalRun,
+        expect.objectContaining({
+          where: expect.objectContaining({ careerId: 1 }),
+          select: { id: true, executionKey: true },
+        }),
+      );
+    },
+  );
+
+  it('permits only its own exact execution to resume or commit and isolates the scope from other requests', async () => {
+    const manager = {
+      findOne: jest.fn(async (entity: unknown, options: any) => {
+        if (
+          entity !== MatchTacticalRun ||
+          options.where.executionKey?.value === 'game-a'
+        )
+          return null;
+        return { id: 45, executionKey: 'game-a' };
+      }),
+    } as unknown as EntityManager;
+    await expect(
+      assertManagerActive(manager, 1, 'game-a'),
+    ).resolves.toBeUndefined();
+    await expect(assertManagerActive(manager, 1, 'game-b')).rejects.toThrow(
+      '경기 도중',
+    );
+    await withTacticalExecution('game-a', async () => {
+      await expect(assertManagerActive(manager, 1)).resolves.toBeUndefined();
+      await expect(assertManagerActive(manager, 1, 'game-b')).rejects.toThrow(
+        '경기 도중',
+      );
+    });
+    await expect(assertManagerActive(manager, 1)).rejects.toThrow('경기 도중');
   });
 });
 

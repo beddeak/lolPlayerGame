@@ -19,6 +19,7 @@
     "test:draft-bgm": "node scripts/check-draft-bgm.cjs",
     "test:match-flow": "node scripts/check-match-flow.cjs",
     "test:spectator": "node scripts/check-match-spectator.cjs",
+    "test:tactical-replay": "node scripts/check-tactical-replay.cjs",
     "test:intermission": "node scripts/check-intermission.cjs",
     "test:save-delete": "node scripts/check-save-delete.cjs",
     "test:google": "node scripts/check-google-auth.cjs",

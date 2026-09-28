@@ -80,6 +80,9 @@ import { ManagerJobOffer } from '../manager-career/entities/manager-job-offer.en
 import { CreateManagerJobOffers1789509600000 } from './migrations/1789509600000-create-manager-job-offers';
 import { AddSeriesDrafts1789596000000 } from './migrations/1789596000000-add-series-drafts';
 import { IntermissionFeedback1789682400000 } from './migrations/1789682400000-intermission-feedback';
+import { TacticalReplays1789768800000 } from './migrations/1789768800000-tactical-replays';
+import { MatchTacticalRun } from '../matches/entities/match-tactical-run.entity';
+import { MatchTacticalChunk } from '../matches/entities/match-tactical-chunk.entity';
 
 if (existsSync('.env')) {
   loadEnvFile('.env');
@@ -119,6 +122,8 @@ const dataSource = new DataSource({
     InternationalFixture,
     Match,
     MatchPlayerStat,
+    MatchTacticalRun,
+    MatchTacticalChunk,
     MatchSeries,
     MatchFeedback,
     MatchFeedbackPlayerEffect,
@@ -176,6 +181,7 @@ const dataSource = new DataSource({
     CreateManagerJobOffers1789509600000,
     AddSeriesDrafts1789596000000,
     IntermissionFeedback1789682400000,
+    TacticalReplays1789768800000,
   ],
   migrationsTableName: 'migrations',
   ssl: useSsl ? { rejectUnauthorized: true } : undefined,

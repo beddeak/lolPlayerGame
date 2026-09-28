@@ -4,7 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, Repository } from 'typeorm';
+import { DataSource, In, IsNull, Repository } from 'typeorm';
 import { CalendarsService } from '../calendars/calendars.service';
 import {
   addCalendarDays,
@@ -39,7 +39,12 @@ import { getTrainingWeek } from '../careers/config/training-week';
 import {
   assertManagerActive,
   withExpectedManagerTeam,
+  tacticalSeriesExecutionKey,
+  withTacticalExecution,
 } from '../manager-career/manager-access';
+import { LeagueFixture } from '../leagues/entities/league-fixture.entity';
+import { MatchTacticalRun } from '../matches/entities/match-tactical-run.entity';
+import { InternationalFixture } from '../internationals/entities/international-fixture.entity';
 
 interface PreparedSimulationDate {
   career: Career;
@@ -63,7 +68,40 @@ export class SimulationsService {
     careerId: number,
     dto: QuickSimDto,
   ): Promise<QuickSimResponseDto> {
-    const prepared = await this.prepareCurrentDate(accountId, careerId);
+    const snapshot = await this.dataSource.manager.findOne(LeagueFixture, {
+      where: {
+        id: dto.fixtureId,
+        leagueSplitId: dto.leagueSplitId,
+        leagueSplit: { careerId, career: { accountId } },
+      },
+      relations: { series: { games: true } },
+    });
+    const executionKey =
+      snapshot?.seriesId && snapshot.series
+        ? tacticalSeriesExecutionKey(
+            careerId,
+            snapshot.seriesId,
+            snapshot.series.games.length + 1,
+          )
+        : undefined;
+    const execute = () =>
+      this.prepareQuickSim(accountId, careerId, dto, executionKey);
+    return executionKey
+      ? withTacticalExecution(executionKey, execute)
+      : execute();
+  }
+
+  private async prepareQuickSim(
+    accountId: number,
+    careerId: number,
+    dto: QuickSimDto,
+    executionKey?: string,
+  ): Promise<QuickSimResponseDto> {
+    const prepared = await this.prepareCurrentDate(
+      accountId,
+      careerId,
+      executionKey,
+    );
 
     if (prepared.blockingEvents.length > 0) {
       throw new ConflictException(
@@ -80,6 +118,138 @@ export class SimulationsService {
   }
 
   async fastSim(
+    accountId: number,
+    careerId: number,
+    dto: FastSimDto,
+  ): Promise<FastSimResponseDto> {
+    const pending = await this.dataSource.manager.findOne(MatchTacticalRun, {
+      where: {
+        careerId,
+        career: { accountId },
+        matchId: IsNull(),
+        status: In(['RUNNING', 'FINISHED']),
+      },
+      select: { id: true, executionKey: true, input: true, draft: true },
+    });
+    if (!pending) return this.runFastSim(accountId, careerId, dto);
+
+    const context = pending.input?.context;
+    const gameNumber = pending.draft?.gameNumber;
+    const pendingBoundary = () =>
+      new ConflictException({
+        message:
+          '진행 중인 경기를 원래 경기 화면에서 재개해 주세요. 날짜는 진행하지 않았습니다.',
+        status: 'PENDING_MATCH',
+        runId: pending.id,
+      });
+    if (
+      !context ||
+      context.careerId !== careerId ||
+      !context.seriesId ||
+      !Number.isSafeInteger(gameNumber) ||
+      gameNumber < 1 ||
+      !pending.draft.completed ||
+      !pending.draft.assignmentsConfirmed ||
+      pending.executionKey !==
+        tacticalSeriesExecutionKey(careerId, context.seriesId, gameNumber)
+    )
+      throw pendingBoundary();
+
+    const [domestic, international, managed] = await Promise.all([
+      this.dataSource.manager.findOne(LeagueFixture, {
+        where: {
+          seriesId: context.seriesId,
+          leagueSplit: { careerId, career: { accountId } },
+        },
+        relations: { leagueSplit: true },
+      }),
+      this.dataSource.manager.findOne(InternationalFixture, {
+        where: {
+          seriesId: context.seriesId,
+          tournament: { careerId, career: { accountId } },
+        },
+      }),
+      this.findManagedTeam(accountId, careerId),
+    ]);
+    if ((!domestic && !international) || (domestic && international))
+      throw pendingBoundary();
+    const managedGame = pending.input!.teams.some(
+      (team) => team.teamId === managed.id,
+    );
+    const resumedDomestic: FastSimFixtureResponseDto[] = [];
+    const resumedInternational: Array<{
+      tournamentId: number;
+      fixtureId: number;
+    }> = [];
+    await withExpectedManagerTeam(careerId, managed.id, async () => {
+      if (domestic) {
+        if (managedGame) {
+          // Resume the already pinned set only. The next draft remains a user decision.
+          await this.leaguesService.simulateNextFixtureGame(
+            accountId,
+            careerId,
+            domestic.leagueSplitId,
+            domestic.id,
+            false,
+            gameNumber,
+          );
+        } else {
+          const result = await this.quickSim(accountId, careerId, {
+            leagueSplitId: domestic.leagueSplitId,
+            fixtureId: domestic.id,
+          });
+          resumedDomestic.push(
+            this.toFastSimFixture(result, domestic.scheduledDate),
+          );
+        }
+      } else if (international) {
+        await this.internationalsService.simulate(
+          accountId,
+          careerId,
+          international.tournamentId,
+          international.id,
+          managedGame ? { single: true, gameNumber } : undefined,
+        );
+        if (!managedGame)
+          resumedInternational.push({
+            tournamentId: international.tournamentId,
+            fixtureId: international.id,
+          });
+      }
+    });
+    const limit =
+      dto.maxFixtures ?? SIMULATION_CONFIG.defaultFastSimFixtureLimit;
+    const calendar = await this.calendarsService.findOne(accountId, careerId);
+    if (managedGame || limit === 1)
+      return {
+        ...this.toFastSimResponse(
+          calendar.currentDate,
+          addCalendarDays(calendar.currentDate, dto.days),
+          limit,
+          managedGame
+            ? FastSimStopReason.MANAGED_MATCH
+            : FastSimStopReason.FIXTURE_LIMIT,
+          resumedDomestic,
+          calendar,
+        ),
+        simulatedInternationalFixtures: resumedInternational,
+      };
+    const result = await this.runFastSim(accountId, careerId, {
+      ...dto,
+      maxFixtures: limit - 1,
+    });
+    return {
+      ...result,
+      fixtureLimit: limit,
+      simulatedFixtures: [...resumedDomestic, ...result.simulatedFixtures],
+      simulatedInternationalFixtures: [
+        ...resumedInternational,
+        ...(result.simulatedInternationalFixtures ?? []),
+      ],
+    };
+  }
+
+  private async runFastSim(
     accountId: number,
     careerId: number,
     dto: FastSimDto,
@@ -446,6 +616,7 @@ export class SimulationsService {
   private async prepareCurrentDate(
     accountId: number,
     careerId: number,
+    executionKey?: string,
   ): Promise<PreparedSimulationDate> {
     return this.dataSource.transaction(async (manager) => {
       const career = await manager.findOne(Career, {
@@ -459,11 +630,23 @@ export class SimulationsService {
 
       await assertManagerActive(manager, careerId);
 
-      await this.eventQueueService.processThroughDate(
-        manager,
-        careerId,
-        career.currentDate,
-      );
+      const pending = executionKey
+        ? await manager.findOne(MatchTacticalRun, {
+            where: {
+              careerId,
+              executionKey,
+              matchId: IsNull(),
+              status: In(['RUNNING', 'FINISHED']),
+            },
+            select: { id: true, executionKey: true },
+          })
+        : null;
+      if (!executionKey || pending?.executionKey !== executionKey)
+        await this.eventQueueService.processThroughDate(
+          manager,
+          careerId,
+          career.currentDate,
+        );
       const blockingEvents = await this.eventQueueService.findBlockingEvents(
         manager,
         careerId,

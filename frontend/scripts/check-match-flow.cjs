@@ -304,7 +304,7 @@ async function main() {
     global.document = previous;
   }
 }
-async function championFlow() {
+async function championFlow(tactical = false) {
   const previous = global.document;
   global.document = {body:{style:{overflow:'auto'}}};
   function Champions(){return null;}
@@ -324,7 +324,7 @@ async function championFlow() {
       throw new Error('Response lost after commit');
     }
     if(url==='/fixture/19/games/simulate'){
-      simulatePosts++;series.games.push({matchId:1,seriesGameNumber:1,durationMinutes:30,winnerTeamId:1,
+      simulatePosts++;series.games.push({matchId:1,seriesGameNumber:1,durationMinutes:30,winnerTeamId:1,...(tactical?{tacticalReplay:{engineVersion:'tactical-core-3'}}:{}),
         teams:[1,2].map(id=>({teamId:id,teamCode:String(id),playerStats:[{careerPlayerId:id,position:'MID',kills:1,deaths:1,assists:0}]}))});series.nextGameNumber=2;return {};
     }
     if(/\/drafts\/1$/.test(url))return clone(draft);
@@ -339,14 +339,15 @@ async function championFlow() {
     waiting.resolve();await settle();view.render();assert.match(board().live.error,/Response lost/);
     board().live.onReload();await settle();view.render();assert.equal(board().live.assignmentsConfirmed,true);assert.equal(lineupPosts,1,'Read recovery must not replay a committed lineup');
     board().live.onPlay();board().live.onPlay();await settle();view.render();assert.equal(simulatePosts,1);
-    const spectator=view.nodes().find(n=>n.type.name==='MatchSpectator');assert.ok(spectator,'saved set opens spectator before results');
+    const spectator=view.nodes().find(n=>n.type.name===(tactical?'TacticalMatchViewer':'MatchSpectator'));assert.ok(spectator,'saved set opens correct engine spectator before results');
+    if(tactical){assert.equal(spectator.props.matchId,1);assert.equal(spectator.props.token,'owner');}
     assert.ok(!view.nodes().some(n=>n.type===Report||n.type.name==='DraftBackgroundMusic'),'no result spoilers/draft BGM during viewing');
     spectator.props.onClose();view.render();assert.ok(view.nodes().some(n=>n.type===Report));
     assert.equal(simulatePosts,1,'skip viewing only changes the UI, never repeats simulation');
-    console.log('Champion match flow passed: v3 view routing, confirm-before-play, stale revision, response recovery, one simulation, spectator before report and read-only skip.');
+    console.log(`Champion match flow passed (${tactical?'tactical':'legacy'}): v3 view routing, confirm-before-play, stale revision, response recovery, one simulation, spectator before report and read-only skip.`);
   }finally{view.unmount();global.document=previous;}
 }
-main().then(championFlow).catch((error) => {
+main().then(()=>championFlow()).then(()=>championFlow(true)).catch((error) => {
   console.error(error);
   process.exitCode = 1;
 });

@@ -18,7 +18,11 @@ import { LeagueSplitStatus } from '../leagues/enums/league-split-status.enum';
 import { MatchSeriesService } from '../match-series/match-series.service';
 import { MatchSeries } from '../match-series/entities/match-series.entity';
 import { MatchSeriesStatus } from '../match-series/enums/match-series-status.enum';
-import { lockActiveManagerCareer } from '../manager-career/manager-access';
+import {
+  lockActiveManagerCareer,
+  tacticalSeriesExecutionKey,
+  withTacticalExecution,
+} from '../manager-career/manager-access';
 import { InternationalTournament } from './entities/international-tournament.entity';
 import { InternationalFixture } from './entities/international-fixture.entity';
 import {
@@ -216,84 +220,106 @@ export class InternationalsService {
     careerId: number,
     tournamentId: number,
     fixtureId: number,
+    expectedGameNumber?: number,
   ) {
-    const context = await this.db.transaction(async (manager) => {
-      const career = await lockActiveManagerCareer(
-        manager,
-        accountId,
-        careerId,
-      );
-      const tournament = await manager.findOneBy(InternationalTournament, {
-        id: tournamentId,
-        careerId,
-      });
-      const fixture = await manager.findOne(InternationalFixture, {
-        where: { id: fixtureId, tournamentId },
-        relations: { series: { games: true } },
-      });
-      if (!tournament || !fixture)
-        throw new NotFoundException('국제대회 경기를 찾을 수 없습니다.');
-      const savedGame = tournament.state.games.find(
-        (game) => game.key === fixture.key,
-      )!;
-      if (savedGame.winner !== null)
-        return { seriesId: fixture.seriesId!, done: true };
-      if (!tournament.rosterConfirmed)
-        throw new ConflictException('국제대회 로스터를 먼저 등록해 주세요.');
-      const game = availableGames(tournament.state).find(
-        (value) => value.key === fixture.key,
-      );
-      if (!game || game.day > career.currentDate)
-        throw new ConflictException('아직 진행할 수 없는 경기입니다.');
-      const blockers = await this.events.findBlockingEvents(
-        manager,
-        careerId,
-        career.currentDate,
-      );
-      if (
-        blockers.some(
-          (event) =>
-            event.type !== CalendarEventType.SCHEDULED_GAME ||
-            !event.payload?.internationalFixtureId,
-        )
-      )
-        throw new ConflictException('다른 미해결 이벤트를 먼저 처리해 주세요.');
-      const rosters = await manager.find(Roster, {
-        where: {
-          careerTeamId: In([game.teamAId, game.teamBId]),
-          role: RosterRole.STARTER,
-        },
-      });
-      for (const roster of rosters)
+    const snapshot = await this.db.manager.findOne(InternationalFixture, {
+      where: {
+        id: fixtureId,
+        tournamentId,
+        tournament: { careerId, career: { accountId } },
+      },
+      relations: { series: { games: true } },
+    });
+    const executionKey =
+      snapshot?.seriesId && snapshot.series
+        ? tacticalSeriesExecutionKey(
+            careerId,
+            snapshot.seriesId,
+            expectedGameNumber ?? snapshot.series.games.length + 1,
+          )
+        : undefined;
+    const prepare = () =>
+      this.db.transaction(async (manager) => {
+        const career = await lockActiveManagerCareer(
+          manager,
+          accountId,
+          careerId,
+        );
+        const tournament = await manager.findOneBy(InternationalTournament, {
+          id: tournamentId,
+          careerId,
+        });
+        const fixture = await manager.findOne(InternationalFixture, {
+          where: { id: fixtureId, tournamentId },
+          relations: { series: { games: true } },
+        });
+        if (!tournament || !fixture)
+          throw new NotFoundException('국제대회 경기를 찾을 수 없습니다.');
+        const savedGame = tournament.state.games.find(
+          (game) => game.key === fixture.key,
+        )!;
+        if (savedGame.winner !== null)
+          return { seriesId: fixture.seriesId!, done: true };
+        if (!tournament.rosterConfirmed)
+          throw new ConflictException('국제대회 로스터를 먼저 등록해 주세요.');
+        const game = availableGames(tournament.state).find(
+          (value) => value.key === fixture.key,
+        );
+        if (!game || game.day > career.currentDate)
+          throw new ConflictException('아직 진행할 수 없는 경기입니다.');
+        const blockers = await this.events.findBlockingEvents(
+          manager,
+          careerId,
+          career.currentDate,
+        );
         if (
-          !tournament.registeredRosters[String(roster.careerTeamId)]?.includes(
-            roster.careerPlayerId,
+          blockers.some(
+            (event) =>
+              event.type !== CalendarEventType.SCHEDULED_GAME ||
+              !event.payload?.internationalFixtureId,
           )
         )
           throw new ConflictException(
-            '국제대회에 등록되지 않은 선수가 선발에 있습니다. 등록된 선수로 교체해 주세요.',
+            '다른 미해결 이벤트를 먼저 처리해 주세요.',
           );
-      if (!fixture.seriesId) {
-        const series = await manager.save(
-          MatchSeries,
-          manager.create(MatchSeries, {
-            careerId,
-            teamAId: game.teamAId,
-            teamBId: game.teamBId,
-            bestOf: game.bestOf,
-            seed: (Math.imul(tournamentId, 104729) + fixtureId * 97) >>> 0,
-            games: [],
-          }),
-        );
-        fixture.seriesId = series.id;
-        // Loaded `series: null` must not overwrite the new foreign key on save.
-        await manager.update(InternationalFixture, fixture.id, {
-          seriesId: series.id,
+        const rosters = await manager.find(Roster, {
+          where: {
+            careerTeamId: In([game.teamAId, game.teamBId]),
+            role: RosterRole.STARTER,
+          },
         });
-      }
-      return { seriesId: fixture.seriesId, done: false };
-    });
-    return context;
+        for (const roster of rosters)
+          if (
+            !tournament.registeredRosters[
+              String(roster.careerTeamId)
+            ]?.includes(roster.careerPlayerId)
+          )
+            throw new ConflictException(
+              '국제대회에 등록되지 않은 선수가 선발에 있습니다. 등록된 선수로 교체해 주세요.',
+            );
+        if (!fixture.seriesId) {
+          const series = await manager.save(
+            MatchSeries,
+            manager.create(MatchSeries, {
+              careerId,
+              teamAId: game.teamAId,
+              teamBId: game.teamBId,
+              bestOf: game.bestOf,
+              seed: (Math.imul(tournamentId, 104729) + fixtureId * 97) >>> 0,
+              games: [],
+            }),
+          );
+          fixture.seriesId = series.id;
+          // Loaded `series: null` must not overwrite the new foreign key on save.
+          await manager.update(InternationalFixture, fixture.id, {
+            seriesId: series.id,
+          });
+        }
+        return { seriesId: fixture.seriesId, done: false };
+      });
+    return executionKey
+      ? withTacticalExecution(executionKey, prepare)
+      : prepare();
   }
 
   async prepareFixture(
@@ -331,6 +357,7 @@ export class InternationalsService {
       careerId,
       tournamentId,
       fixtureId,
+      options?.gameNumber,
     );
     // Persist one managed set; only AI-only fixtures may run the whole series.
     const managed = await this.db.manager.findOneBy(CareerTeam, {

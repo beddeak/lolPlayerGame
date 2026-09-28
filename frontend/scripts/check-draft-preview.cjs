@@ -14,8 +14,10 @@ function backendSource(relative) {
     "../../backend/src",
     relative.endsWith(".ts") ? relative : `${relative}.ts`,
   );
-  if (cache.has(filename)) return cache.get(filename);
+  if (cache.has(filename)) return cache.get(filename).exports;
   const module = { exports: {} };
+  // Match CommonJS: cycles observe the in-progress module's live exports.
+  cache.set(filename, module);
   const output = ts.transpileModule(fs.readFileSync(filename, "utf8"), {
     compilerOptions: {
       module: ts.ModuleKind.CommonJS,
@@ -30,7 +32,6 @@ function backendSource(relative) {
     module,
     module.exports,
   );
-  cache.set(filename, module.exports);
   return module.exports;
 }
 const { CHAMPION_VARIANTS } = backendSource("drafts/variant-catalog");

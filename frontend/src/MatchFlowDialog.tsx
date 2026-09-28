@@ -10,6 +10,7 @@ import FirstSelectionPanel, {
 import DraftBackgroundMusic from "./DraftBackgroundMusic";
 import QuickSimReport from "./QuickSimReport";
 import MatchSpectator from "./MatchSpectator";
+import TacticalMatchViewer from "./TacticalMatchViewer";
 import { buildSpectatorReplay, type SpectatorReplay } from "./match-spectator";
 import IntermissionPanel from "./IntermissionPanel";
 import IntermissionDialog from "./IntermissionDialog";
@@ -56,6 +57,7 @@ export default function MatchFlowDialog({
   const pendingGame = useRef<number | null>(null);
   const [series, setSeries] = useState(flow.series);
   const [spectator, setSpectator] = useState<SpectatorReplay | null>(null);
+  const [tacticalMatch, setTacticalMatch] = useState<number | null>(null);
   const [currentCareer, setCurrentCareer] = useState(career);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const feedbackOpenRef = useRef(false);
@@ -170,7 +172,7 @@ export default function MatchFlowDialog({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   useEffect(() => {
-    if (report || spectator) return;
+    if (report || spectator || tacticalMatch !== null) return;
     const node = dialog.current;
     const previous = document.body.style.overflow;
     node?.showModal();
@@ -179,7 +181,7 @@ export default function MatchFlowDialog({
       node?.close();
       document.body.style.overflow = previous;
     };
-  }, [report, spectator]);
+  }, [report, spectator, tacticalMatch]);
   const close = () => {
     if (alive.current && !pending.current && !intermissionRef.current.busy) {
       alive.current = false;
@@ -219,7 +221,8 @@ export default function MatchFlowDialog({
       gameRef.current = fresh.nextGameNumber;
       showReport(fresh);
       const game = fresh.games.find(g => g.seriesGameNumber === gameNumber) ?? fresh.games.at(-1);
-      setSpectator(game ? buildSpectatorReplay(game, currentCareer) : null);
+      if (game?.tacticalReplay) setTacticalMatch(game.matchId);
+      else setSpectator(game ? buildSpectatorReplay(game, currentCareer) : null);
     });
   };
   const choose = (choice?: SelectionChoice) => {
@@ -250,6 +253,7 @@ export default function MatchFlowDialog({
       if(alive.current) acceptDraft(next);
     });
   };
+  if (tacticalMatch !== null) return <TacticalMatchViewer key={`${token}:${career.id}:${tacticalMatch}`} careerId={career.id} matchId={tacticalMatch} token={token} onClose={() => setTacticalMatch(null)} />;
   if (spectator) return <MatchSpectator key={spectator.key} replay={spectator} onClose={() => setSpectator(null)} />;
   if (report) {
     if (feedbackOpen && report.status !== "COMPLETED")
@@ -318,6 +322,7 @@ export default function MatchFlowDialog({
     return (
       <QuickSimReport
         result={{ series: report }}
+        token={token}
         career={currentCareer}
         onClose={close}
         closeDisabled={busy}

@@ -1,17 +1,34 @@
 import { ConflictException, NotFoundException } from '@nestjs/common';
 import { AsyncLocalStorage } from 'node:async_hooks';
-import { EntityManager } from 'typeorm';
+import { EntityManager, In, IsNull, Not } from 'typeorm';
 import { Career } from '../careers/entities/career.entity';
 import { Roster } from '../careers/entities/roster.entity';
 import { RosterRole } from '../careers/enums/roster-role.enum';
 import { STARTER_POSITIONS } from '../careers/constants/career.constants';
 import { ManagerCareerState } from './entities/manager-career-state.entity';
 import { CareerTeam } from '../careers/entities/career-team.entity';
+import { MatchTacticalRun } from '../matches/entities/match-tactical-run.entity';
+import { canonicalHash } from '../matches/simulation-v2/seeded-rng';
 
 const expectedManagerTeam = new AsyncLocalStorage<{
   careerId: number;
   teamId: number;
 }>();
+const tacticalExecution = new AsyncLocalStorage<string>();
+
+export const tacticalSeriesExecutionKey = (
+  careerId: number,
+  seriesId: number,
+  gameNumber: number,
+): string => canonicalHash({ careerId, seriesId, gameNumber });
+
+/** Internal game endpoints may resume only the exact series/set they resolved. */
+export function withTacticalExecution<T>(
+  executionKey: string,
+  action: () => Promise<T>,
+): Promise<T> {
+  return tacticalExecution.run(executionKey, action);
+}
 
 /** Carry ownership across a simulation's separate Career transactions. */
 export function withExpectedManagerTeam<T>(
@@ -26,6 +43,7 @@ export function withExpectedManagerTeam<T>(
 export async function assertManagerActive(
   manager: EntityManager,
   careerId: number,
+  allowedExecutionKey?: string,
 ): Promise<void> {
   const state = await manager.findOne(ManagerCareerState, {
     where: { careerId },
@@ -49,6 +67,20 @@ export async function assertManagerActive(
         '감독 소속 구단이 변경되어 진행 중이던 시뮬레이션을 중단했습니다. 새 구단에서 다시 진행하세요.',
       );
   }
+  const allowed = allowedExecutionKey ?? tacticalExecution.getStore();
+  const pending = await manager.findOne(MatchTacticalRun, {
+    where: {
+      careerId,
+      matchId: IsNull(),
+      status: In(['RUNNING', 'FINISHED']),
+      ...(allowed ? { executionKey: Not(allowed) } : {}),
+    },
+    select: { id: true, executionKey: true },
+  });
+  if (pending && typeof pending.executionKey === 'string')
+    throw new ConflictException(
+      '진행 중인 경기 결과를 먼저 확정해 주세요. 경기 도중에는 커리어 상태를 변경할 수 없습니다.',
+    );
 }
 
 /** Serialize manager actions with calendar, contract and employment decisions. */
@@ -56,6 +88,7 @@ export async function lockActiveManagerCareer(
   manager: EntityManager,
   accountId: number,
   careerId: number,
+  allowedExecutionKey?: string,
 ): Promise<Career> {
   const career = await manager.findOne(Career, {
     where: { id: careerId, accountId },
@@ -64,7 +97,7 @@ export async function lockActiveManagerCareer(
   if (!career) {
     throw new NotFoundException(`Career ${careerId} was not found`);
   }
-  await assertManagerActive(manager, careerId);
+  await assertManagerActive(manager, careerId, allowedExecutionKey);
   return career;
 }
 

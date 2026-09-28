@@ -8,11 +8,8 @@ export { canonicalHash as stableStateHash } from './seeded-rng';
  * Remaining waypoints are preserved. Mid-interval commands still require events or
  * denser frames: these samples alone do not promise perfect wall-safe interpolation.
  */
-export function captureFrame(state: EngineState): ReplayFrame {
-  const previous = state.frames.at(-1);
-  if (previous && previous.atMs > state.simTimeMs)
-    throw new RangeError('Cannot capture a frame before an existing snapshot');
-  const frame: ReplayFrame = {
+export function projectFrame(state: EngineState): ReplayFrame {
+  return {
     atMs: state.simTimeMs,
     actors: state.actors.map((actor) => ({
       id: actor.id,
@@ -40,6 +37,13 @@ export function captureFrame(state: EngineState): ReplayFrame {
         moveSpeed: unit.moveSpeed,
       })),
   };
+}
+
+export function captureFrame(state: EngineState): ReplayFrame {
+  const previous = state.frames.at(-1);
+  if (previous && previous.atMs > state.simTimeMs)
+    throw new RangeError('Cannot capture a frame before an existing snapshot');
+  const frame = projectFrame(state);
   if (previous?.atMs === state.simTimeMs)
     state.frames[state.frames.length - 1] = frame;
   else state.frames.push(frame);

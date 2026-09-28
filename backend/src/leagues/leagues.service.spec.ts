@@ -38,6 +38,7 @@ describe('LeaguesService', () => {
     getRepository: jest.fn(),
   };
   const dataSource = {
+    manager: entityManager,
     transaction: jest.fn(
       (work: (manager: typeof entityManager) => Promise<unknown>) =>
         work(entityManager),

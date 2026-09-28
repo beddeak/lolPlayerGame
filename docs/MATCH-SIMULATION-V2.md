@@ -1,5 +1,7 @@
 # 행동 기반 경기 코어 — 개발 현황
 
+2026-09-28: 실제 경기 계산·저장·관전 연결은 [STAGE 6 구현 기록](MATCH-SIMULATION-STAGE6.md)을 따른다. 아래의 미연결 설명은 STAGE 1–2 당시의 기록이다.
+
 2026-09-27 갱신: STAGE 3–5 opt-in 전체 맵 코어는 [MATCH-SIMULATION-STAGE3-5.md](MATCH-SIMULATION-STAGE3-5.md), 후속 운영 AI 보완은 [MACRO-AI-REVIEW.md](MACRO-AI-REVIEW.md)에 기록했다. 아래는 유지 중인 **STAGE 1–2 / 10분 lab 경로의 구현·검증 기록**이다. 현재 엔진 버전은 `tactical-core-3`; 이전 개발용 체크포인트는 버전 불일치로 거절하며 실제 커리어 세이브를 바꾸지는 않는다.
 
 2026-09-26. `lol_match_simulation_rework_v2_reviewed.md`의 STAGE 0 감사 이후, 사용자가 단계별 승인 대기 없이 진행하도록 요청하여 작성한 구현이다.

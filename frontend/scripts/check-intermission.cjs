@@ -277,6 +277,24 @@ async function main() {
     assert.ok(html.includes(label), label);
   assert.equal(analysis.nodes().filter((n) => n.type === "tbody").length, 2);
   assert.equal(analysis.nodes().filter((n) => n.type === "tr").length, 12);
+  const measuredGame = copy(data.series.games[0]);
+  data.series.games[0].teams.forEach((team) => {
+    team.playerStats.forEach((player) => {
+      player.gdAt15 = null;
+      player.csdAt15 = null;
+    });
+  });
+  html = analysis.render();
+  assert.match(html, /15분 시점의 기록이 없습니다/);
+  assert.doesNotMatch(html, /15분 지표에서 확인된 라인 열세가 없습니다/);
+  assert.equal(analysis.nodes().filter((n) => n.type === "td" && text(n) === "—").length, 20,
+    "Missing GD/CSD must display an em dash for every player, never zero");
+  data.series.games[0].teams[0].playerStats[0].gdAt15 = 0;
+  data.series.games[0].teams[0].playerStats[0].csdAt15 = 0;
+  analysis.render();
+  assert.equal(analysis.nodes().filter((n) => n.type === "td" && text(n) === "—").length, 18,
+    "An observed zero must stay distinct from missing measurements");
+  data.series.games[0] = measuredGame;
   const oldGame = copy(data.series.games[0]);
   oldGame.matchId = 2;
   oldGame.seriesGameNumber = 2;
