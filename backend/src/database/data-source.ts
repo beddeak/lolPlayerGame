@@ -81,6 +81,7 @@ import { CreateManagerJobOffers1789509600000 } from './migrations/1789509600000-
 import { AddSeriesDrafts1789596000000 } from './migrations/1789596000000-add-series-drafts';
 import { IntermissionFeedback1789682400000 } from './migrations/1789682400000-intermission-feedback';
 import { TacticalReplays1789768800000 } from './migrations/1789768800000-tactical-replays';
+import { TacticalJsonText1789855200000 } from './migrations/1789855200000-tactical-json-text';
 import { MatchTacticalRun } from '../matches/entities/match-tactical-run.entity';
 import { MatchTacticalChunk } from '../matches/entities/match-tactical-chunk.entity';
 
@@ -182,6 +183,7 @@ const dataSource = new DataSource({
     AddSeriesDrafts1789596000000,
     IntermissionFeedback1789682400000,
     TacticalReplays1789768800000,
+    TacticalJsonText1789855200000,
   ],
   migrationsTableName: 'migrations',
   ssl: useSsl ? { rejectUnauthorized: true } : undefined,

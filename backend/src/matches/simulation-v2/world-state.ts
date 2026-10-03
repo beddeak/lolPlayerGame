@@ -124,6 +124,12 @@ export function validateEngineInput(input: EngineInput): void {
   requireValue(integer(input.seed, 0, 0xffffffff), 'seed');
   validateMap(input.map);
   const rules = input.rules;
+  requireValue(
+    rules.macroAi === undefined ||
+      (['COORDINATED_V1', 'COORDINATED_V2'].includes(rules.macroAi) &&
+        !!rules.environment),
+    'unsupported macro AI policy',
+  );
   requireValue(integer(rules.stepMs, 10, 1000), 'step duration');
   for (const value of [
     rules.decisionIntervalMs,
@@ -421,6 +427,17 @@ export function checkpoint(state: EngineState): SimulationCheckpoint {
     hash: canonicalHash(snapshot),
     state: snapshot,
   };
+}
+
+/** Synchronous serialization needs no detached object graph: the caller cannot
+ * advance the engine before this returns. Keep the v1 canonical integrity hash
+ * and JSON format, but avoid copying all historical events/frames first. */
+export function serializeCheckpoint(state: EngineState): string {
+  return JSON.stringify({
+    checkpointVersion: 1,
+    hash: canonicalHash(state),
+    state,
+  } satisfies SimulationCheckpoint);
 }
 
 export function restoreCheckpoint(saved: SimulationCheckpoint): EngineState {

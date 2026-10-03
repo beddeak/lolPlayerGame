@@ -1,6 +1,7 @@
 import { Column, Entity, JoinColumn, ManyToOne, PrimaryColumn } from 'typeorm';
 import { MatchTacticalRun } from './match-tactical-run.entity';
 import type { TacticalReplayChunk } from '../simulation-v2/replay';
+import { TACTICAL_JSON_TRANSFORMER } from '../tactical-json.transformer';
 
 @Entity({ name: 'match_tactical_chunks' })
 export class MatchTacticalChunk {
@@ -17,6 +18,6 @@ export class MatchTacticalChunk {
   })
   run!: MatchTacticalRun;
 
-  @Column({ type: 'json' })
+  @Column({ type: 'longtext', transformer: TACTICAL_JSON_TRANSFORMER })
   payload!: TacticalReplayChunk;
 }

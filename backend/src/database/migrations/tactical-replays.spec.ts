@@ -16,9 +16,11 @@ describe('tactical replay migration schema contract', () => {
     ).buildMetadatas();
     const tables: Table[] = [];
     const runner = {
+      query: jest.fn().mockResolvedValue(undefined),
       changeColumn: jest.fn().mockResolvedValue(undefined),
-      createTable: jest.fn(async (table: Table) => {
+      createTable: jest.fn((table: Table) => {
         tables.push(table);
+        return Promise.resolve();
       }),
     };
     await new TacticalReplays1789768800000().up(
@@ -55,7 +57,10 @@ describe('tactical replay migration schema contract', () => {
         metadata.foreignKeys.map((key) => key.name).sort(),
       );
     }
-    expect(runner.changeColumn).toHaveBeenCalledTimes(3);
+    expect(runner.changeColumn).not.toHaveBeenCalled();
+    expect(runner.query).toHaveBeenCalledWith(
+      'ALTER TABLE `match_player_stats` MODIFY COLUMN `gold` double NOT NULL, MODIFY COLUMN `gdAt15` double NULL, MODIFY COLUMN `csdAt15` smallint NULL',
+    );
   });
 
   it('refuses rollback that would silently lose unavailable or fractional historical metrics', async () => {
@@ -68,5 +73,20 @@ describe('tactical replay migration schema contract', () => {
       new TacticalReplays1789768800000().down(runner as unknown as QueryRunner),
     ).rejects.toThrow('without losing');
     expect(runner.dropTable).not.toHaveBeenCalled();
+  });
+
+  it('converts compatible metrics back in place instead of dropping their columns', async () => {
+    const runner = {
+      query: jest.fn().mockResolvedValue([]),
+      dropTable: jest.fn().mockResolvedValue(undefined),
+      changeColumn: jest.fn(),
+    };
+    await new TacticalReplays1789768800000().down(
+      runner as unknown as QueryRunner,
+    );
+    expect(runner.changeColumn).not.toHaveBeenCalled();
+    expect(runner.query).toHaveBeenLastCalledWith(
+      'ALTER TABLE `match_player_stats` MODIFY COLUMN `gold` int UNSIGNED NOT NULL, MODIFY COLUMN `gdAt15` smallint NOT NULL, MODIFY COLUMN `csdAt15` smallint NOT NULL',
+    );
   });
 });

@@ -20,6 +20,7 @@ import {
   type CombatProfile,
   type EngineInput,
   type MapDefinition,
+  type MacroAiPolicy,
   type Side,
 } from './contracts';
 import { createMap } from './map-paths';
@@ -34,6 +35,7 @@ export interface EnginePick {
 }
 
 export interface EngineInputOptions {
+  macroAi?: MacroAiPolicy;
   battle?: boolean;
   careerId?: number;
   seriesId?: number;
@@ -327,6 +329,8 @@ export function createEngineInput(options: EngineInputOptions): EngineInput {
     };
   }) as EngineInput['teams'];
   const rules = options.battle ? createBattleRuleset() : createRuleset();
+  if (options.macroAi && options.macroAi !== 'LEGACY')
+    rules.macroAi = options.macroAi;
   rules.provenance.championCatalog +=
     ` Source: ${RIOT_DATA_SOURCE}. ` +
     'Generic resource 300; attack interval 1000ms; speed 320; vision 1350; HP growth 90/level and AD growth 3/level are MODEL values.';

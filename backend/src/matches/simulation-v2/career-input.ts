@@ -11,8 +11,28 @@ import { CHAMPION_BALANCE_VERSION } from '../../drafts/champion-catalog';
 import { RIOT_DATA_VERSION } from '../../drafts/data/riot-champions';
 import { Position } from '../../players/enums/position.enum';
 import type { SimpleMatchTeamInput } from '../simulation/simple-match.types';
-import type { EngineInput } from './contracts';
+import {
+  CURRENT_MACRO_AI,
+  type EngineInput,
+  type MacroAiPolicy,
+} from './contracts';
 import { createEngineInput } from './input-adapter';
+
+/** Keep already-started series on their pinned decisions. Old inputs omit the
+ * optional policy, so neither a server restart nor a retry upgrades them. */
+export function careerMacroAi(previous: EngineInput[]): MacroAiPolicy {
+  if (!previous.length) return CURRENT_MACRO_AI;
+  const policies = previous.map((input) => input.rules.macroAi ?? 'LEGACY');
+  if (
+    policies.some(
+      (policy) =>
+        !['LEGACY', 'COORDINATED_V1', CURRENT_MACRO_AI].includes(policy) ||
+        policy !== policies[0],
+    )
+  )
+    throw new Error('Series has incompatible macro AI policies');
+  return policies[0];
+}
 
 function draftTeam(team: SimpleMatchTeamInput): DraftTeam {
   return {
@@ -46,6 +66,7 @@ export function buildCareerEngineInput(options: {
   seriesId?: number;
   gameId: number;
   draft?: DraftState;
+  macroAi?: MacroAiPolicy;
 }): { input: EngineInput; draft: DraftState } {
   const { teams } = options;
   if (options.seriesId && !options.draft)
@@ -173,6 +194,7 @@ export function buildCareerEngineInput(options: {
   return {
     input: createEngineInput({
       battle: true,
+      macroAi: options.macroAi ?? CURRENT_MACRO_AI,
       seed: options.seed,
       careerId: options.careerId,
       seriesId: options.seriesId ?? 0,

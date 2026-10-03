@@ -30,6 +30,28 @@ function testMap(walls: MapDefinition['walls']): MapDefinition {
 }
 
 describe('simulation-v2 map and movement', () => {
+  it('immutable cached geometry gives exactly the same tie breaks as freshly built geometry', () => {
+    const map = createMap();
+    const frozen = structuredClone(map);
+    frozen.walls.forEach(Object.freeze);
+    Object.freeze(frozen.walls);
+    Object.freeze(frozen);
+    for (let i = 0; i < 120; i++) {
+      const from = { x: (i * 137 + 700) % 10000, y: (i * 283 + 9300) % 10000 };
+      const to = { x: (i * 941 + 9300) % 10000, y: (i * 467 + 700) % 10000 };
+      expect(findPath(frozen, from, to)).toEqual(findPath(map, from, to));
+    }
+    const from = { x: 1800, y: 5700 },
+      to = { x: 3500, y: 5700 };
+    const path = findPath(frozen, from, to)!;
+    path[0].x = -123;
+    expect(findPath(frozen, from, to)).toEqual(findPath(map, from, to));
+    // A shallow-frozen outer object must not cache mutable wall geometry.
+    const mutableWalls = Object.freeze(structuredClone(map));
+    findPath(mutableWalls, from, to);
+    mutableWalls.walls.length = 0;
+    expect(findPath(mutableWalls, from, to)).toEqual([to]);
+  });
   it('uses independent symmetric 10000-unit map geometry', () => {
     const map = createMap();
     expect(map.version).toBe('approximate-rift-10000-v1');

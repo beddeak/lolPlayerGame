@@ -19,6 +19,7 @@ import { tacticalPolicy } from './tactics';
 import { getActorActionSlots, isCasting, isStunned } from './effects';
 import type { ObjectiveType, StructureType } from './environment-types';
 import { isSiegePathSafe, siegeWaypoint } from './siege-routing';
+import { coordinateMacro, coordinatedArrivalLimit } from './team-macro';
 
 interface PublicStructure {
   id: string;
@@ -264,6 +265,11 @@ export function planBattleActors(
     allies.length > 0 &&
     allies.reduce((sum, actor) => sum + actor.level, 0) / allies.length >= 9;
   const macro = structuralChange || developed;
+  const coordination = ['COORDINATED_V1', 'COORDINATED_V2'].includes(
+    input.rules.macroAi ?? '',
+  )
+    ? coordinateMacro(observation, input, info, macro)
+    : null;
   const laneScores = lanes
     .map((lane) => {
       const target =
@@ -331,6 +337,9 @@ export function planBattleActors(
       continue;
     }
     const policy = tacticalPolicy(input, actor.input, input.meta);
+    const splitting = coordination
+      ? coordination.splitActorId === actor.id
+      : actor.input.position === 'TOP';
     const fallback = result.intents.find(
       (intent) => intent.actorId === actor.id,
     );
@@ -645,6 +654,10 @@ export function planBattleActors(
       )
       .sort(
         (a, b) =>
+          (coordination
+            ? Number(b.id === coordination.focusTargetId) -
+              Number(a.id === coordination.focusTargetId)
+            : 0) ||
           hp(a) - hp(b) ||
           distance(actor.position, a.position) -
             distance(actor.position, b.position),
@@ -697,8 +710,12 @@ export function planBattleActors(
       )
       .sort(
         (a, b) =>
+          (coordination && desperate && baseThreat
+            ? Number(b.structure.id === baseThreat.id) -
+              Number(a.structure.id === baseThreat.id)
+            : 0) ||
           distance(actor.position, a.structure.position) -
-          distance(actor.position, b.structure.position),
+            distance(actor.position, b.structure.position),
       )[0];
     if (defend && (desperate || defend.attackers.length >= 3)) {
       const closest = [...allies]
@@ -733,6 +750,23 @@ export function planBattleActors(
     const candidate = info.objectives
       .filter(
         (objective) =>
+          (!coordination ||
+            coordination.tradeObjectiveId === objective.id ||
+            (coordination.objectiveId === objective.id &&
+              coordination.objectiveMembers.has(actor.id)) ||
+            (actor.action.kind === 'ATTACK' &&
+              actor.action.targetId === objective.id) ||
+            slots.some(
+              (slot) =>
+                slot.id === 'MODEL_SMITE' &&
+                usable(slot) &&
+                visible.some(
+                  (unit) =>
+                    unit.id === objective.id &&
+                    unit.hp <= 600 &&
+                    distance(actor.position, unit.position) <= slot.range,
+                ),
+            )) &&
           objective.nextAtMs !== null &&
           objective.nextAtMs - now <= 20_000 &&
           !(
@@ -761,7 +795,10 @@ export function planBattleActors(
       }))
       .filter(
         ({ objective, travel }) =>
-          travel < 4300 * policy.objectivePriority &&
+          (travel < 4300 * policy.objectivePriority ||
+            (input.rules.macroAi === 'COORDINATED_V2' &&
+              coordination?.objectiveId === objective.id &&
+              coordination.objectiveMembers.has(actor.id))) &&
           (macro ||
             actor.input.position === 'JUNGLE' ||
             actor.input.position === 'SUPPORT' ||
@@ -778,11 +815,17 @@ export function planBattleActors(
             : 2;
       const joiners = allies.filter(
         (ally) =>
+          (!coordination ||
+            coordination.objectiveMembers.has(ally.id) ||
+            (ally.action.kind === 'ATTACK' &&
+              ally.action.targetId === obj.id)) &&
           hp(ally) > 0.5 &&
           ally.action.kind !== 'RECALL' &&
           !info.own[ally.id]?.busy &&
           reachable(input, ally.position, obj.position) / ally.moveSpeed <
-            15 + policy.coordination * 8,
+            (input.rules.macroAi === 'COORDINATED_V2'
+              ? coordinatedArrivalLimit(input, ally)
+              : 15 + policy.coordination * 8),
       );
       const nearby = joiners.filter(
         (ally) => distance(ally.position, obj.position) < 1000,
@@ -1083,16 +1126,10 @@ export function planBattleActors(
     let lane = actorLane(actor.input.position);
     if (macro) {
       lane = laneScores[0].lane;
-      if (actor.input.position === 'TOP' && laneScores[1].target)
-        lane = laneScores[1].lane;
+      if (splitting && laneScores[1].target) lane = laneScores[1].lane;
     }
     const ownRotation = actor.plan?.siegeLane;
-    if (
-      macro &&
-      actor.input.position === 'TOP' &&
-      ownRotation &&
-      ownRotation.expiresAtMs > now
-    ) {
+    if (macro && splitting && ownRotation && ownRotation.expiresAtMs > now) {
       const previous = laneScores.find(
         (row) =>
           row.lane === ownRotation.lane &&
@@ -1155,7 +1192,9 @@ export function planBattleActors(
         !!actor.plan?.siegeLane ||
         allies.filter(
           (ally) =>
-            ally.input.position !== 'TOP' &&
+            (coordination
+              ? ally.id !== coordination.splitActorId
+              : ally.input.position !== 'TOP') &&
             ally.id !== actor.id &&
             hp(ally) > 0.5 &&
             ally.action.kind !== 'RECALL' &&
@@ -1209,7 +1248,7 @@ export function planBattleActors(
           now,
           'SIEGE',
           point,
-          `${actor.input.position === 'TOP' ? 'Side pressure' : 'Rotate with team'} to ${lane}; wave/structure state, not elapsed-minute teleport`,
+          `${splitting ? 'Side pressure' : 'Rotate with team'} to ${lane}; wave/structure state, not elapsed-minute teleport`,
         ),
         lane,
         target.id,

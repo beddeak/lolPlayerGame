@@ -4,6 +4,14 @@ import {
 } from '../../../scripts/run-tactical-series-lab';
 
 describe('full tactical series laboratory CLI', () => {
+  it('explicitly selects the new pinned AI without changing historical default fixtures', () => {
+    expect(parseTacticalSeriesOptions(['--coordinated']).coordinated).toBe(
+      true,
+    );
+    expect(() =>
+      parseTacticalSeriesOptions(['--coordinated', '--coordinated']),
+    ).toThrow();
+  });
   it('defaults to bounded BO5, without starting a game during parsing', () => {
     expect(parseTacticalSeriesOptions([])).toEqual({
       seed: 123,
@@ -53,6 +61,7 @@ describe('full tactical series laboratory CLI', () => {
       minutes: 1,
       bestOf: 5,
       verifyResume: true,
+      coordinated: true,
     });
     expect(report.status).toBe('INCOMPLETE');
     expect(report.completedSets).toBe(0);

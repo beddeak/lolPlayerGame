@@ -304,7 +304,7 @@ async function main() {
     global.document = previous;
   }
 }
-async function championFlow(tactical = false) {
+async function championFlow(tactical = false, lostGameResponse = false) {
   const previous = global.document;
   global.document = {body:{style:{overflow:'auto'}}};
   function Champions(){return null;}
@@ -313,19 +313,25 @@ async function championFlow(tactical = false) {
   const assignments={BLUE:Object.fromEntries(entries.map(e=>[e.position,e.championId])),RED:Object.fromEntries(entries.map((e,i)=>[e.position,`enemy-${i}`]))};
   const series={seriesId:9,nextGameNumber:1,games:[],status:'IN_PROGRESS',bestOf:3,teams:[{teamId:1,teamCode:'A',wins:0},{teamId:2,teamCode:'B',wins:0}]};
   const draft={version:3,gameNumber:1,actions:Array.from({length:20},()=>({})),deadline:new Date(Date.now()+30000).toISOString(),serverNow:Date.now(),completed:true,blue:{id:1},red:{id:2},managedTeamId:1,assignments,assignmentsConfirmed:false,assignmentRevision:0};
-  let lineupPosts=0,simulatePosts=0;const waiting=deferred();
+  let lineupPosts=0,simulatePosts=0,lostSeriesFetch=false;const waiting=deferred();
   const clone=x=>JSON.parse(JSON.stringify(x));
   const view=harness('MatchFlowDialog.tsx',{career:{teams:[{id:1},{id:2}]},token:'owner',flow:{series:clone(series),fixturePath:'/fixture/19'},onClose(){}},async(url,o)=>{
     if(url==='/drafts/catalog')return {version:1,turnSeconds:30,variants:[],champions:[],turns:[]};
-    if(url==='/match-series/9')return clone(series);
+    if(url==='/match-series/9'){
+      if(lostGameResponse==='series'&&simulatePosts===1&&!lostSeriesFetch){lostSeriesFetch=true;throw new Error('Game response lost while reading saved series');}
+      return clone(series);
+    }
     if(url.endsWith('/lineup')){
       lineupPosts++;assert.deepEqual(o.body,{expectedRevision:0,entries});await waiting.promise;
       draft.assignmentsConfirmed=true;draft.assignmentRevision=1;
       throw new Error('Response lost after commit');
     }
     if(url==='/fixture/19/games/simulate'){
-      simulatePosts++;series.games.push({matchId:1,seriesGameNumber:1,durationMinutes:30,winnerTeamId:1,...(tactical?{tacticalReplay:{engineVersion:'tactical-core-3'}}:{}),
-        teams:[1,2].map(id=>({teamId:id,teamCode:String(id),playerStats:[{careerPlayerId:id,position:'MID',kills:1,deaths:1,assists:0}]}))});series.nextGameNumber=2;return {};
+      simulatePosts++;assert.equal(o.body.gameNumber,1,'Retry must retain the original set number');
+      if(!series.games.length)series.games.push({matchId:1,seriesGameNumber:1,durationMinutes:30,winnerTeamId:1,...(tactical?{tacticalReplay:{engineVersion:'tactical-core-3'}}:{}),
+        teams:[1,2].map(id=>({teamId:id,teamCode:String(id),playerStats:[{careerPlayerId:id,position:'MID',kills:1,deaths:1,assists:0}]}))});series.nextGameNumber=2;
+      if(lostGameResponse===true&&simulatePosts===1)throw new Error('Game response lost after commit');
+      return {};
     }
     if(/\/drafts\/1$/.test(url))return clone(draft);
     throw new Error(`Unexpected ${url}`);
@@ -339,15 +345,20 @@ async function championFlow(tactical = false) {
     waiting.resolve();await settle();view.render();assert.match(board().live.error,/Response lost/);
     board().live.onReload();await settle();view.render();assert.equal(board().live.assignmentsConfirmed,true);assert.equal(lineupPosts,1,'Read recovery must not replay a committed lineup');
     board().live.onPlay();board().live.onPlay();await settle();view.render();assert.equal(simulatePosts,1);
+    if(lostGameResponse){
+      assert.match(board().live.error,/Game response lost/);
+      board().live.onReload();board().live.onReload();await settle();view.render();
+      assert.equal(simulatePosts,2,'Only one idempotent same-set retry');assert.equal(series.games.length,1);
+    }
     const spectator=view.nodes().find(n=>n.type.name===(tactical?'TacticalMatchViewer':'MatchSpectator'));assert.ok(spectator,'saved set opens correct engine spectator before results');
     if(tactical){assert.equal(spectator.props.matchId,1);assert.equal(spectator.props.token,'owner');}
     assert.ok(!view.nodes().some(n=>n.type===Report||n.type.name==='DraftBackgroundMusic'),'no result spoilers/draft BGM during viewing');
     spectator.props.onClose();view.render();assert.ok(view.nodes().some(n=>n.type===Report));
-    assert.equal(simulatePosts,1,'skip viewing only changes the UI, never repeats simulation');
-    console.log(`Champion match flow passed (${tactical?'tactical':'legacy'}): v3 view routing, confirm-before-play, stale revision, response recovery, one simulation, spectator before report and read-only skip.`);
+    assert.equal(simulatePosts,lostGameResponse?2:1,'skip viewing only changes the UI, never repeats simulation');
+    console.log(`Champion match flow passed (${tactical?'tactical':'legacy'}${lostGameResponse?', lost game response':''}): v3 view routing, confirm-before-play, stale revision, response recovery, one saved game, spectator before report and read-only skip.`);
   }finally{view.unmount();global.document=previous;}
 }
-main().then(()=>championFlow()).then(()=>championFlow(true)).catch((error) => {
+main().then(()=>championFlow()).then(()=>championFlow(true)).then(()=>championFlow(true,true)).then(()=>championFlow(true,'series')).catch((error) => {
   console.error(error);
   process.exitCode = 1;
 });

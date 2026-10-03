@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { apiRequest } from './api';
-import { advancePlayback, cursorKey, eventsAt, frameAt, playbackTime, readCursor, replayChunkAt, tacticalClock, tacticalMetric, writeCursor, type TacticalChunk, type TacticalEvent, type TacticalManifest, type TacticalRun } from './tactical-replay';
+import { advancePlayback, cursorKey, eventsAt, frameAt, parseTacticalChunk, parseTacticalRun, playbackTime, readCursor, replayChunkAt, tacticalClock, tacticalMetric, writeCursor, type TacticalChunk, type TacticalEvent, type TacticalManifest, type TacticalRun } from './tactical-replay';
 import './MatchSpectator.css';
 import './TacticalMatchViewer.css';
 
@@ -45,6 +45,8 @@ export default function TacticalMatchViewer({ careerId, matchId, token, onClose 
   const expectedChunk = manifest && descriptor ? `${manifest.inputHash}:${descriptor.index}:${descriptor.hash}` : '';
   const [loadedChunk, setLoadedChunk] = useState('');
   const frame = chunk && expectedChunk === loadedChunk ? frameAt(chunk, time) : null;
+  const hasFrame = !!frame;
+  const durationMs = manifest?.durationMs ?? null;
   const ended = !!manifest && time >= manifest.durationMs;
   const finalFrame = !!manifest && !!frame && ended && frame.atMs === manifest.durationMs;
   function persistCursor() {
@@ -56,10 +58,7 @@ export default function TacticalMatchViewer({ careerId, matchId, token, onClose 
     busyRef.current = true;
     setBusy(true); setError('');
     try {
-      const value = await apiRequest<TacticalRun>(path, { token });
-      if (value.matchId !== matchId) throw new Error('다른 경기의 기록이 반환되었습니다.');
-      if (value.manifest && (value.manifest.schemaVersion !== 1 || value.manifest.replayVersion !== 'tactical-replay-1' || value.manifest.interpolation !== 'STEP'))
-        throw new Error('지원하지 않는 리플레이 버전입니다. 경기 결과는 보존되어 있습니다.');
+      const value = parseTacticalRun(await apiRequest<unknown>(path, { token }), matchId);
       if (alive.current) setRun(value);
     } catch (reason) {
       if (alive.current) setError(reason instanceof Error ? reason.message : '경기 기록을 불러오지 못했습니다.');
@@ -118,10 +117,9 @@ export default function TacticalMatchViewer({ careerId, matchId, token, onClose 
     setChunkError('');
     const cached = chunks.current.get(expectedChunk);
     if (cached) { setChunk(cached); setLoadedChunk(expectedChunk); return; }
-    void apiRequest<TacticalChunk>(`${path}/chunks/${descriptor.index}`, { token }).then(value => {
+    void apiRequest<unknown>(`${path}/chunks/${descriptor.index}`, { token }).then(payload => {
       if (!current || !alive.current) return;
-      if (value.schemaVersion !== 1 || value.inputHash !== manifest.inputHash || value.index !== descriptor.index)
-        throw new Error('다른 경기의 리플레이 구간이 반환되었습니다.');
+      const value = parseTacticalChunk(payload, manifest, descriptor);
       chunks.current.set(expectedChunk, value);
       while (chunks.current.size > 3) chunks.current.delete(chunks.current.keys().next().value!);
       setChunk(value); setLoadedChunk(expectedChunk);
@@ -132,14 +130,14 @@ export default function TacticalMatchViewer({ careerId, matchId, token, onClose 
   }, [expectedChunk, chunkRetry, path, token, manifest, descriptor]);
 
   useEffect(() => {
-    if (!playing || hidden || ended || !frame || !manifest) return;
+    if (!playing || hidden || ended || !hasFrame || durationMs === null) return;
     let last = performance.now();
     const timer = window.setInterval(() => {
       const now = performance.now(), elapsed = now - last; last = now;
-      setTime(value => advancePlayback(value, elapsed, speed, manifest.durationMs));
+      setTime(value => advancePlayback(value, elapsed, speed, durationMs));
     }, 50);
     return () => window.clearInterval(timer);
-  }, [playing, hidden, ended, !!frame, speed, manifest?.durationMs]);
+  }, [playing, hidden, ended, hasFrame, speed, durationMs]);
 
   const recent = frame && chunk ? eventsAt(chunk, frame).slice(-8).reverse() : [];
   const winner = finalFrame && run?.status === 'FINISHED'

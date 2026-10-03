@@ -1,7 +1,9 @@
 import { performance } from 'node:perf_hooks';
+import { verifyBattleState } from './run-battle-lab';
 import type { FirstSelection } from '../src/drafts/draft-state';
 import type { SimpleMatchTeamInput } from '../src/matches/simulation/simple-match.types';
 import { createBattleRuleset } from '../src/matches/simulation-v2/battle-rules';
+import { CURRENT_MACRO_AI } from '../src/matches/simulation-v2/contracts';
 import { runUntil, startSimulation } from '../src/matches/simulation-v2/engine';
 import { canonicalHash } from '../src/matches/simulation-v2/seeded-rng';
 import {
@@ -23,9 +25,10 @@ export interface TacticalSeriesOptions {
   minutes: number;
   bestOf: 1 | 3 | 5;
   verifyResume: boolean;
+  coordinated?: boolean;
 }
 const USAGE =
-  'Usage: npm run sim:series -- [--seed 0..4294967295] [--minutes 1..60] [--best-of 1|3|5] [--verify-resume]';
+  'Usage: npm run sim:series -- [--seed 0..4294967295] [--minutes 1..60] [--best-of 1|3|5] [--verify-resume] [--coordinated]';
 
 export function parseTacticalSeriesOptions(
   args: string[],
@@ -39,10 +42,22 @@ export function parseTacticalSeriesOptions(
   const seen = new Set<string>();
   for (let i = 0; i < args.length; i++) {
     const flag = args[i];
-    if (!['--seed', '--minutes', '--best-of', '--verify-resume'].includes(flag))
+    if (
+      ![
+        '--seed',
+        '--minutes',
+        '--best-of',
+        '--verify-resume',
+        '--coordinated',
+      ].includes(flag)
+    )
       throw new Error(`Unknown argument ${flag}. ${USAGE}`);
     if (seen.has(flag)) throw new Error(`Repeated argument ${flag}. ${USAGE}`);
     seen.add(flag);
+    if (flag === '--coordinated') {
+      result.coordinated = true;
+      continue;
+    }
     if (flag === '--verify-resume') {
       result.verifyResume = true;
       continue;
@@ -76,9 +91,11 @@ export function runTacticalSeriesLab(
     '--best-of',
     String(options.bestOf),
     ...(options.verifyResume ? ['--verify-resume'] : []),
+    ...(options.coordinated ? ['--coordinated'] : []),
   ]);
   const template = createLabInput(verified.seed);
   template.rules = createBattleRuleset();
+  if (verified.coordinated) template.rules.macroAi = CURRENT_MACRO_AI;
   const teams = template.teams.map((team) =>
     structuredClone(team.sourceTeam!),
   ) as [SimpleMatchTeamInput, SimpleMatchTeamInput];
@@ -150,7 +167,12 @@ export function runTacticalSeriesLab(
       at += 30_000
     ) {
       runUntil(game, at);
-      if (verified.verifyResume && saved === null && game.status === 'RUNNING')
+      if (
+        verified.verifyResume &&
+        saved === null &&
+        game.status === 'RUNNING' &&
+        game.simTimeMs >= Math.min(900_000, target / 2)
+      )
         saved = JSON.parse(
           JSON.stringify(checkpoint(game)),
         ) as SimulationCheckpoint;
@@ -161,6 +183,7 @@ export function runTacticalSeriesLab(
     }
     const simulationWallMs =
       Math.round((performance.now() - runStart) * 100) / 100;
+    verifyBattleState(game);
     let resumeVerified = false;
     if (saved && game.status !== 'ERROR') {
       const resumed = restoreCheckpoint(saved);

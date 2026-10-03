@@ -1,23 +1,13 @@
-import { MigrationInterface, QueryRunner, Table, TableColumn } from 'typeorm';
+import { MigrationInterface, QueryRunner, Table } from 'typeorm';
 
 export class TacticalReplays1789768800000 implements MigrationInterface {
   name = 'TacticalReplays1789768800000';
 
   async up(runner: QueryRunner): Promise<void> {
-    await runner.changeColumn(
-      'match_player_stats',
-      'gold',
-      new TableColumn({ name: 'gold', type: 'double' }),
-    );
-    await runner.changeColumn(
-      'match_player_stats',
-      'gdAt15',
-      new TableColumn({ name: 'gdAt15', type: 'double', isNullable: true }),
-    );
-    await runner.changeColumn(
-      'match_player_stats',
-      'csdAt15',
-      new TableColumn({ name: 'csdAt15', type: 'smallint', isNullable: true }),
+    // MySQL QueryRunner.changeColumn drops/re-adds columns when their type
+    // changes. MODIFY converts in place and preserves historical match values.
+    await runner.query(
+      'ALTER TABLE `match_player_stats` MODIFY COLUMN `gold` double NOT NULL, MODIFY COLUMN `gdAt15` double NULL, MODIFY COLUMN `csdAt15` smallint NULL',
     );
     await runner.createTable(
       new Table({
@@ -119,20 +109,8 @@ export class TacticalReplays1789768800000 implements MigrationInterface {
       );
     await runner.dropTable('match_tactical_chunks');
     await runner.dropTable('match_tactical_runs');
-    await runner.changeColumn(
-      'match_player_stats',
-      'gold',
-      new TableColumn({ name: 'gold', type: 'int', unsigned: true }),
-    );
-    await runner.changeColumn(
-      'match_player_stats',
-      'gdAt15',
-      new TableColumn({ name: 'gdAt15', type: 'smallint' }),
-    );
-    await runner.changeColumn(
-      'match_player_stats',
-      'csdAt15',
-      new TableColumn({ name: 'csdAt15', type: 'smallint' }),
+    await runner.query(
+      'ALTER TABLE `match_player_stats` MODIFY COLUMN `gold` int UNSIGNED NOT NULL, MODIFY COLUMN `gdAt15` smallint NOT NULL, MODIFY COLUMN `csdAt15` smallint NOT NULL',
     );
   }
 }

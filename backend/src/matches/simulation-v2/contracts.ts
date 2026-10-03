@@ -17,6 +17,9 @@ import type { RoleQuestRules, RoleQuestState } from './role-quests';
 export type Side = 'BLUE' | 'RED';
 export type Lane = 'TOP' | 'MID' | 'BOT';
 export type SimPosition = 'TOP' | 'JUNGLE' | 'MID' | 'ADC' | 'SUPPORT';
+export const CURRENT_MACRO_AI = 'COORDINATED_V2';
+export type MacroAiPolicy =
+  'LEGACY' | 'COORDINATED_V1' | typeof CURRENT_MACRO_AI;
 export interface Point {
   x: number;
   y: number;
@@ -61,6 +64,8 @@ export interface UnitTemplate {
   cs: number;
 }
 export interface Ruleset {
+  /** Missing means the original core-3 decisions, including saved checkpoints. */
+  macroAi?: Exclude<MacroAiPolicy, 'LEGACY'>;
   environment?: EnvironmentRules;
   vision?: VisionRules;
   abilities?: AbilityRules;

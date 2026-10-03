@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const { loadSource } = require('./load-source.cjs');
 const { harness } = require('./check-legend-ui.cjs');
 const helpers = loadSource('tactical-replay');
-const { frameAt, eventsAt, replayChunkAt, advancePlayback, cursorKey, readCursor, tacticalMetric } = helpers;
+const { frameAt, eventsAt, replayChunkAt, advancePlayback, cursorKey, readCursor, tacticalMetric, parseTacticalRun, parseTacticalChunk } = helpers;
 const clone = value => JSON.parse(JSON.stringify(value));
 
 function fixture(matchId = 17) {
@@ -33,6 +33,31 @@ function fixture(matchId = 17) {
 async function main() {
   const data = fixture();
   const initial = JSON.stringify(data);
+  assert.equal(parseTacticalRun(data.run, 17), data.run, 'valid records retain their references');
+  assert.equal(parseTacticalChunk(data.chunks[0], data.run.manifest, data.run.manifest.chunks[0]), data.chunks[0]);
+  for (const change of [
+    value => { delete value.manifest.chunks; },
+    value => { value.manifest.chunks = []; },
+    value => { value.manifest.durationMs = NaN; },
+    value => { value.manifest.map.lanes.MID = null; },
+    value => { value.manifest.actors[0].position = {}; },
+    value => { value.manifest.report.players = null; },
+    value => { value.manifest.chunks[1].fromMs = 1000; },
+  ]) {
+    const corrupt = clone(data.run); change(corrupt);
+    assert.throws(() => parseTacticalRun(corrupt, 17), /손상|호환/, 'malformed manifest is rejected before rendering');
+  }
+  for (const change of [
+    value => { value.frames = []; },
+    value => { value.frames[0].actors[0].position = null; },
+    value => { value.frames[0].actors[0].hp = Infinity; },
+    value => { value.frames[1].atMs = 0; },
+    value => { value.frames[0].teams = null; },
+    value => { value.events[0].kind = {}; },
+  ]) {
+    const corrupt = clone(data.chunks[0]); change(corrupt);
+    assert.throws(() => parseTacticalChunk(corrupt, data.run.manifest, data.run.manifest.chunks[0]), /손상|호환/);
+  }
   assert.equal(frameAt(data.chunks[0], -1), null, 'no future first frame');
   assert.equal(frameAt(data.chunks[0], 999).atMs, 0);
   assert.equal(frameAt(data.chunks[0], 1000).atMs, 1000);
@@ -128,12 +153,40 @@ async function main() {
     await mount(view); slider(view).props.onChange({ target: { value: '2500' } }); html = await mount(view);
     assert.match(html, /다른 경기의 리플레이 구간/); assert.doesNotMatch(html, /HP 400/);
     view.unmount();
+    storage.clear();
+    let manifestAttempts = 0;
+    view = makeView(props, async (path, options) => {
+      const value = await request(path, options);
+      if (!path.includes('/chunks/') && ++manifestAttempts === 1) delete value.manifest.chunks;
+      return value;
+    });
+    html = await mount(view);
+    assert.match(html, /리플레이 정보가 손상/);
+    assert.ok(view.button('닫기'), 'malformed manifest leaves the close action usable');
+    assert.doesNotMatch(html, /HP 500/, 'malformed manifest never enters the renderer');
+    view.button('서버 기록 새로고침').props.onClick(); html = await mount(view);
+    assert.match(html, /HP 500/); assert.doesNotMatch(html, /리플레이 정보가 손상/);
+    view.unmount();
+    storage.clear();
+    let chunkAttempts = 0;
+    view = makeView(props, async (path, options) => {
+      const value = await request(path, options);
+      if (path.endsWith('/chunks/0') && ++chunkAttempts === 1) value.frames = [];
+      return value;
+    });
+    html = await mount(view);
+    assert.match(html, /리플레이 구간이 손상/);
+    assert.ok(view.button('닫기')); assert.ok(view.button('구간 다시 불러오기'));
+    view.button('구간 다시 불러오기').props.onClick(); html = await mount(view);
+    assert.equal(chunkAttempts, 2, 'invalid chunk is not cached');
+    assert.match(html, /HP 500/); assert.doesNotMatch(html, /리플레이 구간이 손상/);
+    view.unmount();
     const incomplete = clone(data.run); incomplete.status = 'HORIZON_REACHED'; incomplete.manifest.status = 'HORIZON_REACHED'; incomplete.manifest.winnerTeamId = null;
     view = makeView(props, async (path, options) => path.includes('/chunks/') ? request(path, options) : incomplete);
     await mount(view); view.button('도달 시점 통계').props.onClick(); html = await mount(view);
     assert.match(html, /미완료 경기/); assert.doesNotMatch(html, /ALPHA 승리/);
     view.button('닫기').props.onClick(); assert.equal(closed, 1);
-    console.log('Tactical replay passed: shared snapshot clock, future-event filtering, read-only controls, chunk boundaries/cache, pause/speed/visibility, reconnect and set/engine isolation, finite/null report metrics, incomplete result handling (controlled rendering).');
+    console.log('Tactical replay passed: shared snapshot clock, future-event filtering, read-only controls, chunk boundaries/cache, pause/speed/visibility, reconnect and set/engine isolation, malformed manifest/chunk rejection and retry, finite/null report metrics, incomplete result handling (controlled rendering).');
   } finally {
     view?.unmount(); global.window = previous.window; global.document = previous.document; global.performance = previous.performance;
   }

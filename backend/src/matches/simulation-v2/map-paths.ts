@@ -4,6 +4,43 @@ export type { MapDefinition } from './contracts';
 const CORNER_CLEARANCE = 1;
 const EPSILON = 1e-9;
 
+interface CornerGraph {
+  corners: Point[];
+  costs: number[][];
+}
+// Only immutable geometry is cached. No actor/world decisions or mutable maps
+// enter this cache; a JSON resume builds the same graph with the same tie order.
+const cornerGraphs = new WeakMap<MapDefinition, CornerGraph>();
+
+function cornerGraph(map: MapDefinition): CornerGraph {
+  const prior = cornerGraphs.get(map);
+  if (prior) return prior;
+  const corners = map.walls
+    .flatMap((wall) => [
+      { x: wall.x1 - CORNER_CLEARANCE, y: wall.y1 - CORNER_CLEARANCE },
+      { x: wall.x1 - CORNER_CLEARANCE, y: wall.y2 + CORNER_CLEARANCE },
+      { x: wall.x2 + CORNER_CLEARANCE, y: wall.y1 - CORNER_CLEARANCE },
+      { x: wall.x2 + CORNER_CLEARANCE, y: wall.y2 + CORNER_CLEARANCE },
+    ])
+    .filter((point) => isWalkable(map, point))
+    .sort((a, b) => a.x - b.x || a.y - b.y);
+  const graph = {
+    corners,
+    costs: corners.map((from) =>
+      corners.map((to) =>
+        hasLineOfSight(map, from, to) ? distance(from, to) : Infinity,
+      ),
+    ),
+  };
+  if (
+    Object.isFrozen(map) &&
+    Object.isFrozen(map.walls) &&
+    map.walls.every(Object.isFrozen)
+  )
+    cornerGraphs.set(map, graph);
+  return graph;
+}
+
 /** An explicitly approximate map, not Riot's collision mesh or map units. */
 export function createMap(): MapDefinition {
   const blue = { x: 700, y: 9300 };
@@ -125,16 +162,8 @@ export function findPath(
   if (from.x === to.x && from.y === to.y) return [];
   if (hasLineOfSight(map, from, to)) return [{ ...to }];
 
-  const corners = map.walls
-    .flatMap((wall) => [
-      { x: wall.x1 - CORNER_CLEARANCE, y: wall.y1 - CORNER_CLEARANCE },
-      { x: wall.x1 - CORNER_CLEARANCE, y: wall.y2 + CORNER_CLEARANCE },
-      { x: wall.x2 + CORNER_CLEARANCE, y: wall.y1 - CORNER_CLEARANCE },
-      { x: wall.x2 + CORNER_CLEARANCE, y: wall.y2 + CORNER_CLEARANCE },
-    ])
-    .filter((point) => isWalkable(map, point))
-    .sort((a, b) => a.x - b.x || a.y - b.y);
-  const nodes = [from, to, ...corners];
+  const graph = cornerGraph(map);
+  const nodes = [from, to, ...graph.corners];
   const costs = nodes.map(() => Infinity);
   const previous = nodes.map(() => -1);
   const visited = new Set<number>();
@@ -160,13 +189,14 @@ export function findPath(
     }
     visited.add(current);
     for (let next = 0; next < nodes.length; next++) {
-      if (
-        visited.has(next) ||
-        !hasLineOfSight(map, nodes[current], nodes[next])
-      ) {
-        continue;
-      }
-      const cost = costs[current] + distance(nodes[current], nodes[next]);
+      if (visited.has(next)) continue;
+      const edge =
+        current >= 2 && next >= 2
+          ? graph.costs[current - 2][next - 2]
+          : hasLineOfSight(map, nodes[current], nodes[next])
+            ? distance(nodes[current], nodes[next])
+            : Infinity;
+      const cost = costs[current] + edge;
       if (cost < costs[next]) {
         costs[next] = cost;
         previous[next] = current;

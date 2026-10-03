@@ -1,4 +1,4 @@
-import { buildCareerEngineInput } from './career-input';
+import { buildCareerEngineInput, careerMacroAi } from './career-input';
 import { createLabInput } from './test-fixtures';
 import { canonicalHash } from './seeded-rng';
 import type { SimpleMatchTeamInput } from '../simulation/simple-match.types';
@@ -14,6 +14,33 @@ const options = (seed = 123) => ({
 });
 
 describe('career input and legal automatic drafting', () => {
+  it('pins coordinated AI for new matches but can build an old series without changing its input format', () => {
+    const modern = buildCareerEngineInput(options());
+    expect(modern.input.rules.macroAi).toBe('COORDINATED_V2');
+    const legacy = buildCareerEngineInput({
+      ...options(),
+      macroAi: 'LEGACY',
+      draft: modern.draft,
+    });
+    expect(legacy.input.rules).not.toHaveProperty('macroAi');
+    const normalized = structuredClone(modern.input);
+    delete normalized.rules.macroAi;
+    expect(canonicalHash(normalized)).toBe(canonicalHash(legacy.input));
+    expect(Object.isFrozen(modern.input.rules)).toBe(true);
+    const previous = buildCareerEngineInput({
+      ...options(),
+      macroAi: 'COORDINATED_V1',
+      draft: modern.draft,
+    });
+    const normalizedV1 = structuredClone(modern.input);
+    normalizedV1.rules.macroAi = 'COORDINATED_V1';
+    expect(canonicalHash(normalizedV1)).toBe(canonicalHash(previous.input));
+    expect(careerMacroAi([previous.input])).toBe('COORDINATED_V1');
+    expect(careerMacroAi([modern.input])).toBe('COORDINATED_V2');
+    expect(() => careerMacroAi([previous.input, modern.input])).toThrow(
+      'incompatible',
+    );
+  });
   it('pins a deterministic full battle input from the actual ten starters', () => {
     const first = buildCareerEngineInput(options());
     const second = buildCareerEngineInput(options());

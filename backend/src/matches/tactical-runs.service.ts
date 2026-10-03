@@ -7,7 +7,7 @@ import {
 } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import { promisify } from 'node:util';
-import { gzip, gunzip } from 'node:zlib';
+import { gunzip } from 'node:zlib';
 import { DataSource, In } from 'typeorm';
 import { lockActiveManagerCareer } from '../manager-career/manager-access';
 import type { TeamStrategy } from '../careers/enums/team-strategy.enum';
@@ -20,20 +20,21 @@ import { MatchTacticalChunk } from './entities/match-tactical-chunk.entity';
 import { ENGINE_VERSION } from './simulation-v2/contracts';
 import { startSimulation, runUntil } from './simulation-v2/engine';
 import {
-  checkpoint,
   restoreCheckpoint,
   type SimulationCheckpoint,
 } from './simulation-v2/world-state';
 import { canonicalHash } from './simulation-v2/seeded-rng';
 import { buildReplayArchive } from './simulation-v2/replay';
-import { buildCareerEngineInput } from './simulation-v2/career-input';
+import {
+  buildCareerEngineInput,
+  careerMacroAi,
+} from './simulation-v2/career-input';
+import { checkpointDue, packTacticalCheckpoint } from './tactical-checkpoint';
 
-const compress = promisify(gzip);
 const decompress = promisify(gunzip);
 const yieldEventLoop = () =>
   new Promise<void>((resolve) => setImmediate(resolve));
 const LEASE_MS = 120_000;
-const CHECKPOINT_INTERVAL_MS = 60_000;
 
 /** Durable input/lease/checkpoint boundaries surround a yielding, DB-free core. */
 @Injectable()
@@ -83,7 +84,16 @@ export class TacticalRunsService implements OnModuleDestroy {
           .addSelect('run.input')
           .where('run.executionKey = :executionKey', { executionKey })
           .getOne();
-        if (current?.matchId || current?.status === 'FINISHED') return current;
+        // A committed Match is already idempotent. Uncommitted executions still
+        // feed their pinned input into career-result adaptation, so validate it
+        // even when a valid checkpoint or completed archive already exists.
+        if (current?.matchId) return current;
+        if (
+          current &&
+          (current.status === 'RUNNING' || current.status === 'FINISHED')
+        )
+          this.assertPinnedInput(current);
+        if (current?.status === 'FINISHED') return current;
         if (current && current.status !== 'RUNNING')
           throw this.incomplete(current);
         if (current && (current.leaseExpiresAt?.getTime() ?? 0) > Date.now())
@@ -121,6 +131,25 @@ export class TacticalRunsService implements OnModuleDestroy {
               leaseExpiresAt: null,
             }),
           );
+          let previous: MatchTacticalRun[] = [];
+          if (context) {
+            const previousMatches = await manager.find(Match, {
+              where: { seriesId: context.series.id },
+            });
+            if (previousMatches.length)
+              previous = await manager
+                .getRepository(MatchTacticalRun)
+                .createQueryBuilder('run')
+                .addSelect('run.input')
+                .where({
+                  matchId: In(previousMatches.map((match) => match.id)),
+                })
+                .getMany();
+          }
+          if (previous.some((played) => !played.input))
+            throw new ConflictException(
+              '이전 세트의 고정 경기 입력을 확인할 수 없습니다.',
+            );
           let built: ReturnType<typeof buildCareerEngineInput>;
           try {
             built = buildCareerEngineInput({
@@ -130,6 +159,7 @@ export class TacticalRunsService implements OnModuleDestroy {
               seriesId: context?.series.id,
               gameId: current.id,
               draft: context?.draft,
+              macroAi: careerMacroAi(previous.map((played) => played.input!)),
             });
           } catch (error) {
             throw new ConflictException(
@@ -141,41 +171,28 @@ export class TacticalRunsService implements OnModuleDestroy {
           current.input = built.input;
           current.draft = built.draft;
           current.inputHash = canonicalHash(current.input);
-          if (context) {
-            const previousMatches = await manager.find(Match, {
-              where: { seriesId: context.series.id },
-            });
-            if (previousMatches.length) {
-              const previous = await manager
-                .getRepository(MatchTacticalRun)
-                .createQueryBuilder('run')
-                .addSelect('run.input')
-                .where({
-                  matchId: In(previousMatches.map((match) => match.id)),
-                })
-                .getMany();
-              const environment = (
-                input: NonNullable<MatchTacticalRun['input']>,
-              ) =>
-                canonicalHash({
-                  engineVersion: input.engineVersion,
-                  catalogVersion: input.catalogVersion,
-                  balanceVersion: input.balanceVersion,
-                  rules: input.rules,
-                  map: input.map,
-                  meta: input.meta ?? null,
-                });
-              if (
-                previous.some(
-                  (played) =>
-                    !played.input ||
-                    environment(played.input) !== environment(built.input),
-                )
+          if (previous.length) {
+            const environment = (
+              input: NonNullable<MatchTacticalRun['input']>,
+            ) =>
+              canonicalHash({
+                engineVersion: input.engineVersion,
+                catalogVersion: input.catalogVersion,
+                balanceVersion: input.balanceVersion,
+                rules: input.rules,
+                map: input.map,
+                meta: input.meta ?? null,
+              });
+            if (
+              previous.some(
+                (played) =>
+                  !played.input ||
+                  environment(played.input) !== environment(built.input),
               )
-                throw new ConflictException(
-                  '시리즈 도중 엔진·룰셋·메타 버전이 변경되어 다음 세트를 시작할 수 없습니다.',
-                );
-            }
+            )
+              throw new ConflictException(
+                '시리즈 도중 엔진·룰셋·메타 버전이 변경되어 다음 세트를 시작할 수 없습니다.',
+              );
           }
         }
         if (current.engineVersion !== ENGINE_VERSION || !current.input)
@@ -199,6 +216,24 @@ export class TacticalRunsService implements OnModuleDestroy {
     } finally {
       this.activeJobs--;
     }
+  }
+
+  private assertPinnedInput(run: MatchTacticalRun): void {
+    let actualHash: string | null = null;
+    try {
+      if (run.input) actualHash = canonicalHash(run.input);
+    } catch {
+      // Preserve the original input/checkpoint for diagnosis, never re-hash
+      // corrupt data into a new accepted baseline or overwrite it on retry.
+    }
+    if (actualHash !== run.inputHash)
+      throw new ConflictException(
+        '저장된 경기 입력의 무결성을 확인할 수 없습니다. 기존 입력과 체크포인트는 보존됩니다.',
+      );
+    if (run.status === 'FINISHED' && run.manifest?.inputHash !== run.inputHash)
+      throw new ConflictException(
+        '저장된 경기 결과의 입력이 일치하지 않습니다. 기존 결과는 보존됩니다.',
+      );
   }
 
   private incomplete(run: MatchTacticalRun): ConflictException {
@@ -318,6 +353,7 @@ export class TacticalRunsService implements OnModuleDestroy {
       });
       let savedAtMs = state.simTimeMs;
       let heartbeatAt = Date.now();
+      let savedAtWallMs = heartbeatAt;
       while (state.status === 'RUNNING') {
         if (this.stopping)
           throw new Error(
@@ -330,12 +366,13 @@ export class TacticalRunsService implements OnModuleDestroy {
           ),
         );
         if (
-          state.simTimeMs - savedAtMs >= CHECKPOINT_INTERVAL_MS &&
+          checkpointDue(
+            state.simTimeMs - savedAtMs,
+            Date.now() - savedAtWallMs,
+          ) &&
           state.status === 'RUNNING'
         ) {
-          const saved = await compress(
-            Buffer.from(JSON.stringify(checkpoint(state))),
-          );
+          const saved = await packTacticalCheckpoint(state);
           const updated = await this.dataSource.manager.update(
             MatchTacticalRun,
             { id, leaseToken: token, status: 'RUNNING' },
@@ -349,6 +386,7 @@ export class TacticalRunsService implements OnModuleDestroy {
             throw new Error('Execution lease was lost');
           savedAtMs = state.simTimeMs;
           heartbeatAt = Date.now();
+          savedAtWallMs = heartbeatAt;
         } else if (Date.now() - heartbeatAt >= 5_000) {
           const updated = await this.dataSource.manager.update(
             MatchTacticalRun,
@@ -373,7 +411,7 @@ export class TacticalRunsService implements OnModuleDestroy {
       const diagnosticCheckpoint =
         state.status === 'FINISHED'
           ? null
-          : await compress(Buffer.from(JSON.stringify(checkpoint(state))));
+          : await packTacticalCheckpoint(state);
       await this.dataSource.transaction(async (manager) => {
         const current = await manager.findOne(MatchTacticalRun, {
           where: { id },

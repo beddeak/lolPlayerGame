@@ -1,6 +1,7 @@
 import { performance } from 'node:perf_hooks';
 import type { FirstSelection } from '../src/drafts/draft-state';
 import { createBattleRuleset } from '../src/matches/simulation-v2/battle-rules';
+import { CURRENT_MACRO_AI } from '../src/matches/simulation-v2/contracts';
 import { runUntil, startSimulation } from '../src/matches/simulation-v2/engine';
 import { canonicalHash } from '../src/matches/simulation-v2/seeded-rng';
 import {
@@ -42,6 +43,7 @@ if (requestedGame > options.bestOf)
   throw new Error('--game must not exceed --best-of');
 const template = createLabInput(options.seed);
 template.rules = createBattleRuleset();
+if (options.coordinated) template.rules.macroAi = CURRENT_MACRO_AI;
 const teams = template.teams.map((team) =>
   structuredClone(team.sourceTeam!),
 ) as [SimpleMatchTeamInput, SimpleMatchTeamInput];

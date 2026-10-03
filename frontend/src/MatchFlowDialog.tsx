@@ -93,6 +93,12 @@ export default function MatchFlowDialog({
     updateIntermission({ busy: false, ready: false, afterGameNumber: 0 });
     setReport(fresh);
   }
+  function showSavedGame(fresh: MatchSeries, gameNumber: number) {
+    showReport(fresh);
+    const game = fresh.games.find(value => value.seriesGameNumber === gameNumber);
+    if (game?.tacticalReplay) setTacticalMatch(game.matchId);
+    else setSpectator(game ? buildSpectatorReplay(game, currentCareer) : null);
+  }
   function acceptDraft(value: ServerDraft) {
     draftRef.current = value;
     setDraft(value);
@@ -132,24 +138,26 @@ export default function MatchFlowDialog({
     if (!alive.current) return;
     // An uncertain simulation is retried only with the SAME idempotent set key.
     // Draft action requests themselves are never replayed on a reload.
-    if (pendingGame.current !== null) {
+    const recoveringGame = pendingGame.current;
+    if (recoveringGame !== null) {
       await apiRequest(`${flow.fixturePath}/games/simulate`, {
         method: "POST",
         token,
-        body: { gameNumber: pendingGame.current },
+        body: { gameNumber: recoveringGame },
       });
       if (!alive.current) return;
-      pendingGame.current = null;
     }
     const fresh = await apiRequest<MatchSeries>(path, { token });
     if (!alive.current) return;
+    pendingGame.current = null;
     setSeries(fresh);
     gameRef.current = fresh.nextGameNumber;
     if (
       fresh.status === "COMPLETED" ||
       fresh.games.length > series.games.length
     ) {
-      showReport(fresh);
+      if (recoveringGame !== null) showSavedGame(fresh, recoveringGame);
+      else showReport(fresh);
       return;
     }
     const next = await apiRequest<ServerDraft>(
@@ -214,15 +222,12 @@ export default function MatchFlowDialog({
         body: { gameNumber },
       });
       if (!alive.current) return;
-      pendingGame.current = null;
       const fresh = await apiRequest<MatchSeries>(path, { token });
       if (!alive.current) return;
+      pendingGame.current = null;
       setSeries(fresh);
       gameRef.current = fresh.nextGameNumber;
-      showReport(fresh);
-      const game = fresh.games.find(g => g.seriesGameNumber === gameNumber) ?? fresh.games.at(-1);
-      if (game?.tacticalReplay) setTacticalMatch(game.matchId);
-      else setSpectator(game ? buildSpectatorReplay(game, currentCareer) : null);
+      showSavedGame(fresh, gameNumber);
     });
   };
   const choose = (choice?: SelectionChoice) => {

@@ -11,6 +11,7 @@ import { Match } from './match.entity';
 import type { EngineInput } from '../simulation-v2/contracts';
 import type { TacticalReplayManifest } from '../simulation-v2/replay';
 import type { TeamStrategy } from '../../careers/enums/team-strategy.enum';
+import { TACTICAL_JSON_TRANSFORMER } from '../tactical-json.transformer';
 
 export type TacticalRunStatus =
   'RUNNING' | 'FINISHED' | 'HORIZON_REACHED' | 'ERROR';
@@ -57,10 +58,15 @@ export class MatchTacticalRun {
   @Column({ type: 'varchar', length: 64 })
   inputHash!: string;
 
-  @Column({ type: 'json', nullable: true, select: false })
+  @Column({
+    type: 'longtext',
+    nullable: true,
+    select: false,
+    transformer: TACTICAL_JSON_TRANSFORMER,
+  })
   input!: EngineInput | null;
 
-  @Column({ type: 'json' })
+  @Column({ type: 'longtext', transformer: TACTICAL_JSON_TRANSFORMER })
   draft!: import('../../drafts/draft-state').DraftState;
 
   @Column({ type: 'json' })
@@ -81,7 +87,11 @@ export class MatchTacticalRun {
   @Column({ type: 'longblob', nullable: true, select: false })
   checkpoint!: Buffer | null;
 
-  @Column({ type: 'json', nullable: true })
+  @Column({
+    type: 'longtext',
+    nullable: true,
+    transformer: TACTICAL_JSON_TRANSFORMER,
+  })
   manifest!: TacticalReplayManifest | null;
 
   @Column({ type: 'varchar', length: 1000, nullable: true })
